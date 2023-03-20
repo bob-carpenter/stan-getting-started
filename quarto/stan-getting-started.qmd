@@ -1,0 +1,210 @@
+---
+title: "Getting Started with Stan"
+subtitle: "with Python, CmdStanPy, NumPy, SciPy, pandas, and plotnine"
+author: "Bob Carpenter"
+date: "March 20, 2023"
+format:
+  html:
+    mainfont: "Garamond"
+    number-sections: true
+    number-depth: 3
+    toc: true
+    toc-location: right
+    code-fold: true
+    css: style.css
+bibliography: references.bib
+---
+
+## Introduction
+
+The general problem of statistics is one of reasoning under uncertainty
+from limited and typically noisy observations.  There are many ways to
+go about applied statistics, but these notes are going to concentrate
+on Bayesian statistics, a form of statistical modeling and inference
+that is grounded in probability theory.  The key tenet of Bayesian
+statistics is that we can characterize our knowledge of the world in
+terms of probabilities (e.g., there is a 24.3% chance of rain after
+lunch today, the probability that the next baby born in the United
+states is male is 51\%).
+
+I wrote these notes in order to introduce two technical topics,
+Bayesian statistics (focusing on inference and model validation), and
+Stan, a probabilistic programming language which can be used to code
+models for applied Bayesian statistics.
+
+I will assume the reader is familiar with the basic notions of
+differential and integral calculus in multiple dimensions (e.g., the
+typical first- and second-year undergraduate sequence).  But don't
+worry, we only need calculus to define what we are computing---the
+actual calculations will all be done by Stan.  I will further assume
+that the reader is familiar with the basics of matrix operations like
+multiplication, inversion, and determinants (e.g., as taught in an
+intro to linear algebra class).  If you are not familiar with any of
+this math, this is a good opportunity to brush up on or learn some
+matrix algebra.
+
+I will further assume that the reader is familiar with basic notions
+of probability theory, including discrete and continuous densities,
+probability density and mass functions, cumulative distribution
+functions, and the basic rules of probability theory (e.g., as taught
+in an introduction to mathematical statistics).
+
+I will also assume the reader is familiar with basic Python numerical
+programming, including NumPy and SciPy (there are a lot of tutorials
+available online and in book form).  I'll be using [Python
+3](https://www.python.org/downloads/) with the
+[CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html) interface
+to Stan.  Click the links and follow the install instructions if you
+would like to follow along in code.
+
+
+## Bayesian statistics
+
+@bayes1763 introduced the paradigm of statistical inference that has
+come to be known as Bayesian statistics.  In retrospect, Bayes's idea
+is quite simple, involving four conceptually simple steps.
+
+1.  Define a parametric _sampling density_ $p(y \mid \theta)$ which
+describes how to generate observations $y$ given parameters $\theta$.
+2.  Define a _prior density_ $p(\theta)$ capturing what is known before
+observing new data.
+3.  Derive the _posterior density_ $p(\theta \mid y) \propto p(y \mid
+\theta) \cdot p(\theta)$ via Bayes's rule.
+4.  Evaluate _event probabilities_ conditioned on observed data $y$,
+such as $\textrm{Pr}[\textrm{cond}(\theta) \mid y]$ for some condition
+on the parameters by integrating over the posterior. 
+
+We work through an example end-to-end in the next section.  Bayes
+formalized his approach in the following theorem.
+
+::: {#thm-line}
+### Bayes's Theorem
+
+Given a joint density $p(y, \theta)$, the posterior density $p(\theta
+\mid y)$ can be defined in terms that only involve the prior
+$p(\theta)$ and sampling distribution $p(y \mid \theta)$, as
+$$
+p(\theta \mid y)
+\ = \
+\frac{p(y \mid \theta) \cdot p(\theta)}
+        {\int_{\Theta} \, p(y \mid \theta) \cdot p(\theta) \,
+	\textrm{d}\theta}.
+$$
+
+_Proof_:
+\begin{align}
+p(\theta \mid y)
+&=  \frac{p(y, \theta)}
+         {p(y)}
+& \textrm{[definition of conditional probability]}	 
+\\[6pt]
+&= \frac{p(y \mid \theta) \cdot p(\theta)}
+        {p(y)}
+& \textrm{[chain rule]}	
+\\[6pt]
+&= \frac{p(y \mid \theta) \cdot p(\theta)}
+        {\int_{\Theta} \, p(y, \theta) \, \textrm{d}\theta}
+& \textrm{[law of total probability]}
+\\[6pt]
+&= \frac{p(y \mid \theta) \cdot p(\theta)}
+        {\int_{\Theta} \, p(y \mid \theta) \cdot p(\theta) \,
+	\textrm{d}\theta}.
+& \textrm{[chain rule]}	
+\end{align}
+:::
+
+In most casses, Stan programs only require densities defined up to a
+normalizing constant.   This allows us to go a step further and drop
+the denominator $p(y)$, which does not depend on $\theta$.
+$$
+p(\theta \mid y)
+\ \propto \
+p(y \mid \theta) \cdot p(\theta).
+$$
+This lets us proceed with only a sampling distribution and prior
+defined through densities $p(y \mid \theta)$ and prior $p(\theta)$.
+
+
+## Laplace's problem: Male birth ratio
+
+Although Bayes was able to formulate the mathematical form of a
+solution to the _inverse problem_ of determining a posterior
+distributon with density $p(\theta \mid y)$ from a prior with density
+$p(\theta)$, a sampling distribution with density $p(y \mid \theta)$,
+and observed data $y$, he was not able to solve the integral presented
+in the denominator of his theorem and actually determine the form of
+the posterior.
+
+A decade later, @laplace1774 turned the crank and applied Bayes's
+theorem to an applied statistics problem, that of estimating the
+probability that its more likely for a boy to be born than a girl.  In
+this section, we will recreate Laplace's analysis using Stan.  We are
+going to start by building some scaffolding to work our way up to the
+problem formulation and computational solution.
+
+### Binomial sampling
+
+We're first going to consider simple binomial sampling in order to
+build up some intuitions.  Let's say we have 100 trials, each with a
+30% chance of success.  The 30% might represent a chance of rain and
+the result the number of days out of 100 that it actually rained; it
+might represent the chance of a drug improving a patient's condition
+with the result being the number of patients who improve; or, it might
+represent the chance of a successful penalty kick from a given
+position on a field, and the the total number representing the number
+of goals in 100 attempts.
+
+Consider generating 10, 100, 1000, and 10,000 trials a few times.
+That is, we'll repeat sampling 10 trials at a 30% chance of success,
+then 100 trials, and so on.  We first list the number of successes,
+followed by the frequency-based estimate of probabilities.
+
+```{python}
+import numpy as np
+np.random.seed(123)
+for trials in [10, 100, 1_000, 10_000]:
+   print(f"{trials} trials: ")
+   successes = np.random.binomial(n = trials, p = 0.3, size = 8)
+   print(*successes)
+   print(*(successes / trials))
+   print("")
+```
+
+We can see that our estimates range from 0.2 to 0.6 with only 10
+observations, whereas the scale narrows from 0.23 to 0.33 with 100
+trials, and then 0.284 to 0.308 with 1000, and finally to .2935 to
+0.3025 for 10,000 draws.
+
+Now let's see what that looks like as a histogram with 10,000
+repetitions.
+
+```{python}
+# avoids having return
+def mydraw(x):
+    x.draw()
+
+import plotnine as pn
+import numpy as np
+import pandas as pd
+from itertools import repeat
+
+np.random.seed(123)
+ts = []
+ps = []
+for trial_size in [10, 100, 1_000]: # , 10_000]:
+    ts.extend(repeat(trial_size, 100_000))
+    ps.extend(np.random.binomial(n = trial_size, p = 0.3, size = 100_000) / trial_size)
+df = pd.DataFrame({'Pr[success]': ps,
+                  'trials': ts})
+mydraw(
+    pn.ggplot(df, pn.aes(x = 'Pr[success]'))
+  + pn.geom_histogram(binwidth=0.01)
+  + pn.facet_grid('. ~ trials')
+)
+```
+
+
+
+
+
+
