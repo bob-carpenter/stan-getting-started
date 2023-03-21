@@ -1,10 +1,11 @@
 ---
 title: "Getting Started with Stan"
-subtitle: "with Python, CmdStanPy, NumPy, SciPy, pandas, and plotnine"
+subtitle: "in Python with CmdStanPy and plotnine"
 author: "Bob Carpenter"
 date: "March 20, 2023"
 format:
   html:
+    highlight-style: arrow
     mainfont: "Garamond"
     number-sections: true
     number-depth: 3
@@ -57,6 +58,211 @@ available online and in book form).  I'll be using [Python
 to Stan.  Click the links and follow the install instructions if you
 would like to follow along in code.
 
+We include the following Python boilerplate to import packages,
+define our drawings, and filter noise out of plotnine's plots.
+
+```{python}
+# PROJECT SETUP
+import cmdstanpy as csp
+import numpy as np
+import pandas as pd
+import plotnine as pn
+import itertools
+import logging
+import warnings
+
+logging.getLogger('cmdstanpy').setLevel(logging.WARNING)
+
+warnings.filterwarnings( "ignore", module = "plotnine\..*" )
+
+def mydraw(x):
+    x.draw()
+```
+
+## Stan for forward simulation
+
+We're first going to consider simple binomial sampling in order to
+introduce Stan programs and how they're called and to develop some
+intuitions about estimation based on binary outcomes.
+
+Let's say we have 100 trials, each with a 30% chance of success. The
+30% might represent a chance of rain and the result the number of days
+out of 100 that it actually rained; it might represent the chance of a
+drug improving a patient's condition with the result being the number
+of patients who improve; or, it might represent the chance of a
+successful penalty kick from a given position on a field, and the the
+total number representing the number of goals in 100 attempts.
+
+In statistical sampling notation, we write
+$$
+Y \sim \textrm{binomial}(N, p)
+$$
+to indicate that the random variable $Y$ has a binomial distribution
+with $N \in \mathbb{N}$ trials, each with a $\theta \in [0, 1]$ chance
+of success. The value of the variable $Y$ will be the number of
+successes in $N$ trials with a probability $\theta$ of success. The
+probability mass function function for $Y$, written $p_Y$, is defined
+by
+$$
+p_Y(y \mid N, \theta)
+\, = \,
+\binom{N}{y} \cdot \theta^y \cdot (1 - \theta)^{N - y}.
+$$
+Unless necessary for disambiguation, we will drop the random variable
+subscripts on probability density or mass functions $p$ going forward.
+
+### A first Stan program
+
+Now lets say we wanted to generate random instantiations of $Y$ for
+given values of $N$ and $\theta$. We can do that using the following
+Stan program, which we will unpack line by line after its listing.
+
+```{.stan filename="stan/binomial-rng.stan"}
+data {
+  int<lower=0> N;
+  real<lower=0, upper=1> theta;
+}
+generated quantities {
+  int<lower=0, upper=N> y = binomial_rng(N, theta);
+}
+```
+
+The first thing to notice is that a Stan program is organized into
+blocks.  Here we have two blocks, a data block containing declarations
+of variables that must be input as data, and a generated quantities
+block, which not only declares variables, but assigns to them.
+
+The second thing to notice about a Stan program is that the variables
+are all declared with types. Stan uses _static typing_, which means
+that unlike Python or R, a variable's type is declared in the program
+before it is used rather than determined at run time based on what is
+assigned to it. Stan also uses _strong typing_, meaning that unlike C
+or C++, there is no way to get around the type restrictions and access
+memory directly.
+
+The program declares three variables, `N` and `y` of type `int`
+(integer), and `theta` of type `real`. In addition to the basic type,
+a type may also have constraints.  Because `N` is a count, it must be greater
+than or equal to zero, which we indicate with the bound `lower=0`.
+Similarly, the variable `y` is the number of successes out of `N`
+trials, so it must take on a value between 0 and `N` (inclusive); that
+is represented with the constraint `lower=0, upper=N`. Finally, the
+variable `theta` is real and declared to fall in the interval $[0, 1]$
+with the constraint `lower=0, upper=1`. Technically, our bounds are
+open for real values, but in practice, we might wind up with 0 or 1
+values due to underflow or rounding errors in floating point
+arithmetic.
+
+At run time, the Stan program must be given values for `N` and
+`theta`, at which point, each iteration it will sample a value of `y`
+using its built-in pseudorandom number generator. In code, we first
+define a dictionary for our data (vaiables `N` and `theta`), then
+construct an instance of `CmdStanModel` for our model from the path to
+its program, and finally sample from the model using the `sample`
+method of `CmdStanModel`.
+
+```{python}
+N = 100
+theta = 0.3
+data = {'N': N, 'theta': theta}
+model = csp.CmdStanModel(stan_file = '../stan/binomial-rng.stan')
+sample = model.sample(data = data, seed=123,
+                      iter_sampling = 10, iter_warmup = 0, chains = 1,
+                      show_progress = False, show_console = False)
+```
+
+In the `sample` method, we provide the data, the pseudorandom number
+generator seed (for reproducibility of this case study), the number of
+sampling iterations (10), the number of warmup iterations (0, because
+we are just generating which doesn't need any warmup), the number of
+Markov chains (1), and we turn off all the messages.  Our initial
+setup set the logger level to `WARNING` for the `cmdstanpy` package in
+order to get rid of the information-level messages
+that would otherwise clutter our display.
+
+The `sample` method returns a sample.  We can extract the draws for
+the variable `y` as an array and then print them along with our other variables.
+
+```{python}
+y = sample.stan_variable('y')
+print("N = ", N, " theta = ", theta, " y(0:10) =", *y.astype(int))
+```
+
+Let's put that in a lop and see what it looks like for 10, 100, 1000,
+and 10,000 trials.
+
+```{python}
+for N in [10, 100, 1_000, 10_000]:
+    data = {'N': N, 'theta': theta}
+    sample = model.sample(data = data, seed = 123,
+                          iter_sampling = 10, iter_warmup = 0, chains = 1,
+			  show_progress = False, show_console = False)
+    y = sample.stan_variable('y')
+    print("N =", N)
+    print("  y: ", *y.astype(int))
+    print("  est. theta: ", *(y / N))
+```
+
+We can see that our estimates range from 0.2 to 0.5 with only 10
+trials, whereas by the time we have 10,000 trials, the frequency-based
+estimates only vary between 0.292 and 0.309. We know from the _central
+limit theorem_ that the spread of estimates is expected to shrink at a
+rate of $\mathcal{O}(1 / sqrt{N})$ for $N$ draws.
+
+Now let's ramp up the number of simulated binomial draws to 10,000 and
+plot histograms of the estimated probability of success.  If we
+observe $y$ successes in $N$ trials, we can estimate the probability of
+success $\theta$ as $y / N$.  The following histogram plots the
+distribution of these estimates over 100,000 simulated trials.
+
+```{python}
+np.random.seed(123)
+ts = []
+ps = []
+theta = 0.3
+M = 100_000
+for N in [10, 100, 1_000]:
+    data = {'N': N, 'theta': theta}
+    sample = model.sample(data = data, seed = 123,
+                          iter_sampling = M, iter_warmup = 0, chains = 1,
+			  show_progress = False, show_console = False)
+    y = sample.stan_variable('y')
+    theta_hat = y / N
+    ps.extend(theta_hat)
+    ts.extend(itertools.repeat(N, M))
+xlabel = 'estimated Pr[success]'    
+df = pd.DataFrame({xlabel: ps, 'trials': ts})
+mydraw(
+    pn.ggplot(df, pn.aes(x = xlabel))
+  + pn.geom_histogram(binwidth=0.01)
+  + pn.facet_grid('. ~ trials')
+  + pn.scales.scale_x_continuous(limits = [0, 1], breaks = [0, 1/4, 1/2, 3/4, 1],
+                                 labels = ["0", "1/4", "1/2", "3/4", "1"],
+                                 expand=[0, 0])
+  + pn.scales.scale_y_continuous(expand=[0, 0, 0.05, 0])
+  + pn.theme(aspect_ratio = 1,
+             panel_spacing = 0.1,
+             strip_text = pn.element_text(size = 6),
+             strip_background = pn.element_rect(height=0.08, fill = "lightgray"),
+             axis_text_y = pn.element_blank(),
+             axis_ticks_major_y = pn.element_blank(),
+             axis_ticks_minor_y = pn.element_blank(),
+             axis_title_y = pn.element_blank(),
+             axis_text_x = pn.element_text(size = 6),
+             axis_title_x = pn.element_text(size = 8))
+)            
+```
+
+The trial size of 10 only has 10 possible values, 0.0, 0.1, ..., 1.0,
+so the histogram just shows the counts of those outcomes. Here, $y =
+3$ is the most prevalent result, with corresponding estimate for
+$\theta$ of $y / 10 = 0.3$. The trial size of 100 looks roughly
+normal, as it should as a binomial with trials $N = 100$. By the time
+we get to $N = 1,000$ trials, we see that the draws for $y$
+concentrating near 300, or near the estimated value of $0.3$ for $\theta$.
+As $N$ grows, the central limit theorem tells us to expect that the
+width of these histograms to shrink at a rate of $\mathcal{O}(1 /
+\sqrt{N})$. 
 
 ## Bayesian statistics
 
@@ -88,7 +294,7 @@ p(\theta \mid y)
 \ = \
 \frac{p(y \mid \theta) \cdot p(\theta)}
         {\int_{\Theta} \, p(y \mid \theta) \cdot p(\theta) \,
-	\textrm{d}\theta}.
+        \textrm{d}\theta}.
 $$
 
 _Proof_:
@@ -96,11 +302,11 @@ _Proof_:
 p(\theta \mid y)
 &=  \frac{p(y, \theta)}
          {p(y)}
-& \textrm{[definition of conditional probability]}	 
+& \textrm{[definition of conditional probability]}       
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
         {p(y)}
-& \textrm{[chain rule]}	
+& \textrm{[chain rule]} 
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
         {\int_{\Theta} \, p(y, \theta) \, \textrm{d}\theta}
@@ -108,10 +314,16 @@ p(\theta \mid y)
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
         {\int_{\Theta} \, p(y \mid \theta) \cdot p(\theta) \,
-	\textrm{d}\theta}.
-& \textrm{[chain rule]}	
+        \textrm{d}\theta}.
+& \textrm{[chain rule]} 
 \end{align}
+$\blacksquare$
 :::
+
+Bayes's theorem allows us to solve the so-called _inverse problem_ of
+inferring the posterior $p(\theta \mid y)$ when all we have is the
+sampling distribution $p(y \mid \theta)$, the prior $p(\theta)$, and
+some observed data $y$.
 
 In most casses, Stan programs only require densities defined up to a
 normalizing constant.   This allows us to go a step further and drop
@@ -121,8 +333,13 @@ p(\theta \mid y)
 \ \propto \
 p(y \mid \theta) \cdot p(\theta).
 $$
-This lets us proceed with only a sampling distribution and prior
-defined through densities $p(y \mid \theta)$ and prior $p(\theta)$.
+
+This lets us proceed with only an unnormalized sampling density $p(y
+\mid \theta)$ and unnormalized prior $p(\theta)$.  For some
+applications to model comparison we will need a normalizing sampling
+distribution $p(y \mid \theta)$ in order to make and compare
+probabilistic predictions. 
+
 
 
 ## Laplace's problem: Male birth ratio
@@ -135,76 +352,158 @@ and observed data $y$, he was not able to solve the integral presented
 in the denominator of his theorem and actually determine the form of
 the posterior.
 
-A decade later, @laplace1774 turned the crank and applied Bayes's
-theorem to an applied statistics problem, that of estimating the
-probability that its more likely for a boy to be born than a girl.  In
-this section, we will recreate Laplace's analysis using Stan.  We are
-going to start by building some scaffolding to work our way up to the
-problem formulation and computational solution.
+A decade later, @laplace1774 solved the integral that vexed Bayes and
+applied Bayes's ideas to the applied problem of estimating whether a
+boy is more likely to be born than a girl. Laplace gathered data on
+the sexes of babies in live births in Paris between 1745 and 1770.  
 
-### Binomial sampling
+sex | live births
+---:|:---
+female | 105,287
+male | 110,312
+: Live births in Paris between 1745 and 1770.
 
-We're first going to consider simple binomial sampling in order to
-build up some intuitions.  Let's say we have 100 trials, each with a
-30% chance of success.  The 30% might represent a chance of rain and
-the result the number of days out of 100 that it actually rained; it
-might represent the chance of a drug improving a patient's condition
-with the result being the number of patients who improve; or, it might
-represent the chance of a successful penalty kick from a given
-position on a field, and the the total number representing the number
-of goals in 100 attempts.
+This time we are going to write a slightly different Stan program.
+Rather than trying to generate data $y$ from a given $\theta$, we are
+going to observe $y$ and attempt to estimate $\theta$.  The Stan
+program to do this is as follows.
 
-Consider generating 10, 100, 1000, and 10,000 trials a few times.
-That is, we'll repeat sampling 10 trials at a 30% chance of success,
-then 100 trials, and so on.  We first list the number of successes,
-followed by the frequency-based estimate of probabilities.
-
-```{python}
-import numpy as np
-np.random.seed(123)
-for trials in [10, 100, 1_000, 10_000]:
-   print(f"{trials} trials: ")
-   successes = np.random.binomial(n = trials, p = 0.3, size = 8)
-   print(*successes)
-   print(*(successes / trials))
-   print("")
+```{.stan filename="stan/sex-ratio.stan"}
+data {
+  int<lower = 0> N;  // number of live births
+  int<lower = 0, upper = N> y;  // male births
+}
+parameters {
+  real<lower=0, upper=1> theta;  // chance of boy
+}
+model {
+  theta ~ uniform(0, 1);  // uniform prior
+  y ~ binomial(N, theta);  // binomial sampling
+}
+generated quantities {
+  int<lower=0, upper=1> boys_gt_girls = theta > 0.5;
+}
 ```
 
-We can see that our estimates range from 0.2 to 0.6 with only 10
-observations, whereas the scale narrows from 0.23 to 0.33 with 100
-trials, and then 0.284 to 0.308 with 1000, and finally to .2935 to
-0.3025 for 10,000 draws.
+In this Stan program, we see that both the number of total births `N`
+and the number of male births `y` are given as data.  Then there are
+two blocks we did not see in our earlier program, a parameters block,
+which is used for unknown, and a model block, which is where we define
+our prior and sampling distributions.  The parameters block
+declares the type of `theta`, which is a real value constrained to
+fall in the interval $[0, 1]$.  The model block defines the prior,
+which here we take to be uniform over the possible values for `theta`.
+It also defines the sampling distribution, which says that the
+observed data `y` was generated from a binomial distribution with `N`
+trials and `theta` probability of a male birth.  Finally, we have a
+generated quantities block that defines a single binary variable,
+`boys_gt_girls`.  This variable will take the value 1 if the
+probability of a boy is greater than the probability of a girl.  
 
-Now let's see what that looks like as a histogram with 10,000
-repetitions.
+When we run a Stan program, what Stan returns is a sequence of 
+$M$ random draws from the posterior,
+$$
+\theta^{(1)}, \ldots, \theta^{(M)} \sim p(\theta \mid y)
+$$
+What this notation means is that the marginal distribution of each
+$\theta^{(m)}$ is that of the posterior.  With draws from the
+posterior, we can plot histograms of $\theta$ or we can average the
+draws to produce a _Bayesian point estimate_ for $\theta$,
+\begin{align}
+\widehat{\theta}
+&= \mathbb{E}[\theta \mid y]
+\\[6pt]
+&= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta
+\\[6pt]
+&\approx \frac{1}{M} \sum_{m=1}^M \theta^{(m)}.
+\end{align}
+
+Because it involves sampling from the posterior, the resulting
+estimator is a _stochastic algorithm_. Stochastic algorithms can
+return a different result each time they are run, assuming we change
+the pseudorandom number generator seed (the seed completely determines
+the sequence of pseudorandom numbers generated). Stochastic algorithms
+are sometimes called _Monte Carlo algorithms_ in a nod toward the
+famous casino of the same name.
+
+Stan uses a _Markov chain Monte Carlo_ (MCMC) algorithm, which can
+lead to autocorrelation in the random draws from the posterior;
+although autocorrelation reduces efficiency, it does not introduce
+bias. In fact, the posterior mean is the unbiased estimator with
+minimum expected square error (assuming the model represents the
+actual data generating process). Stan uses a dynamically adaptive form
+of Hamiltonian Monte Carlo (HMC) known as the no-U-turn sampler (NUTS).
+
+Like all Bayesian estimates, the Bayesian posterior mean point
+estimate takes into account the uncertainty in estimating $\theta$
+based on a limited data sample. Here it does it by taking an average
+weighted by density of the parameter. The primary service provided by
+Stan is a general mechanism for writing down a model and then
+automatically sampling from its posterior.
+
+Now we can fit Laplace's model and inspect the result.
 
 ```{python}
-# avoids having return
-def mydraw(x):
-    x.draw()
-
-import plotnine as pn
-import numpy as np
-import pandas as pd
-from itertools import repeat
-
-np.random.seed(123)
-ts = []
-ps = []
-for trial_size in [10, 100, 1_000]: # , 10_000]:
-    ts.extend(repeat(trial_size, 100_000))
-    ps.extend(np.random.binomial(n = trial_size, p = 0.3, size = 100_000) / trial_size)
-df = pd.DataFrame({'Pr[success]': ps,
-                  'trials': ts})
-mydraw(
-    pn.ggplot(df, pn.aes(x = 'Pr[success]'))
-  + pn.geom_histogram(binwidth=0.01)
-  + pn.facet_grid('. ~ trials')
-)
+model = csp.CmdStanModel(stan_file = '../stan/sex-ratio.stan')
+boys = 110312
+girls = 105287
+data = {'N': (boys + girls), 'y': boys}
+M = 10_000
+sample = model.sample(data = data, seed = 123,
+                      iter_sampling = 1000, iter_warmup = M,
+		      show_progress = False, show_console = False)
+theta_draws = sample.stan_variable('theta')
+theta_hat = np.mean(theta_draws)
+boys_gt_girls_draws = sample.stan_variable('boys_gt_girls')
+Pr_boy_gt_girl = np.mean(boys_gt_girls_draws)
+lb95 = np.quantile(theta_draws, 0.025)
+ub95 = np.quantile(theta_draws, 0.975)
+print(f"estimated theta = {np.mean(theta_draws):.3f}")
+print(f"estimated Pr[theta in ({lb95:.3f}, {ub95:.3f})] = 0.95")
+print(f"estimated Pr[boy more likely] = {Pr_boy_gt_girl}")
 ```
 
+We have printed three results. First, we print a Bayesian point
+estimate of $\theta$, which is just the mean of the posterior draws.
+Second, we print the 95\% interval for $\theta$ in the posterior,
+which is $(0.510, 0.514)$, meaning that even with over 200,000
+observations, we can still only estimate the probabilty of a male
+birth to two decimal places of accuracy (this is not due to using
+Bayesian estimation, it's due to binomial data being very weak).
+Finally, we print our estimate of the probability that a boy birth is
+more likely than a girl birth, which represents the question Laplace
+wanted to answer. This probability prints as 1.0, but this is an
+artifact of using Monte Carlo integration and of the representation of
+real numbers using floating point arithmetic on digital computers.
+Laplace calculated the answer analytically as roughly $1 - 10^{-42}$.
+We would need an astronomical number of Monte Carlo draws to estimate
+the true posterior probability of a boy birth being more likely with
+good relative accuracy (the MCMC central limit theorem only governs
+convergence in terms of absolute accuracy). Even if we could take
+enough draws, we can't represent $1 - 10^{-42}$ using the double
+precision (64-bit) floating point arithmetic that Stan uses. The
+smallest $\epsilon$ such that $1 - \epsilon < 1$ is known as the
+_machine precision_. For the double-precision floating point
+arithmetic used by Stan, that's roughly $\epsilon = 10^{-16}$.  Here's
+an example of the asymmetry of $0 + \epsilon$ versus $1 - \epsilon$ in
+double-precision floating point (Python's default).
 
+```{python}
+print(f"{(1 + 10**-16 == 1) = }")
+print(f"{(1 + 10**-15 == 1) = }")
+print(f"{(10**-16 == 0) = }")
+print(f"{(10**-15 == 0) = }")
+```
 
+So even though `10**-16` does not underflow to 0, `1 + 10**-16` rounds
+to 1.  On the other hand, `10**-15$ is large enough that $1 - 10**-15$
+does not round to 1.  We can also inspect the machine precision
+directly using NumPy.
 
+```{python}
+print(f"machine precision: {np.finfo(float).eps = }")
+```
 
+The resulting machine precision between $10^{-15}$ and $10^{-16}$ is
+consistent with our rounding results.
 
