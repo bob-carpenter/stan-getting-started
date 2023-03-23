@@ -192,6 +192,7 @@ Let's put that in a lop and see what it looks like for 10, 100, 1000,
 and 10,000 trials.
 
 ```{python}
+a = 5
 for N in [10, 100, 1_000, 10_000]:
     data = {'N': N, 'theta': theta}
     sample = model.sample(data = data, seed = 123,
@@ -207,7 +208,7 @@ We can see that our estimates range from 0.2 to 0.5 with only 10
 trials, whereas by the time we have 10,000 trials, the frequency-based
 estimates only vary between 0.292 and 0.309. We know from the _central
 limit theorem_ that the spread of estimates is expected to shrink at a
-rate of $\mathcal{O}(1 / sqrt{N})$ for $N$ draws.
+rate of $\mathcal{O}(1 / \sqrt{N})$ for $N$ draws.
 
 Now let's ramp up the number of simulated binomial draws to 10,000 and
 plot histograms of the estimated probability of success.  If we
@@ -338,8 +339,107 @@ This lets us proceed with only an unnormalized sampling density $p(y
 \mid \theta)$ and unnormalized prior $p(\theta)$.  For some
 applications to model comparison we will need a normalizing sampling
 distribution $p(y \mid \theta)$ in order to make and compare
-probabilistic predictions. 
+probabilistic predictions.
 
+### Bayesian inference
+
+There are three main quantities we want to estimate and they can all
+be expressed as posterior expectations.  I'm laying out the
+definitions here, but we'll go through examples of all of these things
+later in the document along with Stan code to compute them.
+
+#### Parameter estimation
+
+The first of these is Bayesian parameter estimation, the standard
+approach to which is to take the posterior mean, or conditional
+expectation given the data.  Given a model $p(y, \theta)$ and observed
+data $y$, a popular Bayesian point estimate is the posterior mean,
+
+\begin{align}
+\widehat{\theta}
+&= \mathbb{E}[\theta \mid y]
+\\[6pt]
+&= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta.
+\end{align}
+
+The posterior mean as a parameter estimate minimizes expected square
+error in the estimates if the model is well specified in the sense of
+representing the true data-generating process.  That is, for each dimension $d$, we have
+
+$$
+\widehat{\theta}_d
+= \textrm{arg min}_{u} \ \mathbb{E}[(u - \theta_d)^2 \mid y].
+$$
+
+#### Event probabilities
+
+An _event_ in statistics is a subset of the parameter space, $A
+\subseteq \Theta$, where $\Theta$ is the set of all valid parameter
+values.  We usually pick out events using conditions on the parameter
+space, such as $\theta > 0.5$ for the event that the value of $\theta$
+is greater than 0.5.
+
+The probability of an event conditioned on data is just another
+posterior expectation, this time of an indicator variable.
+
+\begin{align}
+\textrm{Pr}[A \mid y]
+&= \mathbb{E}[\textrm{I}(\theta \in A) \mid y]
+\\[6pt]
+&= \int_{\Theta} \textrm{I}(\theta \in A) \cdot p(\theta \mid y) \, \textrm{d}\theta.
+\end{align}
+
+The expression $\textrm{I}(\theta \in A)$ takes on value 1 if $\theta
+\in A$ and value 0 otherwise.  In general, event probabilities can be
+recast as the expectation of an indicator.
+
+#### Posterior predictive inference
+
+Often we are interested in predicting new data $\tilde{y}$ given the
+observation of existing data $y$.  This is a form of _posterior
+predictive inference_.  For example, $y$ might be the price of a stock
+over some time period and $\tilde{y}$ the price of the stock in the
+future.  Or $y$ might observe many sporting events and $\tilde{y}$
+represents the winner of tomorrow's game.  Posterior predictive
+inference is another expectation.
+
+\begin{align}
+p(\tilde{y} \mid y)
+&= \mathbb{E}[p(\tilde{y} \mid \theta) \mid y]
+\\[6pt]
+&= \int_{\Theta} p(\tilde{y} \mid \theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
+\end{align}
+
+
+
+
+
+
+
+## Markov chain Monte Carlo
+
+Stan performs asymptotically exactly full Bayesian inference using
+Markov chain Monte Carlo (MCMC).  The way MCMC works, it draws a
+sequence of $M$ samples from the posterior,
+
+$$
+\theta^{(1)}, \ldots, \theta^{(M)}
+\sim p(\theta \mid y).
+$$
+
+Such a posterior sample can then be used to estimate expectations by
+just plugging in and averaging,
+
+\begin{align}
+\mathbb{E}[f(\theta) \mid y]
+&= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta
+\\[6pt]
+&= \lim_{M \rightarrow \infty} \ \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right)
+\\[6pt]
+&\approx \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right).
+\end{align}
+
+In the limit as the number of draws goes to infinity ($M \rightarrow \infty$), we get the correct answer.  With only finitely many draws, the answer is approximate.
 
 
 ## Laplace's problem: Male birth ratio
