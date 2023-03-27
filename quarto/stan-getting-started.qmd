@@ -2,7 +2,9 @@
 title: "Getting Started with Stan"
 subtitle: "in Python with CmdStanPy and plotnine"
 author: "Bob Carpenter"
-date: "March 20, 2023"
+date: "March 27, 2023"
+execute:
+  cache: false
 format:
   html:
     highlight-style: arrow
@@ -13,14 +15,33 @@ format:
     toc-location: right
     code-fold: true
     css: style.css
+  pdf:
+    number-sections: true
+    number-depth: 3
+    shift-heading-level-by: -1
+    margin-bottom: 1in
+    fig-pos: "t!"
+    biblio-title: "References"
+    biblio-style: natbib
+    link-citations: true
+    link-bibliography: true
+    pdf-engine: xelatex
+#    mainfont: palatino
+#    monofont: sourcecodepro
 bibliography: references.bib
 ---
 
 ## Introduction
 
-The general problem of statistics is one of reasoning under uncertainty
-from limited and typically noisy observations.  There are many ways to
-go about applied statistics, but these notes are going to concentrate
+The general problem addressed by statistical inference is that of
+reasoning under uncertainty from limited and typically noisy
+observations.  We do that to draw inferences about a population after
+measuring a subset of its members and to draw inferences about future
+events after observing past events.
+
+### Bayesian statistics
+
+There are many ways to go about applied statistics.  These notes focus
 on Bayesian statistics, a form of statistical modeling and inference
 that is grounded in probability theory.  The key tenet of Bayesian
 statistics is that we can characterize our knowledge of the world in
@@ -28,10 +49,20 @@ terms of probabilities (e.g., there is a 24.3% chance of rain after
 lunch today, the probability that the next baby born in the United
 states is male is 51\%).
 
+Bayesian inference is always done using a mathematical model model of
+a stochastic data generating process.  If the model is well-specified
+in the sense of matching the true data generating process, then
+Bayesian statistical inference can be shown to have several desirable
+properties, such as calibration and lack of overfitting.
+
+### Scope
+
 I wrote these notes in order to introduce two technical topics,
 Bayesian statistics (focusing on inference and model validation), and
 Stan, a probabilistic programming language which can be used to code
 models for applied Bayesian statistics.
+
+### Pre-requisites
 
 I will assume the reader is familiar with the basic notions of
 differential and integral calculus in multiple dimensions (e.g., the
@@ -58,8 +89,9 @@ available online and in book form).  I'll be using [Python
 to Stan.  Click the links and follow the install instructions if you
 would like to follow along in code.
 
-We include the following Python boilerplate to import packages,
-define our drawings, and filter noise out of plotnine's plots.
+### Python boilerplate
+
+We include the following Python boilerplate to import and configure packages we will use throughout.
 
 ```{python}
 # PROJECT SETUP
@@ -188,10 +220,11 @@ y = sample.stan_variable('y')
 print("N = ", N, " theta = ", theta, " y(0:10) =", *y.astype(int))
 ```
 
-Let's put that in a lop and see what it looks like for 10, 100, 1000,
+Let's put that in a loop and see what it looks like for 10, 100, 1000,
 and 10,000 trials.
 
 ```{python}
+b = 7
 a = 5
 for N in [10, 100, 1_000, 10_000]:
     data = {'N': N, 'theta': theta}
@@ -606,4 +639,6 @@ print(f"machine precision: {np.finfo(float).eps = }")
 
 The resulting machine precision between $10^{-15}$ and $10^{-16}$ is
 consistent with our rounding results.
+
+## References
 
