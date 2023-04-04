@@ -8,7 +8,10 @@ execute:
 format:
   html:
     highlight-style: arrow
-    mainfont: "Garamond"
+    mainfont: "Palatino"
+    monofont: "Menlo, Lucida Console"
+    fontsize: 14pt
+    linestretch: 1.5
     number-sections: true
     number-depth: 3
     toc: true
@@ -26,43 +29,41 @@ format:
     link-citations: true
     link-bibliography: true
     pdf-engine: xelatex
-#    mainfont: palatino
-#    monofont: sourcecodepro
 bibliography: references.bib
 ---
 
-## Introduction
+# Introduction
+
+These notes are intended to introduce several technical topics to
+practitioners: Bayesian statistics and probabilistic modeling, Markov
+chain Monte Carlo methods for Bayesian inference, and the Stan
+probabilistic programming language.
+
+
+## Bayesian statistics
 
 The general problem addressed by statistical inference is that of
-reasoning under uncertainty from limited and typically noisy
-observations.  We do that to draw inferences about a population after
-measuring a subset of its members and to draw inferences about future
-events after observing past events.
-
-### Bayesian statistics
+reasoning from a limited number of noisy observations. For example, we
+might want to perform inference about a population after measuring a
+subset of its members, or we might want to predict future events after
+observing past events.
 
 There are many ways to go about applied statistics.  These notes focus
 on Bayesian statistics, a form of statistical modeling and inference
-that is grounded in probability theory.  The key tenet of Bayesian
-statistics is that we can characterize our knowledge of the world in
+that is grounded in probability theory.  In the Bayesian
+apporach to statistics, we characterize our knowledge of the world in
 terms of probabilities (e.g., there is a 24.3% chance of rain after
 lunch today, the probability that the next baby born in the United
 states is male is 51\%).
 
-Bayesian inference is always done using a mathematical model model of
-a stochastic data generating process.  If the model is well-specified
-in the sense of matching the true data generating process, then
-Bayesian statistical inference can be shown to have several desirable
-properties, such as calibration and lack of overfitting.
+Bayesian inference is always carried out with respect to a
+mathematical model of a stochastic data generating process. If the
+model is well-specified in the sense of matching the true data
+generating process, then Bayesian statistical inference can be shown
+to have several desirable properties, such as calibration and
+resistance to overfitting.
 
-### Scope
-
-I wrote these notes in order to introduce two technical topics,
-Bayesian statistics (focusing on inference and model validation), and
-Stan, a probabilistic programming language which can be used to code
-models for applied Bayesian statistics.
-
-### Pre-requisites
+## Pre-requisites
 
 I will assume the reader is familiar with the basic notions of
 differential and integral calculus in multiple dimensions (e.g., the
@@ -89,9 +90,10 @@ available online and in book form).  I'll be using [Python
 to Stan.  Click the links and follow the install instructions if you
 would like to follow along in code.
 
-### Python boilerplate
+## Python boilerplate
 
-We include the following Python boilerplate to import and configure packages we will use throughout.
+We include the following Python boilerplate to import and configure
+packages we will use throughout these notes.
 
 ```{python}
 # PROJECT SETUP
@@ -103,7 +105,7 @@ import itertools
 import logging
 import warnings
 
-logging.getLogger('cmdstanpy').setLevel(logging.WARNING)
+csp.utils.get_logger().setLevel(logging.WARNING)
 
 warnings.filterwarnings( "ignore", module = "plotnine\..*" )
 
@@ -111,7 +113,7 @@ def mydraw(x):
     x.draw()
 ```
 
-## Stan for forward simulation
+# Stan for forward simulation
 
 We're first going to consider simple binomial sampling in order to
 introduce Stan programs and how they're called and to develop some
@@ -127,7 +129,7 @@ total number representing the number of goals in 100 attempts.
 
 In statistical sampling notation, we write
 $$
-Y \sim \textrm{binomial}(N, p)
+Y \sim \textrm{binomial}(N, \theta)
 $$
 to indicate that the random variable $Y$ has a binomial distribution
 with $N \in \mathbb{N}$ trials, each with a $\theta \in [0, 1]$ chance
@@ -135,15 +137,18 @@ of success. The value of the variable $Y$ will be the number of
 successes in $N$ trials with a probability $\theta$ of success. The
 probability mass function function for $Y$, written $p_Y$, is defined
 by
-$$
+\begin{align}
 p_Y(y \mid N, \theta)
-\, = \,
+&= \textrm{binomial}(y \mid N, \theta)
+\\[6pt]
+&=
 \binom{N}{y} \cdot \theta^y \cdot (1 - \theta)^{N - y}.
-$$
+\end{align}
 Unless necessary for disambiguation, we will drop the random variable
-subscripts on probability density or mass functions $p$ going forward.
+subscripts on probability density or mass functions like $p_Y$ going forward, writing
+simply $p(y \mid N, \theta)$ and allowing context to disambiguate.
 
-### A first Stan program
+## A first Stan program
 
 Now lets say we wanted to generate random instantiations of $Y$ for
 given values of $N$ and $\theta$. We can do that using the following
@@ -160,38 +165,42 @@ generated quantities {
 ```
 
 The first thing to notice is that a Stan program is organized into
-blocks.  Here we have two blocks, a data block containing declarations
-of variables that must be input as data, and a generated quantities
-block, which not only declares variables, but assigns to them.
+blocks.  Here we have two blocks, a _data block_ containing declarations
+of variables that must be input as data, and a _generated quantities
+block_, which not only declares variables, but assigns to them.
 
 The second thing to notice about a Stan program is that the variables
 are all declared with types. Stan uses _static typing_, which means
 that unlike Python or R, a variable's type is declared in the program
 before it is used rather than determined at run time based on what is
-assigned to it. Stan also uses _strong typing_, meaning that unlike C
-or C++, there is no way to get around the type restrictions and access
-memory directly.
+assigned to it. Once declared, a variable's type never changes. Stan
+also uses _strong typing_, meaning that unlike C or C++, there is no
+way to get around the type restrictions and access memory directly.
 
 The program declares three variables, `N` and `y` of type `int`
-(integer), and `theta` of type `real`. In addition to the basic type,
-a type may also have constraints.  Because `N` is a count, it must be greater
-than or equal to zero, which we indicate with the bound `lower=0`.
-Similarly, the variable `y` is the number of successes out of `N`
-trials, so it must take on a value between 0 and `N` (inclusive); that
-is represented with the constraint `lower=0, upper=N`. Finally, the
-variable `theta` is real and declared to fall in the interval $[0, 1]$
-with the constraint `lower=0, upper=1`. Technically, our bounds are
-open for real values, but in practice, we might wind up with 0 or 1
-values due to underflow or rounding errors in floating point
-arithmetic.
+(integer values in $\mathbb{Z}$), and `theta` of type `real` (real
+values in $\mathbb{R}$). On actual computers, our integers will have
+fixed upper and lower bounds and our real numbers are subject to all
+the vagaries of numerical floating point calculations.
 
-At run time, the Stan program must be given values for `N` and
-`theta`, at which point, each iteration it will sample a value of `y`
-using its built-in pseudorandom number generator. In code, we first
-define a dictionary for our data (vaiables `N` and `theta`), then
-construct an instance of `CmdStanModel` for our model from the path to
-its program, and finally sample from the model using the `sample`
-method of `CmdStanModel`.
+In addition to its basic type, a type may also have constraints.
+Because `N` is a count, it must be greater than or equal to zero,
+which we indicate with the bound `lower=0`. Similarly, the variable
+`y` is the number of successes out of `N` trials, so it must take on a
+value between 0 and `N` (inclusive); that is represented with the
+constraint `lower=0, upper=N`. Finally, the variable `theta` is real
+and declared to fall in the interval $[0, 1]$ with the constraint
+`lower=0, upper=1`. Technically, our bounds are open for real values,
+but in practice, we might wind up with 0 or 1 values due to underflow
+or rounding errors in floating point arithmetic.
+
+At run time, the compiled Stan program must be given values for `N`
+and `theta`, at which point, each iteration it will sample a value of
+`y` using its built-in pseudorandom number generator. In code, we
+first define a dictionary for our data (variables `N` and `theta`),
+then construct an instance of `CmdStanModel` for our model from the
+path to its program, and finally sample from the model using the
+`sample` method of `CmdStanModel`.
 
 ```{python}
 N = 100
@@ -203,29 +212,28 @@ sample = model.sample(data = data, seed=123,
                       show_progress = False, show_console = False)
 ```
 
-In the `sample` method, we provide the data, the pseudorandom number
-generator seed (for reproducibility of this case study), the number of
-sampling iterations (10), the number of warmup iterations (0, because
-we are just generating which doesn't need any warmup), the number of
-Markov chains (1), and we turn off all the messages.  Our initial
-setup set the logger level to `WARNING` for the `cmdstanpy` package in
-order to get rid of the information-level messages
-that would otherwise clutter our display.
+In the `sample` method of the `CmdStanModel` object, we provide the
+data, the pseudorandom number generator seed (for reproducibility of
+this case study), the number of sampling iterations (10), the number
+of warmup iterations (0, because we are just generating which doesn't
+need any warmup), the number of Markov chains (1), and we turn off all
+the messages. Our initial setup set the logger level to `WARNING` for
+the `cmdstanpy` package in order to get rid of the information-level
+messages that would otherwise provide updates on a running Stan program.
 
-The `sample` method returns a sample.  We can extract the draws for
-the variable `y` as an array and then print them along with our other variables.
+The `sample` method returns a sample consisting of the specified
+number of draws (10 here). We can extract the draws for the variable
+`y` as an array and then print them along with our other variables.
 
 ```{python}
 y = sample.stan_variable('y')
-print("N = ", N, " theta = ", theta, " y(0:10) =", *y.astype(int))
+print("N = ", N, ";  theta = ", theta, ";  y(0:10) =", *y.astype(int))
 ```
 
 Let's put that in a loop and see what it looks like for 10, 100, 1000,
 and 10,000 trials.
 
 ```{python}
-b = 7
-a = 5
 for N in [10, 100, 1_000, 10_000]:
     data = {'N': N, 'theta': theta}
     sample = model.sample(data = data, seed = 123,
@@ -237,17 +245,17 @@ for N in [10, 100, 1_000, 10_000]:
     print("  est. theta: ", *(y / N))
 ```
 
-We can see that our estimates range from 0.2 to 0.5 with only 10
-trials, whereas by the time we have 10,000 trials, the frequency-based
-estimates only vary between 0.292 and 0.309. We know from the _central
-limit theorem_ that the spread of estimates is expected to shrink at a
-rate of $\mathcal{O}(1 / \sqrt{N})$ for $N$ draws.
+On the first line for $N = 10$ trials, our simple frequency-based
+estimates range from 0.2 to 0.5. By the time we have 10,000 trials,
+the frequency-based estimates only vary between 0.292 and 0.309. We
+know from the _central limit theorem_ that the spread of estimates is
+expected to shrink at a rate of $\mathcal{O}(1 / \sqrt{N})$ for $N$
+draws (this result is only asymptotic in $N$, but is very close for
+large-ish $N$ in practice).
 
-Now let's ramp up the number of simulated binomial draws to 10,000 and
-plot histograms of the estimated probability of success.  If we
-observe $y$ successes in $N$ trials, we can estimate the probability of
-success $\theta$ as $y / N$.  The following histogram plots the
-distribution of these estimates over 100,000 simulated trials.
+It is hard to scan these results. Let's take 10,000 trials each time
+and plot histograms. The following histogram plots the distribution of
+estimates based on 10, 100, and 1000 observations over 100,000 simulated trials.
 
 ```{python}
 np.random.seed(123)
@@ -288,17 +296,367 @@ mydraw(
 ```
 
 The trial size of 10 only has 10 possible values, 0.0, 0.1, ..., 1.0,
-so the histogram just shows the counts of those outcomes. Here, $y =
-3$ is the most prevalent result, with corresponding estimate for
-$\theta$ of $y / 10 = 0.3$. The trial size of 100 looks roughly
-normal, as it should as a binomial with trials $N = 100$. By the time
-we get to $N = 1,000$ trials, we see that the draws for $y$
-concentrating near 300, or near the estimated value of $0.3$ for $\theta$.
-As $N$ grows, the central limit theorem tells us to expect that the
-width of these histograms to shrink at a rate of $\mathcal{O}(1 /
-\sqrt{N})$. 
+so the histogram (technically a bar chart here) just shows the counts
+of those outcomes. Here, $y = 3$ is the most prevalent result, with
+corresponding estimate for $\theta$ of $y / 10 = 0.3$. The trial size
+of 100 looks roughly normal, as it should as a binomial with trials $N
+= 100$. By the time we get to $N = 1,000$ trials, the
+draws for $y$ concentrate near 300, or near the estimated value of
+$0.3$ for $\theta$. As $N$ grows, the central limit theorem tells us
+to expect that the width of these histograms to shrink at a rate of
+$\mathcal{O}(1 / \sqrt{N})$.
 
-## Bayesian statistics
+
+
+# Laplace's problem: Male birth ratio
+
+Bayes formulated a mathematical solution to the _inverse problem_ of
+determining a posterior distributon with density $p(\theta \mid y)$
+from a prior with density $p(\theta)$, a sampling distribution with
+density $p(y \mid \theta)$, and observed data $y$.  But he was not able to
+solve the integral presented in the denominator of his theorem and
+actually determine the form of the posterior.
+
+## Laplace's data on live births
+
+A decade later, @laplace1774 solved the integral that vexed Bayes and
+applied Bayes's ideas to the applied problem of estimating whether a
+boy is more likely to be born than a girl. Laplace gathered data on
+the sexes of babies in live births in Paris between 1745 and 1770.  
+
+sex | live births
+---:|:---
+female | 105,287
+male | 110,312
+: Live births in Paris between 1745 and 1770.
+
+
+## A Stan program for Laplace's problem
+
+Unlike the first Stan model we saw, which only generates data, the
+following Stan program is going to allow us to observe the number of
+male births ($y$) and the total number of births ($N$) and estimate
+the probability of a male birth ($\theta$) as well as the probability
+that boys are more likely to be born than girls ($\theta > 0.5$). The
+Stan program to do this is as follows.
+
+```{.stan filename="stan/sex-ratio.stan"}
+data {
+  int<lower = 0> N;  // number of live births
+  int<lower = 0, upper = N> y;  // male births
+}
+parameters {
+  real<lower=0, upper=1> theta;  // chance of boy
+}
+model {
+  theta ~ uniform(0, 1);  // uniform prior
+  y ~ binomial(N, theta);  // binomial sampling
+}
+generated quantities {
+  int<lower=0, upper=1> boys_gt_girls = theta > 0.5;
+}
+```
+
+## Parameter and model blocks
+
+In this Stan program, we see that both the number of total births $N$
+and the number of male births $y$ are given as data. Then there are
+two additional blocks we did not see in our earlier program, a
+_parameters block_, which is used to declare unknown values (here the
+male birth rate $\theta$), and a _model block_, which is where we
+define our target density, typically factored as a prior and sampling
+distribution. The parameters block declares the type of `theta`, which
+is a real value constrained to fall in the interval $[0, 1]$. The
+model block defines the prior, which we take to be uniform over the
+possible values for `theta`. The model block also defines the sampling
+distribution, which codes the fact that the observed data `y` was generated
+from a binomial distribution with `N` trials and `theta` probability
+of a male birth. Finally, we have a generated quantities block that
+defines a single binary indicator variable, `boys_gt_girls`. This
+variable will take the value 1 if the probability of a boy is greater
+than the probability of a girl.
+
+## Sampling from the posterior
+
+When we run a Stan program, what Stan returns is a sequence of $M$
+random draws, which are approximately identically distributed
+according to the posterior,
+$$
+\theta^{(1)}, \ldots, \theta^{(M)} \sim p(\theta \mid y)
+$$
+If we were to take $M \rightarrow \infty$, the draws will converge to
+being identically drawn from the posterior. With a large enough finite
+$M$, the draws will become numerically indistinguishable from true
+draws from the posterior.
+
+Stan uses a _Markov chain Monte Carlo_ (MCMC) algorithm, which can
+lead to autocorrelation in the random draws from the posterior;
+although autocorrelation reduces efficiency, it does not introduce
+bias. In fact, the posterior mean is the unbiased estimator with
+minimum expected square error (assuming the model represents the
+actual data generating process). Stan uses a dynamically adaptive form
+of Hamiltonian Monte Carlo (HMC) known as the no-U-turn sampler (NUTS).
+
+Now we can fit Laplace's model by compling the model, constructing a
+dictionary for the data, then calling the `sample` method on the
+compiled model with the dictionary. We call the sample method with
+1,000 warmup iterations and 10,000 sampling iterations; we are taking
+so many draws in order to draw smooth histograms later.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/sex-ratio.stan')
+boys = 110312
+girls = 105287
+data = {'N': boys + girls, 'y': boys}
+M = 10_000
+sample = model.sample(data = data, seed = 123,
+                      iter_sampling = M, iter_warmup = 1000,
+		      show_progress = False, show_console = False)
+```
+
+As before, we proceed by first extracting the draws for the variables
+`theta` and `boys_gt_girls`.
+
+```{python}
+theta_draws = sample.stan_variable('theta')
+boys_gt_girls_draws = sample.stan_variable('boys_gt_girls')
+```
+
+With approximate draws from the posterior, we can plot a histogram of
+$\theta$ to give us a sense of our uncertainty in its value.
+
+```{python}
+mydraw(
+  pn.ggplot(pd.DataFrame({'theta': theta_draws}), pn.aes(x = 'theta')) + \
+  pn.geom_histogram(color='white') + \
+  pn.theme(axis_text_y = pn.element_blank(),
+           axis_title_y = pn.element_blank(),  
+           axis_ticks_major_y = pn.element_blank())
+)
+```
+
+All of the draws have a value for $\theta$ that is greater than 0.5.
+In the next sections, we will see how to turn that into a probability
+estimate.
+
+
+## Bayesian point estimates
+
+We can average the posterior draws to produce a _Bayesian point
+estimate_ for $\theta$,
+\begin{align}
+\widehat{\theta}
+&= \mathbb{E}[\theta \mid y]
+\\[6pt]
+&= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta
+\\[6pt]
+&= \lim_{M \rightarrow \infty} \, \frac{1}{M} \sum_{m=1}^M \theta^{(m)}.
+\\[6pt]
+&\approx \frac{1}{M} \sum_{m=1}^M \theta^{(m)}.
+\end{align}
+
+The posterior mean of the draws for `theta` is our estimate for $\theta$.
+
+```{python}
+theta_hat = np.mean(theta_draws)
+print(f"estimated theta = {np.mean(theta_draws):.3f}")
+```
+
+We see that our point estimate is right in the middle of our
+histogram, as we would expect from it being an average. Because it
+involves sampling from the posterior, Monte Carlo estimation is a
+_stochastic algorithm_, which means it can return a different result
+each time it is run (assuming we change the pseudorandom number seed,
+which completely determines the chain of random numbers produced by a
+pseudorandom number generator). Stochastic algorithms can Stochastic
+algorithms are sometimes called _Monte Carlo algorithms_ in a nod
+toward the famous casino of the same name.
+
+Like all Bayesian estimates, the Bayesian posterior mean point
+estimate takes into account the uncertainty in estimating $\theta$
+based on a limited data sample. Here it does it by taking an average
+weighted by density of the parameter. The primary service provided by
+Stan is a general mechanism for writing down a model and then
+automatically sampling from its posterior.
+
+## Estimating event probabilities
+
+Laplace wasn't looking for a point estimate for $\theta$.  He wanted to
+know the probability that $\theta > \frac{1}{2}$ after observing $y$
+male births in $N$ trials.  In the notation of probability theory,
+he wanted to estimate an event probability.
+
+A subset of parameters is known as an _event_. We can convert
+conditions on parameters into events. For example, the condition
+$\theta > \frac{1}{2}$ can be turned into the event
+$$
+A = \left\{ \theta \in \Theta : \theta > \frac{1}{2} \right\}.
+$$
+Events are what are assigned probabilities by measures in probability
+theory. Given a probability model, the probability of the event $A$,
+that the rate of boy births is higher than girl births will be well defined.
+Because we can convert conditions to events, we will be
+sloppy and treat the conditions as if they were events. This allows us
+to write $\Pr[\theta > \frac{1}{2} \mid N, y]$ for the probabilty of
+the event $\theta > \frac{1}{2}$.
+
+Technically, we will need to use the _indicator function_ $\textrm{I}$,
+which maps propositions like $\theta > \frac{1}{2}$ into the value 1
+if they are true and 0 if they are false.  
+
+Event probabilities are defined as posterior conditional expectations
+of indicator functions for events.
+\begin{align}
+\Pr[\Theta > 0.5 \mid N, y]
+&= \mathbb{E}\!\left[\textrm{I}[\Theta > 0.5] \mid N, y\right]
+\\[8pt]
+&= \int_{\Theta} \textrm{I}(\theta > 0.5) \cdot p(\theta \mid N, y) \, \textrm{d}\theta
+\\[8pt]
+&\approx \frac{1}{M} \sum_{m=1}^M \textrm{I}(\theta^{(m)}),
+\end{align}
+where we assume $\theta^{(m)} \sim p(\theta \mid N, y)$ is distributed
+according to the posterior for $m \in 1{:}M$. Following physics
+conventions, we use square brackets for functors (functions that apply
+to functions); that means we write $\textrm{I}[\cdot]$ when we apply
+the indicator function to a random variable and the notaton
+$\textrm{I}(\cdot)$ when we apply it to a primitive scalar.
+
+Event probabilities can be calculated as the expectation of an
+indicator function for the event. The indicator function takes on
+value 1 if the parameters are in the event and value 0 otherwise.
+The indicator is defined in the generated quantities block as
+```stan
+generated quantities {
+  int<lower=0, upper=1> boys_gt_girls = theta > 0.5;
+}  
+```
+In Stan, conditional expressions like `theta > 0.5` take on the value
+1 if they are true and 0 if they are false---the indicator function itself
+isn't written.  The posterior mean of `boys_gt_girls` is our estimate
+for $\Pr[\theta > 0.5 \mid N, y]$.  
+
+```{python}
+Pr_boy_gt_girl = np.mean(boys_gt_girls_draws)
+print(f"estimated Pr[boy more likely] = {Pr_boy_gt_girl}")
+```
+
+The value of 1.0 returned as an estimate brings up the important
+problem of numerical precision.  As we can see from the histogram,
+all of our sampled values for $\theta$ are greater than $\frac{1}{2}$.
+Laplace calculated the result analytically, which is
+$$
+\Pr[\theta > \frac{1}{2}] \approx 1 - 10^{-26.87117}.
+$$
+That is, we'd need on the order of $10^27$ draws before we would see a
+value of $\theta$ less than $\frac{1}{2}$.  As given, the answer of 1.0 is
+very close to the true answer and well within our expected Monte Carlo
+error.
+
+## Quantiles
+
+```{python}
+lb95 = np.quantile(theta_draws, 0.025)
+ub95 = np.quantile(theta_draws, 0.975)
+print(f"estimated Pr[theta in ({lb95:.3f}, {ub95:.3f})] = 0.95")
+```python
+
+
+# Appendices
+
+# Expectation notation
+
+If we have a (potentially multivariate) random variable $Z$, we write
+$\mathbb{E}[Z]$ for its _expectation_, which is defined as its average
+value.  This assumes we have a fixed measure to provide a density
+$p_Z(z)$ for the random variable $Z$.  We compute the average value by
+averaging over the possible values for $Z$ with weights given by its
+density,
+
+$$
+\mathbb{E}[Z] = \int_{Z} z \cdot p_Z(z) \, \textrm{d}z.
+$$
+
+With Bayesian statistics, we are typically interested in conditional
+expectations, which is the value of a random variable conditioned on
+the observed value of a second random variable.  Suppose $Y$ is a
+second random variable and we observe that $Y = y$.  The _conditional
+expectation_ of $Z$ given $Y = y$ is written
+$$
+\mathbb{E}[Z \mid Y = y]
+= \int_{Z} z \cdot p(z \mid y) \, \textrm{d}z.
+$$
+That is, we take a weighted average of the value of $Z$ with weights
+determined by the posterior density $p_{Z \mid Y}(z \mid y)$.  As
+before, this assumes a fixed, joint measure for $Y$ and $Z$.
+
+We are typically concerned with cases where $Z = f(\Theta)$ is a
+function of the parameters $\Theta$ (and perhaps some data, as well),
+and the conditioning is with respect to observed data $y$, where we
+will drop the explicit $Y = y$ conditioning and just use $y$,
+$$
+\mathbb{E}[f(\Theta) \mid y]
+= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
+$$
+These posterior expectations simply average the value of the function
+$f(\theta)$ over the posterior $p(\theta \mid y)$.  All of our
+inferences proceed this way---by averaging a quantity of interest
+expressed as a function of parameters over the posterior
+
+
+
+# Quantiles, medians, and uncertainty intervals
+
+Suppose $Z$ is a univariate random variable (e.g., one of the
+parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
+univariate random variable $Z$, $\textrm{quantile}(Z, p)$, is defined
+by
+$$
+\textrm{quantile}(Z, p) = z
+\ \textrm{ if and only if } \
+\textrm{Pr}[Z \leq z] = p.
+$$
+That is, the $p$-quantile of $Z$ is the value $z$ such that the
+probability $Z$ is less than or equal to $z$ is $p$.  In Bayesian
+applications, we will typically be taking the probability for
+functions of parameters $Z = f(\Theta)$ and conditioning on observed data $y$.
+
+The 0.5-quantile is known as the _median_.  There is a 50% chance that
+a random variable takes on a value less than its median and a 50%
+chance that it takes on a value greater.  Another common Bayesian
+estimator for parameters $\Theta$ is their posterior median,
+$$
+\overline{\theta} = \textrm{quantile}(Z, 0.5).
+$$
+The median estimator has the property of minimizing expected absolute
+error (in contrast to the posteiror mean estimate, which minimizes
+expected squared error), again assuming the model represents the true
+data generating process.
+
+
+If we have two probabilities, $0 \leq p^L \leq p^U \leq 1$, they
+define the $(p^L, p^U)$ _posterior interval_ 
+$$
+\textrm{interval}(Z, p^L, p^U)
+= \left(
+    \textrm{quantile}(Z, p^L),
+    \textrm{quantile}(Z, p^U)
+  \right).
+$$
+
+The probability that a point falls in the interval is given by the
+differences in probabilities,
+$$
+\textrm{Pr}\!\left[Z \in \textrm{interval}(Z, p^L, p^U)\right] = p^U - p^L.
+$$
+If $1 - p^U = p^L$, the interval is called the _central $(p^L - p^U)$ interval_.
+For example, the central 95% interval for $Z$ is
+$\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
+
+
+
+
+
+# Bayesian statistics
 
 @bayes1763 introduced the paradigm of statistical inference that has
 come to be known as Bayesian statistics.  In retrospect, Bayes's idea
@@ -314,7 +672,11 @@ observing new data.
 such as $\textrm{Pr}[\textrm{cond}(\theta) \mid y]$ for some condition
 on the parameters by integrating over the posterior. 
 
-We work through an example end-to-end in the next section.  Bayes
+We work through an example end-to-end in the next section.
+
+## Bayes's theorem
+
+Bayes
 formalized his approach in the following theorem.
 
 ::: {#thm-line}
@@ -374,271 +736,207 @@ applications to model comparison we will need a normalizing sampling
 distribution $p(y \mid \theta)$ in order to make and compare
 probabilistic predictions.
 
-### Bayesian inference
+# Bayesian inference
 
-There are three main quantities we want to estimate and they can all
-be expressed as posterior expectations.  I'm laying out the
-definitions here, but we'll go through examples of all of these things
-later in the document along with Stan code to compute them.
+Bayesian inference is largely about estimating quantities of interest
+based on a probability model and observed data.  In typical applied
+Bayesian inference problems, we are interested in three quantities
+that can be expressed as expectations: parameter estimates, event
+probabilities, and probabilistic prediction.  All of these quantities
+are expressed as expectations over the posterior, meaning that they
+involve averaging over our uncertainty in parameter values.
 
-#### Parameter estimation
+We are also interested in uncertainty, which is defined by the
+posterior.  We typically summarize uncertainty using quantiles, and in
+particular, posterior intervals (sometimes called "credible
+intervals").
 
-The first of these is Bayesian parameter estimation, the standard
-approach to which is to take the posterior mean, or conditional
-expectation given the data.  Given a model $p(y, \theta)$ and observed
-data $y$, a popular Bayesian point estimate is the posterior mean,
+
+## Parameter estimation
+
+The first quantity of interest is the value of parameters.  The
+standard Bayesian parameter estimate is the posterior mean, or
+conditional expectation given the data.  Given a model $p(y, \theta)$
+and observed data $y$, the Bayesian posterior mean estimate of the
+parameters $\theta$ is
 
 \begin{align}
 \widehat{\theta}
-&= \mathbb{E}[\theta \mid y]
+&= \mathbb{E}[\Theta \mid y]
 \\[6pt]
 &= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta.
 \end{align}
 
 The posterior mean as a parameter estimate minimizes expected square
 error in the estimates if the model is well specified in the sense of
-representing the true data-generating process.  That is, for each dimension $d$, we have
+representing the true data-generating process.  Squared error is the squared
+$\textrm{L}_2$ norm of the difference between the estimate and the true
+parameter values.  We can expand these definitions down to basic form.
 
-$$
-\widehat{\theta}_d
-= \textrm{arg min}_{u} \ \mathbb{E}[(u - \theta_d)^2 \mid y].
-$$
+\begin{align}
+\widehat{\theta}
+&= \textrm{arg min}_{u} \ \mathbb{E}\!\left[\left. \left|\left| \, u - \Theta \, \right|\right|^2  \, \right| \, y\right]
+\\[6pt]
+&= \textrm{arg min}_{u} \ \mathbb{E}\!\left[\left. (u - \Theta)^{\top} \cdot (u - \Theta)  \, \right| \, y\right]
+\\[6pt]
+&= \textrm{arg min}_{u} \ \mathbb{E}\!\left[\left. \sum_{d=1}^D \, (u_d - \Theta_d)^2  \, \right| \, y\right]
+\\[6pt]
+&= \textrm{arg min}_{u} \ \sum_{d=1}^D \, \mathbb{E}\!\left[ \left. (u_d - \Theta_d)^2  \, \right| \, y\right]
+\\[6pt]
+&= \textrm{arg min}_{u} \ \sum_{d=1}^D \, \int_{\Theta} (u_d - \theta_d)^2 \cdot p(\theta \mid y) \, \textrm{d}\theta.
+\end{align}
 
-#### Event probabilities
+It's clear from the final form that the estimate $\widehat{\theta}$ is determined
+by averaging over posterior uncertainty. 
+
+
+## Event probabilities
 
 An _event_ in statistics is a subset of the parameter space, $A
 \subseteq \Theta$, where $\Theta$ is the set of all valid parameter
 values.  We usually pick out events using conditions on the parameter
-space, such as $\theta > 0.5$ for the event that the value of $\theta$
-is greater than 0.5.
+space.  For example, the condition $\theta > 0.5$ defines the
+event $A = \left\{ \theta \in \Theta : \theta > 0.5 \right\}$.
 
 The probability of an event conditioned on data is just another
 posterior expectation, this time of an indicator variable.
 
 \begin{align}
 \textrm{Pr}[A \mid y]
-&= \mathbb{E}[\textrm{I}(\theta \in A) \mid y]
+&= \mathbb{E}[\textrm{I}[\Theta \in A] \mid y]
 \\[6pt]
 &= \int_{\Theta} \textrm{I}(\theta \in A) \cdot p(\theta \mid y) \, \textrm{d}\theta.
 \end{align}
 
 The expression $\textrm{I}(\theta \in A)$ takes on value 1 if $\theta
-\in A$ and value 0 otherwise.  In general, event probabilities can be
-recast as the expectation of an indicator.
+\in A$ and value 0 otherwise.  We write $\textrm{I}[\Theta \in A]$
+using square brackets because a random variable is a function, whereas
+we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
+is a value.
 
-#### Posterior predictive inference
+
+## Posterior predictive inference
 
 Often we are interested in predicting new data $\tilde{y}$ given the
 observation of existing data $y$.  This is a form of _posterior
 predictive inference_.  For example, $y$ might be the price of a stock
 over some time period and $\tilde{y}$ the price of the stock in the
-future.  Or $y$ might observe many sporting events and $\tilde{y}$
-represents the winner of tomorrow's game.  Posterior predictive
-inference is another expectation.
+future.  Or $y$ might be the result of past games and $\tilde{y}$ the
+winner of tomorrow's game.  Posterior predictive inference is also
+cast an expectation, this time of a density.
 
 \begin{align}
 p(\tilde{y} \mid y)
-&= \mathbb{E}[p(\tilde{y} \mid \theta) \mid y]
+&= \mathbb{E}\!\left[ \, p(\tilde{y} \mid \Theta) \mid y \, \right]
 \\[6pt]
 &= \int_{\Theta} p(\tilde{y} \mid \theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
 \end{align}
 
 
 
+# Markov chain Monte Carlo
 
+Stan performs asymptotically exact, full Bayesian inference using
+Markov chain Monte Carlo (MCMC).  MCMC starts from an initial value
+$\theta^{(0)}$, which can be random, user provided, or a mixture of
+both, and then generates a sequence of values
+$\theta^{(1)}, \theta^{(2)}, \ldots, \theta^{(m)}, \ldots$ forming a _Markov chain_.  
+A sequence forms a Markov chain if each value is generated conditioned on
+only hte previous value, so that
 
+$$
+\theta^{(m + 1)} \sim q(\theta \mid \theta^{(m)}.
+$$
 
+Because of this dependency, the sequence of random variables making up
+the Markov chain exhibit a degree of _autocorrelation_, meaning that
+draw $\theta^{(m)}$ is correlated with draw $\theta^{(m+1)}$.
 
-## Markov chain Monte Carlo
+We typically assume some mild conditions on the Markov chain
+transition.  First, it must be _ergodic_ in the sense of never getting
+stuck in such a way it can't visit the rest of the parameter space.
+Second, it must be _aperiodic_ in the sense of not cycling regularly
+through regions of the parameter space.  Third, it needs to preserve
+the target density in the sense that if  $\theta^{(m)} \sim
+p(\theta \mid y)$ has the posterior as its marginal distribution, then
+$\theta^{(m+1)} \sim p(\theta \mid y)$ also follows the posterior
+distribution.  
 
-Stan performs asymptotically exactly full Bayesian inference using
-Markov chain Monte Carlo (MCMC).  The way MCMC works, it draws a
-sequence of $M$ samples from the posterior,
-
+If the initial value $\theta^{(0)}$ is drawn from the posterior,
+$$
+\theta^{(0)} \sim p(\theta \mid y),
+$$
+then each value in the Markov chain will be marginally distributed
+according to the posterior,
 $$
 \theta^{(1)}, \ldots, \theta^{(M)}
 \sim p(\theta \mid y).
 $$
 
-Such a posterior sample can then be used to estimate expectations by
-just plugging in and averaging,
+Typically we cannot draw an initialization from the posterior---if we
+could, we'd just use simpler Monte Carlo methods without the Markov
+chain dependencies.  In the situation where $\theta^{(0)}$ is not a
+draw from the posterior $p(\theta \mid y)$, then as the chain
+progresses, it will converge to the right distribution in the sense
+that in the limit as $m \rightarrow \infty$, the draws approach the
+corect distribution $\theta^{(m)} \sim p(\theta \mid y)$. 
+
+Now suppose we have a psoterior sample of draws $\theta^{(1)}, \ldots,
+\theta^{(M)}$. We can estimate expectations by simply plugging in
+values of $\theta^{(m)}$ and averaging.  If our chain satisfies the
+mild conditions above, we know that we get the right answer asymptotically,
 
 \begin{align}
-\mathbb{E}[f(\theta) \mid y]
+\mathbb{E}\!\left[f(\theta) \mid y \right]
 &= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta
 \\[6pt]
-&= \lim_{M \rightarrow \infty} \ \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right)
-\\[6pt]
-&\approx \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right).
-\end{align}
+&= \lim_{M \rightarrow \infty} \ \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right).
+\end{align}.
 
-In the limit as the number of draws goes to infinity ($M \rightarrow \infty$), we get the correct answer.  With only finitely many draws, the answer is approximate.
-
-
-## Laplace's problem: Male birth ratio
-
-Although Bayes was able to formulate the mathematical form of a
-solution to the _inverse problem_ of determining a posterior
-distributon with density $p(\theta \mid y)$ from a prior with density
-$p(\theta)$, a sampling distribution with density $p(y \mid \theta)$,
-and observed data $y$, he was not able to solve the integral presented
-in the denominator of his theorem and actually determine the form of
-the posterior.
-
-A decade later, @laplace1774 solved the integral that vexed Bayes and
-applied Bayes's ideas to the applied problem of estimating whether a
-boy is more likely to be born than a girl. Laplace gathered data on
-the sexes of babies in live births in Paris between 1745 and 1770.  
-
-sex | live births
----:|:---
-female | 105,287
-male | 110,312
-: Live births in Paris between 1745 and 1770.
-
-This time we are going to write a slightly different Stan program.
-Rather than trying to generate data $y$ from a given $\theta$, we are
-going to observe $y$ and attempt to estimate $\theta$.  The Stan
-program to do this is as follows.
-
-```{.stan filename="stan/sex-ratio.stan"}
-data {
-  int<lower = 0> N;  // number of live births
-  int<lower = 0, upper = N> y;  // male births
-}
-parameters {
-  real<lower=0, upper=1> theta;  // chance of boy
-}
-model {
-  theta ~ uniform(0, 1);  // uniform prior
-  y ~ binomial(N, theta);  // binomial sampling
-}
-generated quantities {
-  int<lower=0, upper=1> boys_gt_girls = theta > 0.5;
-}
-```
-
-In this Stan program, we see that both the number of total births `N`
-and the number of male births `y` are given as data.  Then there are
-two blocks we did not see in our earlier program, a parameters block,
-which is used for unknown, and a model block, which is where we define
-our prior and sampling distributions.  The parameters block
-declares the type of `theta`, which is a real value constrained to
-fall in the interval $[0, 1]$.  The model block defines the prior,
-which here we take to be uniform over the possible values for `theta`.
-It also defines the sampling distribution, which says that the
-observed data `y` was generated from a binomial distribution with `N`
-trials and `theta` probability of a male birth.  Finally, we have a
-generated quantities block that defines a single binary variable,
-`boys_gt_girls`.  This variable will take the value 1 if the
-probability of a boy is greater than the probability of a girl.  
-
-When we run a Stan program, what Stan returns is a sequence of 
-$M$ random draws from the posterior,
+With only finite time in practice, we use the initial segment of the
+chain to estimate expectations,
 $$
-\theta^{(1)}, \ldots, \theta^{(M)} \sim p(\theta \mid y)
+\mathbb{E}\!\left[f(\theta) \mid y\right]
+\approx \frac{1}{M} \sum_{m=1}^M f(\theta^{(m)}).
 $$
-What this notation means is that the marginal distribution of each
-$\theta^{(m)}$ is that of the posterior.  With draws from the
-posterior, we can plot histograms of $\theta$ or we can average the
-draws to produce a _Bayesian point estimate_ for $\theta$,
-\begin{align}
-\widehat{\theta}
-&= \mathbb{E}[\theta \mid y]
-\\[6pt]
-&= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta
-\\[6pt]
-&\approx \frac{1}{M} \sum_{m=1}^M \theta^{(m)}.
-\end{align}
 
-Because it involves sampling from the posterior, the resulting
-estimator is a _stochastic algorithm_. Stochastic algorithms can
-return a different result each time they are run, assuming we change
-the pseudorandom number generator seed (the seed completely determines
-the sequence of pseudorandom numbers generated). Stochastic algorithms
-are sometimes called _Monte Carlo algorithms_ in a nod toward the
-famous casino of the same name.
+If our initial draw is from the posterior, this estimate is unbiased.
+In the usual situation, where the initial draw is not from the
+posterior, our expectation retains a degree of bias. Nevertheless, the
+limit above shows that the bias goes to zero in the limit. In
+practice, we typically remove an initial segment of $N$ draws before
+the chain has approximately converged to the right distribution, and
+average the remaining draws,
+$$
+\mathbb{E}\!\left[f(\theta) \mid y\right]
+\approx \frac{1}{M - N} \sum_{m=N + 1}^M f(\theta^{(m)}).
+$$
 
-Stan uses a _Markov chain Monte Carlo_ (MCMC) algorithm, which can
-lead to autocorrelation in the random draws from the posterior;
-although autocorrelation reduces efficiency, it does not introduce
-bias. In fact, the posterior mean is the unbiased estimator with
-minimum expected square error (assuming the model represents the
-actual data generating process). Stan uses a dynamically adaptive form
-of Hamiltonian Monte Carlo (HMC) known as the no-U-turn sampler (NUTS).
+Given an estimate $\widehat{\theta}$, its _error_ is $\widehat{\theta}
+- \theta$. If its expected error is zero, an estimator is said to be
+_unbiased_.   If the Monte Carlo draws $\theta^{(1)}, \ldots, \theta^{(M)}$ are
+independent, the _central limit theorem_ tells us that our error
+follows a normal distribution asymptotically, so that as $M \rightarrow \infty$,
+the error of our estimate $\widehat{\theta}$ follows a normal distribution,
+$$
+\widehat{\theta} - \theta
+\sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M}}\right),
+$$
+where $\sigma$ is the standard deviation of the variable $\theta$.
+Pre-asymptotically, this result holds approximately and will be used
+to estimate the distribution of estimation errors.
 
-Like all Bayesian estimates, the Bayesian posterior mean point
-estimate takes into account the uncertainty in estimating $\theta$
-based on a limited data sample. Here it does it by taking an average
-weighted by density of the parameter. The primary service provided by
-Stan is a general mechanism for writing down a model and then
-automatically sampling from its posterior.
+Because draws in MCMC can be correlated (or even anticorrelated), we
+need the MCMC CLT to genralize the central limit theorem to the case
+of correlated variables. Here, we can estimate an _effective sample
+size_ (ESS), which is the number of independent draws that provide the same
+error distribution.  If $M^{\textrm{eff}}$ is the effective sample size of the
+Markov chain $\theta^{(1)}, \ldots, \theta^{(M)}$, then the error will
+be distributed approximately as
 
-Now we can fit Laplace's model and inspect the result.
+$$
+\widehat{\theta} - \theta
+\sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
+$$
 
-```{python}
-model = csp.CmdStanModel(stan_file = '../stan/sex-ratio.stan')
-boys = 110312
-girls = 105287
-data = {'N': (boys + girls), 'y': boys}
-M = 10_000
-sample = model.sample(data = data, seed = 123,
-                      iter_sampling = 1000, iter_warmup = M,
-		      show_progress = False, show_console = False)
-theta_draws = sample.stan_variable('theta')
-theta_hat = np.mean(theta_draws)
-boys_gt_girls_draws = sample.stan_variable('boys_gt_girls')
-Pr_boy_gt_girl = np.mean(boys_gt_girls_draws)
-lb95 = np.quantile(theta_draws, 0.025)
-ub95 = np.quantile(theta_draws, 0.975)
-print(f"estimated theta = {np.mean(theta_draws):.3f}")
-print(f"estimated Pr[theta in ({lb95:.3f}, {ub95:.3f})] = 0.95")
-print(f"estimated Pr[boy more likely] = {Pr_boy_gt_girl}")
-```
-
-We have printed three results. First, we print a Bayesian point
-estimate of $\theta$, which is just the mean of the posterior draws.
-Second, we print the 95\% interval for $\theta$ in the posterior,
-which is $(0.510, 0.514)$, meaning that even with over 200,000
-observations, we can still only estimate the probabilty of a male
-birth to two decimal places of accuracy (this is not due to using
-Bayesian estimation, it's due to binomial data being very weak).
-Finally, we print our estimate of the probability that a boy birth is
-more likely than a girl birth, which represents the question Laplace
-wanted to answer. This probability prints as 1.0, but this is an
-artifact of using Monte Carlo integration and of the representation of
-real numbers using floating point arithmetic on digital computers.
-Laplace calculated the answer analytically as roughly $1 - 10^{-42}$.
-We would need an astronomical number of Monte Carlo draws to estimate
-the true posterior probability of a boy birth being more likely with
-good relative accuracy (the MCMC central limit theorem only governs
-convergence in terms of absolute accuracy). Even if we could take
-enough draws, we can't represent $1 - 10^{-42}$ using the double
-precision (64-bit) floating point arithmetic that Stan uses. The
-smallest $\epsilon$ such that $1 - \epsilon < 1$ is known as the
-_machine precision_. For the double-precision floating point
-arithmetic used by Stan, that's roughly $\epsilon = 10^{-16}$.  Here's
-an example of the asymmetry of $0 + \epsilon$ versus $1 - \epsilon$ in
-double-precision floating point (Python's default).
-
-```{python}
-print(f"{(1 + 10**-16 == 1) = }")
-print(f"{(1 + 10**-15 == 1) = }")
-print(f"{(10**-16 == 0) = }")
-print(f"{(10**-15 == 0) = }")
-```
-
-So even though `10**-16` does not underflow to 0, `1 + 10**-16` rounds
-to 1.  On the other hand, `10**-15$ is large enough that $1 - 10**-15$
-does not round to 1.  We can also inspect the machine precision
-directly using NumPy.
-
-```{python}
-print(f"machine precision: {np.finfo(float).eps = }")
-```
-
-The resulting machine precision between $10^{-15}$ and $10^{-16}$ is
-consistent with our rounding results.
-
-## References
-
+# References
