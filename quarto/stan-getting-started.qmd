@@ -390,15 +390,20 @@ $M$, the draws will become numerically indistinguishable from true
 draws from the posterior.
 
 Stan uses a _Markov chain Monte Carlo_ (MCMC) algorithm, which can
-lead to autocorrelation in the random draws from the posterior;
-although autocorrelation reduces efficiency, it does not introduce
-bias. In fact, the posterior mean is the unbiased estimator with
-minimum expected square error (assuming the model represents the
-actual data generating process). Stan uses a dynamically adaptive form
-of Hamiltonian Monte Carlo (HMC) known as the no-U-turn sampler (NUTS).
+lead to autocorrelation in the random draws from the posterior.  That
+is, the draws are not typically independent, with each draw being
+correlated (or anti-correlated) with the previous draw.  This
+autocorrelation does not introduce bias into the Monte Carlo
+estimates.
 
-Now we can fit Laplace's model by compling the model, constructing a
-dictionary for the data, then calling the `sample` method on the
+Stan uses a dynamically adaptive form of Hamiltonian Monte Carlo (HMC)
+known as the no-U-turn sampler (NUTS).  NUTS can be hyperefficient in
+the sense of generating anticorrelated draws that can lead to more
+efficient Monte Carlo estimates than independent draws in some
+cases.
+
+We fit Laplace's model by compling the model, constructing a
+dictionary for the data, and then calling the `sample` method on the
 compiled model with the dictionary. We call the sample method with
 1,000 warmup iterations and 10,000 sampling iterations; we are taking
 so many draws in order to draw smooth histograms later.
@@ -422,62 +427,191 @@ theta_draws = sample.stan_variable('theta')
 boys_gt_girls_draws = sample.stan_variable('boys_gt_girls')
 ```
 
-With approximate draws from the posterior, we can plot a histogram of
-$\theta$ to give us a sense of our uncertainty in its value.
+We can plot a histogram of approximate draws $\theta^{(m)} \sim
+p(\theta \mid y)$ from the posterior to give us a sense of the
+value of $\theta$ and its uncertainty given our observed data $y$.
 
 ```{python}
 mydraw(
-  pn.ggplot(pd.DataFrame({'theta': theta_draws}), pn.aes(x = 'theta')) + \
-  pn.geom_histogram(color='white') + \
+  pn.ggplot(pd.DataFrame({'theta': theta_draws}), pn.aes(x = 'theta')) +
+  pn.geom_histogram(color='white') +
+  pn.labs(x = 'θ') +
   pn.theme(axis_text_y = pn.element_blank(),
            axis_title_y = pn.element_blank(),  
            axis_ticks_major_y = pn.element_blank())
 )
 ```
 
-All of the draws have a value for $\theta$ that is greater than 0.5.
-In the next sections, we will see how to turn that into a probability
-estimate.
+All of the draws have a value for $\theta$ between 0.50 and 0.52.  In
+the next sections, we will see how to use these draws to estimate a
+single value for $\theta$ as well as to compute probabilities, such as
+the probability that $\theta > 0.5$ or $\theta > 0.51$.
 
 
 ## Bayesian point estimates
 
-We can average the posterior draws to produce a _Bayesian point
-estimate_ for $\theta$,
+In Bayesian terms, a _point estimate_ for a parameter $\Theta$
+conditioned on some observed data $Y = y$ is a single value
+$\hat{\theta} \in \mathbb{R}^D$ that in some way summarizes the
+posterior $p(\theta \mid y)$.
+
+### Posterior mean estimator
+
+The most common Bayesian point estimate for a parameter is the
+posterior mean,
 \begin{align}
 \widehat{\theta}
 &= \mathbb{E}[\theta \mid y]
 \\[6pt]
 &= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta
 \\[6pt]
-&= \lim_{M \rightarrow \infty} \, \frac{1}{M} \sum_{m=1}^M \theta^{(m)}.
+&= \lim_{M \rightarrow \infty} \, \frac{1}{M} \sum_{m=1}^M \theta^{(m)}
 \\[6pt]
-&\approx \frac{1}{M} \sum_{m=1}^M \theta^{(m)}.
+&\approx \frac{1}{M} \sum_{m=1}^M \theta^{(m)},
 \end{align}
+where in the last two lines, each draw is distributed approximately
+according to the posterior, $\theta^{(m)} \sim p(\theta \mid y)$.
 
-The posterior mean of the draws for `theta` is our estimate for $\theta$.
+For Laplace's model, the estimate for the male birth rate $\theta$
+conditioned on the birth data $y$ is calculated as the sample mean
+for the extracted draws for `theta`.
 
 ```{python}
 theta_hat = np.mean(theta_draws)
-print(f"estimated theta = {np.mean(theta_draws):.3f}")
+print(f"estimated theta = {theta_hat:.3f}")
 ```
 
-We see that our point estimate is right in the middle of our
-histogram, as we would expect from it being an average. Because it
-involves sampling from the posterior, Monte Carlo estimation is a
-_stochastic algorithm_, which means it can return a different result
-each time it is run (assuming we change the pseudorandom number seed,
-which completely determines the chain of random numbers produced by a
-pseudorandom number generator). Stochastic algorithms can Stochastic
-algorithms are sometimes called _Monte Carlo algorithms_ in a nod
-toward the famous casino of the same name.
 
-Like all Bayesian estimates, the Bayesian posterior mean point
-estimate takes into account the uncertainty in estimating $\theta$
-based on a limited data sample. Here it does it by taking an average
-weighted by density of the parameter. The primary service provided by
-Stan is a general mechanism for writing down a model and then
-automatically sampling from its posterior.
+
+### Posterior median estimator, quantiles, and intervals
+
+A popular alternative Bayesian point estimate is the _posterior
+median_, $\theta^+$.  The median is such that for each dimension
+$d \in 1{:}D$,
+$$
+\Pr[\Theta_d \leq \theta^+_d] = \frac{1}{2}.
+$$
+
+The posterior median can be calculated by taking the posterior
+median of the draws,
+```{python}
+theta_plus = np.median(theta_draws)
+print(f"estimated (median) theta = {theta_plus:.3f}")
+```
+Because our posterior distribution is nearly symmetric with Laplace's
+data, the posterior median is very close to posterior median.
+
+#### Quantiles
+
+Other posterior quantiles are estimated the same way.  For example,
+if we want the posterior 95% quantile, we just take the empirical
+95% point in the sorted chain of draws.  For example, here
+are the 5% quantile and 95% quantile for Laplace's posterior,
+calculated with empirical quantiles.
+```{python}
+quantile_05 = np.quantile(theta_draws, 0.025)
+quantile_95 = np.quantile(theta_draws, 0.975)
+print(f"0.05 quantile = {quantile_05:.3f};  0.95 quantile = {quantile_95:.3f}")
+```
+
+#### Posterior intervals
+
+Together, the 5% quantile and 95% quantile give us the bounds of
+our 90% _central probability interval_.  That is, it's the interval
+containing 90% of the posterior probability mass, with half of the
+remaining mass (5%) taking on higher values and the other half of the
+remaining mass (5%) taking on lower values.
+```{python}
+print(f"central 90% posterior interval for theta = ({quantile_05:.3f}, {quantile_95:.3f})")
+```
+Other intervals are computed in the exact same way.
+
+### Posterior mode estimator
+
+A popular non-Bayesian point estimate is the _posterior mode_
+$\theta^*$, defined as the point with the highest posterior density,
+$$
+\theta^* = \textrm{arg max}_\theta \ p(\theta \mid y).
+$$
+Although the posterior mode can be calculated in Stan using 
+optimization rather than sampling, we do not consider it here.
+The posterior mode is sometimes called the _maximum a posteriori_
+(MAP) estimator.
+
+### Estimation error and bias
+
+The _error_ of an estimate is its difference from the true value,
+$$
+\textrm{err} = \hat{\theta} - \theta.
+$$
+Our estimate $\hat{\theta}$ is implicitly a function of the data $y$
+and so is $\textrm{err}$, so we can make this explicit and write
+$$
+\textrm{err}(y) = \hat{\theta}(y) - \theta.
+$$
+
+The _bias_ of an estimator is defined as its expected error,
+\begin{align}
+\textrm{bias}
+&= \mathbb{E}[\textrm{err}(Y)]
+\\[6pt]
+&= \mathbb{E}[\hat{\theta}(Y) - \theta]
+\\[6pt]
+&= \int_Y \hat{\theta}(y) - \theta \ \textrm{d}y.
+\end{align}
+
+The posterior mean is a popular Bayesian estimator for two reasons.
+First, it is an _unbiased_ estimator in the sense of having zero
+bias.  Second, it has the minimum expected square error among
+unbiased estimators, where the _squared error_ of an estimate is
+defined by
+$$
+\textrm{err}^2(y) = (\hat{\theta}(y) - \theta)^2.
+$$
+
+The posterior median has the pleasant property of being robust to
+outliers. The posterior mode, or maximum a posteriori estimate, is at
+least consistent in the sense of converging to the true value as the
+data size grows.
+
+We will concentrate on posterior means in this quick introduction to
+Bayes and Stan.
+
+
+### (Markov chain) Monte Carlo error and effective sample size
+
+The Markov chain we use to sample is itself a random variable.
+Re-running the sampler will produce slightly different results due to
+Monte Carlo error (the error introduced by usingly only a finite
+sample of $M$ draws).  
+
+Stan reports Markov chain Monte Carlo _standard error_ along with
+its estimates of the mean.  The MCMC standard error is for a scalar
+parameter $\theta_d$ is defined to be
+$$
+\textrm{mcmc-se}
+= \frac{\textrm{sd}[\theta_d \mid y]}{N^{\textrm{eff}}},
+$$
+where the numerator is the standard deviation of the parameter
+$\theta_d$ in the posterior and $N^{\textrm{eff}}$ is the _effective
+sample size_.  In the usual central limit theorem, the number of
+samples appers here.  The effective sample size for a sample of size
+$M$ is defined to be
+$$
+N^{\textrm{eff}}
+= \frac{M}{\textrm{IAT}},
+$$
+where $\textrm{IAT}$ is the _integrated autocorrelation time_.
+The IAT can be thought of as the interval between effectively
+independent draws in our Markov chain.  If we have low
+autocorrelation, $\textrm{IAT}$ will be close to 1 and if the
+autocorrelation is higher, it can be much higher.  If the
+$\textrm{IAT}$ is much higher than 100, it can become difficult
+to estimate.  If the
+autocorrelation is negative, the $\textrm{IAT}$ is less than 1 and the
+effective sample size is larger than the number of draws.  Thus
+$N^{\textrm{eff}}$ is the number of independent draws that would
+lead the same error as our correlation draws using a Markov chain.
 
 ## Estimating event probabilities
 
@@ -492,17 +626,19 @@ $\theta > \frac{1}{2}$ can be turned into the event
 $$
 A = \left\{ \theta \in \Theta : \theta > \frac{1}{2} \right\}.
 $$
-Events are what are assigned probabilities by measures in probability
-theory. Given a probability model, the probability of the event $A$,
-that the rate of boy births is higher than girl births will be well defined.
+Events are what are assigned probabilities by a _measure_ in probability
+theory. Given a probability measure, the probability of the event $A$,
+that the rate of boy births is higher than girl births, will be well defined.
 Because we can convert conditions to events, we will be
 sloppy and treat the conditions as if they were events. This allows us
-to write $\Pr[\theta > \frac{1}{2} \mid N, y]$ for the probabilty of
-the event $\theta > \frac{1}{2}$.
+to write $\Pr[\Theta > \frac{1}{2} \mid N, y]$ for the probabilty of
+the event $\Theta > \frac{1}{2}$.
 
 Technically, we will need to use the _indicator function_ $\textrm{I}$,
 which maps propositions like $\theta > \frac{1}{2}$ into the value 1
 if they are true and 0 if they are false.  
+
+### Event probabilities via indicators
 
 Event probabilities are defined as posterior conditional expectations
 of indicator functions for events.
@@ -512,53 +648,146 @@ of indicator functions for events.
 \\[8pt]
 &= \int_{\Theta} \textrm{I}(\theta > 0.5) \cdot p(\theta \mid N, y) \, \textrm{d}\theta
 \\[8pt]
-&\approx \frac{1}{M} \sum_{m=1}^M \textrm{I}(\theta^{(m)}),
+&\approx \frac{1}{M} \sum_{m=1}^M \textrm{I}(\theta^{(m)} > 0.5),
 \end{align}
 where we assume $\theta^{(m)} \sim p(\theta \mid N, y)$ is distributed
 according to the posterior for $m \in 1{:}M$. Following physics
 conventions, we use square brackets for functors (functions that apply
 to functions); that means we write $\textrm{I}[\cdot]$ when we apply
-the indicator function to a random variable and the notaton
+the indicator function to a random variable and 
 $\textrm{I}(\cdot)$ when we apply it to a primitive scalar.
 
-Event probabilities can be calculated as the expectation of an
-indicator function for the event. The indicator function takes on
-value 1 if the parameters are in the event and value 0 otherwise.
-The indicator is defined in the generated quantities block as
+### Events as indicators in Stan
+
+In Stan, we code the value of the indicator function directly
+and assign it to a variable in the generated quantities block.
 ```stan
 generated quantities {
   int<lower=0, upper=1> boys_gt_girls = theta > 0.5;
 }  
 ```
-In Stan, conditional expressions like `theta > 0.5` take on the value
-1 if they are true and 0 if they are false---the indicator function itself
-isn't written.  The posterior mean of `boys_gt_girls` is our estimate
-for $\Pr[\theta > 0.5 \mid N, y]$.  
+Conditional expressions like `theta > 0.5` take on the value
+1 if they are true and 0 if they are false.  As is conventional in
+languages such as C++, the indicator function itself isn't written.
+
+### The answer to Laplace's question
+
+The posterior mean of the variable `boys_gt_girls` is thus our estimate
+for $\Pr[\theta > 0.5 \mid N, y]$.  It is essentially 1.  Printing to
+15 decimal places, we see
 
 ```{python}
 Pr_boy_gt_girl = np.mean(boys_gt_girls_draws)
-print(f"estimated Pr[boy more likely] = {Pr_boy_gt_girl}")
+print(f"estimated Pr[boy more likely] = {Pr_boy_gt_girl:.15f}")
 ```
 
-The value of 1.0 returned as an estimate brings up the important
+The value of 1 returned as an estimate brings up the important
 problem of numerical precision.  As we can see from the histogram,
 all of our sampled values for $\theta$ are greater than $\frac{1}{2}$.
+
 Laplace calculated the result analytically, which is
 $$
-\Pr[\theta > \frac{1}{2}] \approx 1 - 10^{-26.87117}.
+\Pr\!\left[\theta > \frac{1}{2}\right] \approx 1 - 10^{-27}.
 $$
-That is, we'd need on the order of $10^27$ draws before we would see a
-value of $\theta$ less than $\frac{1}{2}$.  As given, the answer of 1.0 is
-very close to the true answer and well within our expected Monte Carlo
-error.
+Thus we would need an astronomical number of posterior draws
+before we would generate a value of $\theta$ less than $\frac{1}{2}$.
+As given, the answer of 1.0 is very close to the true answer and well
+within our expected Monte Carlo error.
 
-## Quantiles
+
+### MCMC summary statistics from Stan
+
+With Stan, we can print a summary for the variable $\theta$ in the
+posterior, which reports all of these values.  We just call The
+`.summary()` function on the sample.  
 
 ```{python}
-lb95 = np.quantile(theta_draws, 0.025)
-ub95 = np.quantile(theta_draws, 0.975)
-print(f"estimated Pr[theta in ({lb95:.3f}, {ub95:.3f})] = 0.95")
-```python
+sample.summary(sig_figs=3)
+```
+
+The rows are for our random variables, with `lp__` indicating the
+unnormalized log density defined by the Stan program (which includes
+change of variable adjustments for constrained parameters).  The
+other two rows are for variables defined in the Stan program, `theta`,
+and `boys_gt_girls`.  The number of significant figures used in the
+results can be controlled in the summary function, as can the
+quantiles being reported.
+
+The first column reports the posterior mean, and agrees with our
+earlier calculations for both variables.  The second column is
+the Monte Carlo standard error (based on an estimated effective
+sample size) and a posterior standard deviation estimate.  The
+next three columns are quantiles we computed earlier, and they also
+agree with our calculations.  Next is the effective sample size,
+which can vary from variable to variable, and the effective sample
+size rate (per second).  The final column reports $\widehat{R}$, which we
+discuss in the next section.
+
+# Warmup and convergence monitoring
+
+When runnig Markov chains, we want to make sure that we have moved far
+enough that our draws are approximately from the posterior.  A
+standard way to monitor convergence is to start multiple Markov chains
+at different initializations (ideally chosen from a diffuse
+initialization like a draw from the prior) and measure whether they
+are producing draws from the same distirbution.
+
+## Warmup
+
+Stan performs a number of _warmup iterations_ during which time it
+tries to find the region in which it should be sampling and then adapt
+a good step size and estimate the posterior covariance (just the
+diagonal with the variances by defaul).  The step size is used in the
+Hamiltonian dynamics simulator and the (co)variance is used as a
+preconditioner.
+
+Warmup converges when the step size and posterior covariance estimates
+no longer change.  With multiple chains, it's possible to test that
+they have all converged to the same step size and covariance estimate.
+Typically, we don't bother doing this and just measure our end goal
+directly, which is whether we are getting reasonable posterior draws
+after warmup.
+
+Warmup doesn't form a single coherent Markov chain because it uses
+memory to adapt.  Once Stan starts sampling, the result is a Markov
+chain.  All of our posterior analysis will be with draws from the
+Markov chain, not from warmup.  We can save and extract the warmup
+draws to investigate the behavior of warmup.
+
+
+## Potential scale reduction and $\widehat{R}$
+
+Stan uses the _potential scale reduction_ statistic $\widehat{R}$
+(pronounced ``R hat'').  Given a sequence of Markov chains, Stan
+splits them in half to make sure the first halfs and second halfs of
+the chain agree, then calculates variances within each chain and
+across all chains and compares.  The statistic $\widehat{R}$ converges
+to 1 as the Markov chains converge to the same distributions.
+
+## Practical guidelines
+
+A simple rule of thumb is to run chains as long as necessary with equal
+numbers of warmup and sampling iterations until the sampling
+iterations have $\hat{R} < 1.01$.  Running more warmup iterations is
+important because sampling will not be efficient if warmup has not
+converged and it at most uses a few more iterations.
+
+We also want to make sure that our effective sample size is at least
+25 per chain.  It is not that we need so many draws for inference, but
+that we do not trust our effective sample size estimator if it is much
+lower.   One way to check that the ESS estimator is OK is to double
+the number of draws and make sure that the ESS also doubles.  If it
+doesn't, it's a sign that the first ESS estimate is unreliable.
+
+## Multi-threading
+
+You can run chains in parallel, but you probably don't want to run
+more chains than you have physical cores on your CPU (hardware tends
+to report the ``virtual'' cores as well as physical cores).  But you
+may want to run even fewer if your chains are memory bound.  You can
+test the most efficient number of parallel chains to use for your
+hardware, operating system, and C++ compiler and settings.
+
 
 
 # Appendices
