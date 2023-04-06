@@ -207,7 +207,7 @@ N = 100
 theta = 0.3
 data = {'N': N, 'theta': theta}
 model = csp.CmdStanModel(stan_file = '../stan/binomial-rng.stan')
-sample = model.sample(data = data, seed=123,
+sample = model.sample(data = data, seed = 123,
                       iter_sampling = 10, iter_warmup = 0, chains = 1,
                       show_progress = False, show_console = False)
 ```
@@ -306,6 +306,182 @@ $0.3$ for $\theta$. As $N$ grows, the central limit theorem tells us
 to expect that the width of these histograms to shrink at a rate of
 $\mathcal{O}(1 / \sqrt{N})$.
 
+
+## Monte Carlo and Markov chain Monte Carlo methods
+
+In the previous section, we generated a sample of draws by taking each
+value to be an independent coin flip.  The estimates for the true
+probabilty of heads based on the sample frequency of positive outcomes
+concentrates around the true value as the number of draws increased.
+
+For our applied Bayesian modeling problems, we will not be able to
+take independent draws from the densities of interest.  Instead, we
+will only be able to construct a _Markov chain_ in which each element
+is marginally drawn from the density of interest, but may come with
+correlation or anti-correlation.  Markov chains are sequences of
+random variables, each of which is conditionally independent given
+only the previous element.  That is, a sequence of random variables
+$Y_1, Y_2, \ldots$ makes up a Markov chain if
+$$
+p_{Y_{n+1} | Y_{1}, \ldots Y_N}(y_{n + 1} | y_1, \ldots, y_n)
+=
+p_{Y_{n+1} \mid Y_n}(y_{n+1}, y_n)
+$$
+
+We can illustrate with a simple example of three Markov chains, all of
+which have elements that are marginally distributed as
+$\textrm{bernoulli}(0.5)$ and thus the long-term average of all chains
+should be 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
+take the probabilities to be
+\begin{align}
+\Pr[Y_{n + 1} &= 1 \mid Y_n = 1] = \theta
+\\
+\Pr[Y_{n + 1} &= 1 \mid Y_n = 0] = 1 - \theta
+\end{align}
+The first line says that if the last number we generated is 1, the
+probability of the next element being 1 is $\theta$.  The second line
+says that if the last number we generated is 0, the probability of the
+next element being 0 is $\theta$.
+
+Here is a Stan program that generates the first $M$ entries of
+a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
+the same output again.
+
+```{.stan filename="stan/markov_autocorelation.stan"}
+data {
+  int<lower=0> M;
+  real<lower=0, upper=1> rho;  // prob of staying in same state
+}
+generated quantities {
+  array[M] int<lower=0, upper=1> y;  // Markov chain
+  y[1] = bernoulli_rng(0.5);
+  for (m in 2:M) {
+    if (y[m - 1] == 1) {
+      y[m] = bernoulli_rng(rho);
+    } else {
+      y[m] = bernoulli_rng(1 - rho);
+    }
+  } 
+}
+```
+
+We can fit the model in Python as we did before and extract the simulated
+Markov chain $y$.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/markov-autocorrelation.stan')
+M = 1000
+rhos = []
+iterations = []
+draws = []
+estimates = []
+for rho in [0.05, 0.5, 0.95]:
+    data = {'M': M, 'rho': rho}
+    sample = model.sample(data = data, seed = 123,
+                          iter_warmup = 0, iter_sampling = 1, chains = 1,
+			  show_progress = False, show_console = False)
+    y_sim = sample.stan_variable('y')
+    cum_sum = np.cumsum(y_sim)
+    its = np.arange(1, M + 1)
+    ests = cum_sum / its
+    draws.extend(y_sim[0])
+    iterations.extend(its)
+    estimates.extend(ests)
+    rhos.extend(itertools.repeat(str(rho), M))
+df = pd.DataFrame({'draw': draws, 'iteration': iterations,
+                   'estimate': estimates, 'rho': rhos})
+mydraw(
+    pn.ggplot(df, pn.aes(x='iteration', y='estimate', group='rho', color='rho'))
+    + pn.geom_line()
+    + pn.labs(x = "iteration", y = "estimate")
+)
+```
+
+With a 0.05 probability of staying in the same state, the Markov chain
+exhibits strong anti-correlation in its draws, which tend to bounce
+back and forth between 0 and 1 almost every iteration.  In contrast,
+the 0.95 probability of staying in the same state means the draws have
+long sequences of 0s and 1s.  The 0.5 probability produces independent
+draws from the Markov chain.  It is clear that the anticorrelated
+chain converges much more quickly and more stably than the independent
+chain, which in turn converges to the correct estimate of 0.5 much more
+quickly than the correlated chain.
+
+## Monte Carlo integration
+
+Bayesian computation relies on computing integrals corresponding to
+expectations.  In this section, we will introduce Monte Carlo methods
+for calculating integrals with a simple, textbook example of throwing
+darts at a board randomly and using the random locations to estimate the
+mathematical constant $\pi$.
+
+The idea is that we are going to take a unit square, with values
+represented as pairs in $[0, 2]^2$.  Then we are going to generate
+points randomly using a uniform distribution over this square.  For
+each point, we are going to calculate whether it falls inside the
+half-unit circle circumscribed within the square.  The proportion of
+such points gives the proportion of the squares volume taken up by the
+circle.  Because the square is $2 x 2$, it has an area of 4, so the
+circle has an area of 4 times the proportion of points falling in it.
+
+Here's the Stan code.
+
+```{.stan filename="stan/monte-carlo-pi.stan"}
+generated quantities {
+  real<lower=-1, upper=1> x = uniform_rng(-1, 1);
+  real<lower=-1, upper=1> y = uniform_rng(-1, 1);
+  int<lower=0, upper=1> inside = sqrt(x^2 + y^2) < 1;
+}
+```
+
+The program declares variables `x` and `y` and constrains them to fall
+in the interval $[-1, 1]$ and assigns them uniform random values.  The
+indicator variable `inside` is set to 1 if the Euclidean length of the
+vector $\begin{bmatrix}x & y\end{bmatrix}$ is less than 1 (i.e., it
+falls within an inscribed unit cirlce) and is set to 0 otherwise.  The
+Euclidean distance is derived directly using the Pythagorean theorem.
+
+First, we compile and then sample from the model, taking `M = 10_000` draws.
+Then we plot the draws.
+
+```{python}
+M = 10_000
+model = csp.CmdStanModel(stan_file = '../stan/monte-carlo-pi.stan')
+sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
+                      show_progress = False, show_console = False,
+		      seed = 123)
+x_draws = sample.stan_variable('x')
+y_draws = sample.stan_variable('y')
+inside_draws = [int(i) for i in sample.stan_variable('inside')]
+inside_named_draws = np.array(["out", "in"])[inside_draws]
+df = pd.DataFrame({'x': x_draws, 'y': y_draws, 'inside': inside_named_draws})
+mydraw(
+  pn.ggplot(df, pn.aes(x = 'x', y = 'y', group='inside', color='inside'))
+  + pn.geom_point(size = 0.1)
+  + pn.labs(x = 'x', y = 'y')
+  + pn.coord_fixed(ratio = 1)
+)
+```
+
+Next, we take the sample mean of the indicators for being inside the
+circle, which produces an estimate of the probability of a point being
+inside the circle.  Then, we just have to multiply by the square's
+area (4) to get our estimate for $\pi$.
+
+```{python}
+Pr_is_inside = np.mean(inside_draws)
+pi_hat = 4 * Pr_is_inside
+print(f"Pr[Y is inside circle] = {Pr_is_inside:.3f};   estimate for pi = {pi_hat:.3f}")
+```
+
+The true value of $\pi$ to 3 digits of accuracy is $3.142$, so we are
+close, but not exact, as is the nature of Monte Carlo methods.  If we
+increase the number of draws, our error will go down.  Theoretically,
+with enough draws, we can get any desired precision; in practice, we
+don't have that long to wait and have to make due with only a few
+digits of accuracy in our Monte Carlo estimates. This is usually not a
+problem because statistical uncertainty still dominates our numerical
+imprecision in most applications.
 
 
 # Laplace's problem: Male birth ratio
@@ -723,9 +899,10 @@ which can vary from variable to variable, and the effective sample
 size rate (per second).  The final column reports $\widehat{R}$, which we
 discuss in the next section.
 
+
 # Warmup and convergence monitoring
 
-When runnig Markov chains, we want to make sure that we have moved far
+When running Markov chains, we want to make sure that we have moved far
 enough that our draws are approximately from the posterior.  A
 standard way to monitor convergence is to start multiple Markov chains
 at different initializations (ideally chosen from a diffuse
@@ -754,7 +931,6 @@ chain.  All of our posterior analysis will be with draws from the
 Markov chain, not from warmup.  We can save and extract the warmup
 draws to investigate the behavior of warmup.
 
-
 ## Potential scale reduction and $\widehat{R}$
 
 Stan uses the _potential scale reduction_ statistic $\widehat{R}$
@@ -766,11 +942,12 @@ to 1 as the Markov chains converge to the same distributions.
 
 ## Practical guidelines
 
-A simple rule of thumb is to run chains as long as necessary with equal
-numbers of warmup and sampling iterations until the sampling
-iterations have $\hat{R} < 1.01$.  Running more warmup iterations is
-important because sampling will not be efficient if warmup has not
-converged and it at most uses a few more iterations.
+A simple rule of thumb is to run four chains as long as necessary with
+equal numbers of warmup and sampling iterations until the sample has
+$\hat{R} < 1.01$.  Running more warmup iterations is important because
+sampling will not be efficient if warmup has not converged and it at
+most uses a few more iterations compared to simply extending the
+number of sampling iterations.
 
 We also want to make sure that our effective sample size is at least
 25 per chain.  It is not that we need so many draws for inference, but
@@ -779,15 +956,21 @@ lower.   One way to check that the ESS estimator is OK is to double
 the number of draws and make sure that the ESS also doubles.  If it
 doesn't, it's a sign that the first ESS estimate is unreliable.
 
-## Multi-threading
+## Running chains concurrently
 
-You can run chains in parallel, but you probably don't want to run
-more chains than you have physical cores on your CPU (hardware tends
-to report the ``virtual'' cores as well as physical cores).  But you
-may want to run even fewer if your chains are memory bound.  You can
-test the most efficient number of parallel chains to use for your
-hardware, operating system, and C++ compiler and settings.
-
+You can set the number of chains to run using the `chains` argument of
+the `sampling()` method and you can set the maximum number of chains
+to execute concurrently using `parallel_cores` (which defaults to 1,
+seqeuntial execution).  If you set the maximum number of parallel
+chains to be too low, CPU resources are potentially unused.  If you
+set the number too high, then either CPU or memory can bottleneck
+performance and cause it to be slower than running with fewer chains
+in parallel.  The only advice I can give here is to experiment.  In
+personal projects on our own hardware, the goal is usually the largest
+effective sample size in the minimum amount of time.  Perhaps we want
+to leave enough CPU power left over to continue to work on other
+things, or maybe not.  In a server setting, memory usage, latency,
+throughput, and I/O need to be balanced more carefully.
 
 
 # Appendices

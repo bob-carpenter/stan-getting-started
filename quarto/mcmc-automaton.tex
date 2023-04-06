@@ -1,0 +1,10 @@
+\usetikzlibrary{automata, positioning, arrows.meta}
+\begin{tikzpicture}[shorten >=1pt, node distance=3cm, auto, thick, >=stealth']
+\node[state, label=below:$0$] (0) {};
+\node[state, label=below:$1$, right of=0] (1) {};
+
+\path[->] (0) edge[loop left] node[left] {$\rho$} (0);
+\path[->] (1) edge[loop right] node[right] {$\rho$} (1);
+\path[->] (0) edge[bend left] node[above] {$1-\rho$} (1);
+\path[->] (1) edge[bend left] node[below] {$1-\rho$} (0);
+\end{tikzpicture}
