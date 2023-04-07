@@ -878,7 +878,7 @@ posterior, which reports all of these values.  We just call The
 `.summary()` function on the sample.  
 
 ```{python}
-sample.summary(sig_figs=3)
+sample.summary(sig_figs = 3)
 ```
 
 The rows are for our random variables, with `lp__` indicating the
@@ -1350,5 +1350,173 @@ $$
 \widehat{\theta} - \theta
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
+
+# A/B testing
+
+A common application of statistics is to compare two things, such as
+the effectiveness of a new drug versus the current drug used to treat
+a condition on the one hand, or the effectiveness of two different ad
+presentations in getting users to click through.  This is usually called
+_A/B testing_ in a nod to comparing a hypothetical option A and option B.
+
+Let's consider some Mexican restaurants in New York City, Downtown
+Bakery II in the East Village, Taqueria Gramercry in Gramercy, and
+La Delicias Mexianas in Spanish Harlem.  Here's the number of reviews
+and 5-star reviews for these restaurants on the web site Yelp.
+
+| name | 5-star reviews | total reviews |
+|:--|--:|--:|
+| Downtown Bakery II | 141 | 276 | 0.511 |
+| Taqueria Gramercy | 84 | 143 | 0.587 |
+| La Delicias Mexicanas | 41 | 87 | 0.471 |
+
+We can estimate a few things.  First, we can estimate the probability
+that each restaurant really is a 5-star restaurant.  We will parameterize
+this directly with a rate of 5-star reviews parameter for each restaurant.
+Then we can rank the restaurants based on their probability of being a 5-star restaurant.
+
+We will assume there are a total of $K$ items being compared.  In
+traditional A/B testing, $K = 2$, but our example uses $K = 3$ and our
+code works for any $K$.  We will also assume a Dirichlet prior on the
+chances of success $\theta$.
+
+```{.stan filename='stan/ab-test.stan'}
+data {
+  int<lower=0> K;
+  array[K] int<lower=0> trials;
+  array[K] int<lower=0> successes;
+  real<lower=0> alpha;  
+  real<lower=0> beta;  
+}
+parameters {
+  array[K] real<lower=0, upper=1> theta;
+}
+model {
+  successes ~ binomial(trials, theta);
+  theta ~ beta(alpha, beta);
+}
+generated quantities {
+  array[K] int<lower=0, upper=1> is_best;
+  for (k in 1:K) {
+    is_best[k] = theta[k] == max(theta);
+  }
+}
+```
+
+We have coded the data for $K$ items directly in terms of number of
+trials and number of successes.  We have also supplied the prior for
+the probabilities of success as data as `alpha` and `beta`.  The model
+is the same binomial as we had before, except now the likelihood and
+priors are vectorized.  In general, Stan is able to take something
+like the binomial distribution, which has an integer number of trials,
+integer number of successes, and a scalar success probability and
+take vectors for all of these.  What we have written above is identical
+to what we would get with a loop,
+
+```stan
+  for (k in 1:K) {
+    successes[k] ~ binomial(trials[k], theta[k])
+  }
+```
+
+The vectorization of `theta` is different in that only `theta` is an
+array, whereas `alpha` and `beta` are scalars.  The sampling statement for
+`theta` is equivalent to
+
+```stan
+  for (k in 1:K) {
+    theta[k] ~ beta(alpha, beta);
+  }
+```
+
+Because `alpha` and `beta` are scalars, they are not indexed.  Rather,
+they are _broadcast_, meaning that the same `alpha` and `beta` is
+reused for each dimension of `theta`.
+
+So now let's call and fit this model and print the summary.  We
+are setting $\alpha = \beta = 2$, which is equivalent to setting
+them equal to 1 and adding 2 trials and 1 success to the data for
+each restaurant.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/ab-test.stan')
+data = {'K': 3, 'trials': [276, 143, 87], 'successes': [141, 84, 41],
+        'alpha': 2, 'beta': 2}
+sample = model.sample(data = data, seed = 123,
+		      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)
+```
+
+First, we make sure that our $\widehat{R}$ values are less than 1.01
+and that our $N^{\textrm eff}$ are all greater than 25 per chain (4
+chains here with default settings).  In fact, we can see that our
+sampling is nearly as efficient as if we had independent posterior
+draws.  The probability of a 5-star review is our value for `theta`,
+which are 51% for Downtown Bakery, 59% for Taqueria Gramercy, and 47%
+for La Delicias.  Even so, we see that the probability that Taqueria
+Gramercy is the most likely to have their next review be a 5-star
+review, it's still only 90% that's the case.  This is because binomial
+data is weak and we only have observations in the hundreds.  (Editor:
+Don't listen to Yelp---La Delicias is the best of these restaurants by
+far.)
+
+# Regression and predicition
+
+In this section, we will go over simple regression models in Stan and
+see how to generate predictions for new items based on fitted
+parameters.
+
+We will analyze Fisher's classic iris data set, which provides sepal
+and petal length and width (in centimeters) as well as the species of
+iris.  First we read it in, then we will plot petal width versus petal
+length, with species indicated by color.
+
+```{python}
+df = pd.read_csv('../stan/iris-data.csv')
+mydraw(
+  pn.ggplot(df, pn.aes(x='petal_width', y='petal_length', color='species')) +
+  pn.geom_point() +
+  pn.labs(x = "petal width (cm)", y = "petal length (cm)")
+)
+```
+
+We can see that the data have been quantized to the millimeter.  We
+can also see that the three species have highly variable sizes, but
+a roughly linearly relation between petal width and petal length.  
+
+We can now write a Stan model to regress petal length on the petal width.
+
+```{.stan filename='../stan/iris-petals.stan'}
+data {
+  int<lower=0> N;
+  array[N] real<lower=0> petal_width;
+  array[N] real<lower=0> petal_length;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+model {
+  petal_length ~ normal(alpha + beta * petal_width, sigma);
+  alpha ~ normal(0, 5);
+  beta ~ normal(0, 5);
+  sigma ~ lognormal(0, 1);
+}
+```
+
+We can then compile and fit the model and display the resulting
+fit for `alpha` and `beta` as a scatterplot.
+
+```{python}
+N = df.shape[0]
+petal_width = df['petal_width']
+petal_length = df['petal_length']
+model = csp.CmdStanModel(stan_file = '../stan/iris-petals.stan')
+data = {'N': N, 'petal_width': petal_width, 'petal_length': petal_length}
+sample = model.sample(data = data, seed = 123,
+		      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)
+```
 
 # References
