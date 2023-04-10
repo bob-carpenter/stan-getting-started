@@ -1,6 +1,6 @@
 ---
 title: "Getting Started with Stan"
-subtitle: "in Python with CmdStanPy and plotnine"
+subtitle: "in Python with cmdstanpy and plotnine"
 author: "Bob Carpenter"
 date: "March 27, 2023"
 execute:
@@ -70,11 +70,8 @@ differential and integral calculus in multiple dimensions (e.g., the
 typical first- and second-year undergraduate sequence).  But don't
 worry, we only need calculus to define what we are computing---the
 actual calculations will all be done by Stan.  I will further assume
-that the reader is familiar with the basics of matrix operations like
-multiplication, inversion, and determinants (e.g., as taught in an
-intro to linear algebra class).  If you are not familiar with any of
-this math, this is a good opportunity to brush up on or learn some
-matrix algebra.
+that the reader is familiar with the basics of matrix operations
+(e.g., as taught in an intro to linear algebra class).  
 
 I will further assume that the reader is familiar with basic notions
 of probability theory, including discrete and continuous densities,
