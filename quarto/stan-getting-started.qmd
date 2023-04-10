@@ -13,14 +13,14 @@ format:
     fontsize: 14pt
     linestretch: 1.5
     number-sections: true
-    number-depth: 3
+    number-depth: 2
     toc: true
     toc-location: right
     code-fold: true
     css: style.css
   pdf:
     number-sections: true
-    number-depth: 3
+    number-depth: 2
     shift-heading-level-by: -1
     margin-bottom: 1in
     fig-pos: "t!"
@@ -86,6 +86,54 @@ available online and in book form).  I'll be using [Python
 [CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html) interface
 to Stan.  Click the links and follow the install instructions if you
 would like to follow along in code.
+
+## Which Stan interface should I use?
+
+### Out of process interfaces
+
+I would strongly recommend one of our more recent interfaces that
+invoke Stan's command-line interface in a separate process.
+
+* [CmdStanPy](https://mc-stan.org/cmdstanpy/): Python
+* [CmdStanR](https://https://mc-stan.org/cmdstanr/): R
+* [Stan.jl](https://mc-stan.org/users/interfaces/julia-stan): Julia
+
+The process they call is the Stan command-line interface (CLI).
+
+* [CmdStan](https://mc-stan.org/users/interfaces/cmdstan): CLI
+
+This makes them relatively easy to install because there are no C++
+compatibility issues to work out between the analysis languages.
+
+
+### Model interface
+
+We have recently developed a more portable in-memory interface to
+Stan's log density function along with gradients and Hessians, and the
+constraining and unconstraining parameter transforms.  These are coded
+using a relatively portable low-level memory interface (`.C` in R,
+`.ctypes` in Python).
+
+* [BridgeStan](https://github.com/roualdes/bridgestan): R, Python, Julia, C, Rust 
+
+
+### In process interfaces
+
+The first two interfaces developed for Stan were for R and Python.
+
+* R: [RStan](http://mc-stan.org/rstan/)
+* Python: [PyStan](https://pystan.readthedocs.io/en/latest/index.html)
+
+More recently, the Python back end was replaced with a web service.
+
+* HTTP: [HttpStan](https://github.com/stan-dev/httpstan)
+
+All three of these interfaces use high-level, foreign-function interfaces
+(FFI) to Stan's C++ (Cython in Python, Rcpp in R), which complicates
+installation, especially on Windows.  None of them are as fast as the
+out-of-process interfaces (unless you have a very very slow file
+system) and all of them consume more memory.
+
 
 ## Python boilerplate
 
@@ -204,7 +252,7 @@ N = 100
 theta = 0.3
 data = {'N': N, 'theta': theta}
 model = csp.CmdStanModel(stan_file = '../stan/binomial-rng.stan')
-sample = model.sample(data = data, seed=123,
+sample = model.sample(data = data, seed = 123,
                       iter_sampling = 10, iter_warmup = 0, chains = 1,
                       show_progress = False, show_console = False)
 ```
@@ -303,6 +351,182 @@ $0.3$ for $\theta$. As $N$ grows, the central limit theorem tells us
 to expect that the width of these histograms to shrink at a rate of
 $\mathcal{O}(1 / \sqrt{N})$.
 
+
+## Monte Carlo and Markov chain Monte Carlo methods
+
+In the previous section, we generated a sample of draws by taking each
+value to be an independent coin flip.  The estimates for the true
+probabilty of heads based on the sample frequency of positive outcomes
+concentrates around the true value as the number of draws increased.
+
+For our applied Bayesian modeling problems, we will not be able to
+take independent draws from the densities of interest.  Instead, we
+will only be able to construct a _Markov chain_ in which each element
+is marginally drawn from the density of interest, but may come with
+correlation or anti-correlation.  Markov chains are sequences of
+random variables, each of which is conditionally independent given
+only the previous element.  That is, a sequence of random variables
+$Y_1, Y_2, \ldots$ makes up a Markov chain if
+$$
+p_{Y_{n+1} | Y_{1}, \ldots Y_N}(y_{n + 1} | y_1, \ldots, y_n)
+=
+p_{Y_{n+1} \mid Y_n}(y_{n+1}, y_n)
+$$
+
+We can illustrate with a simple example of three Markov chains, all of
+which have elements that are marginally distributed as
+$\textrm{bernoulli}(0.5)$ and thus the long-term average of all chains
+should be 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
+take the probabilities to be
+\begin{align}
+\Pr[Y_{n + 1} &= 1 \mid Y_n = 1] = \theta
+\\
+\Pr[Y_{n + 1} &= 1 \mid Y_n = 0] = 1 - \theta
+\end{align}
+The first line says that if the last number we generated is 1, the
+probability of the next element being 1 is $\theta$.  The second line
+says that if the last number we generated is 0, the probability of the
+next element being 0 is $\theta$.
+
+Here is a Stan program that generates the first $M$ entries of
+a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
+the same output again.
+
+```{.stan filename="stan/markov_autocorelation.stan"}
+data {
+  int<lower=0> M;
+  real<lower=0, upper=1> rho;  // prob of staying in same state
+}
+generated quantities {
+  array[M] int<lower=0, upper=1> y;  // Markov chain
+  y[1] = bernoulli_rng(0.5);
+  for (m in 2:M) {
+    if (y[m - 1] == 1) {
+      y[m] = bernoulli_rng(rho);
+    } else {
+      y[m] = bernoulli_rng(1 - rho);
+    }
+  } 
+}
+```
+
+We can fit the model in Python as we did before and extract the simulated
+Markov chain $y$.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/markov-autocorrelation.stan')
+M = 1000
+rhos = []
+iterations = []
+draws = []
+estimates = []
+for rho in [0.05, 0.5, 0.95]:
+    data = {'M': M, 'rho': rho}
+    sample = model.sample(data = data, seed = 123,
+                          iter_warmup = 0, iter_sampling = 1, chains = 1,
+			  show_progress = False, show_console = False)
+    y_sim = sample.stan_variable('y')
+    cum_sum = np.cumsum(y_sim)
+    its = np.arange(1, M + 1)
+    ests = cum_sum / its
+    draws.extend(y_sim[0])
+    iterations.extend(its)
+    estimates.extend(ests)
+    rhos.extend(itertools.repeat(str(rho), M))
+df = pd.DataFrame({'draw': draws, 'iteration': iterations,
+                   'estimate': estimates, 'rho': rhos})
+mydraw(
+    pn.ggplot(df, pn.aes(x='iteration', y='estimate', group='rho', color='rho'))
+    + pn.geom_line()
+    + pn.labs(x = "iteration", y = "estimate")
+)
+```
+
+With a 0.05 probability of staying in the same state, the Markov chain
+exhibits strong anti-correlation in its draws, which tend to bounce
+back and forth between 0 and 1 almost every iteration.  In contrast,
+the 0.95 probability of staying in the same state means the draws have
+long sequences of 0s and 1s.  The 0.5 probability produces independent
+draws from the Markov chain.  It is clear that the anticorrelated
+chain converges much more quickly and more stably than the independent
+chain, which in turn converges to the correct estimate of 0.5 much more
+quickly than the correlated chain.
+
+## Monte Carlo integration
+
+Bayesian computation relies on computing integrals corresponding to
+expectations.  In this section, we will introduce Monte Carlo methods
+for calculating integrals with a simple, textbook example of throwing
+darts at a board randomly and using the random locations to estimate the
+mathematical constant $\pi$.
+
+The idea is that we are going to take a unit square, with values
+represented as pairs in $[0, 2]^2$.  Then we are going to generate
+points randomly using a uniform distribution over this square.  For
+each point, we are going to calculate whether it falls inside the
+half-unit circle circumscribed within the square.  The proportion of
+such points gives the proportion of the squares volume taken up by the
+circle.  Because the square is $2 x 2$, it has an area of 4, so the
+circle has an area of 4 times the proportion of points falling in it.
+
+Here's the Stan code.
+
+```{.stan filename="stan/monte-carlo-pi.stan"}
+generated quantities {
+  real<lower=-1, upper=1> x = uniform_rng(-1, 1);
+  real<lower=-1, upper=1> y = uniform_rng(-1, 1);
+  int<lower=0, upper=1> inside = sqrt(x^2 + y^2) < 1;
+}
+```
+
+The program declares variables `x` and `y` and constrains them to fall
+in the interval $[-1, 1]$ and assigns them uniform random values.  The
+indicator variable `inside` is set to 1 if the Euclidean length of the
+vector $\begin{bmatrix}x & y\end{bmatrix}$ is less than 1 (i.e., it
+falls within an inscribed unit cirlce) and is set to 0 otherwise.  The
+Euclidean distance is derived directly using the Pythagorean theorem.
+
+First, we compile and then sample from the model, taking `M = 10_000` draws.
+Then we plot the draws.
+
+```{python}
+M = 10_000
+model = csp.CmdStanModel(stan_file = '../stan/monte-carlo-pi.stan')
+sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
+                      show_progress = False, show_console = False,
+		      seed = 123)
+x_draws = sample.stan_variable('x')
+y_draws = sample.stan_variable('y')
+inside_draws = [int(i) for i in sample.stan_variable('inside')]
+inside_named_draws = np.array(["out", "in"])[inside_draws]
+df = pd.DataFrame({'x': x_draws, 'y': y_draws, 'inside': inside_named_draws})
+mydraw(
+  pn.ggplot(df, pn.aes(x = 'x', y = 'y', group='inside', color='inside'))
+  + pn.geom_point(size = 0.1)
+  + pn.labs(x = 'x', y = 'y')
+  + pn.coord_fixed(ratio = 1)
+)
+```
+
+Next, we take the sample mean of the indicators for being inside the
+circle, which produces an estimate of the probability of a point being
+inside the circle.  Then, we just have to multiply by the square's
+area (4) to get our estimate for $\pi$.
+
+```{python}
+Pr_is_inside = np.mean(inside_draws)
+pi_hat = 4 * Pr_is_inside
+print(f"Pr[Y is inside circle] = {Pr_is_inside:.3f};   estimate for pi = {pi_hat:.3f}")
+```
+
+The true value of $\pi$ to 3 digits of accuracy is $3.142$, so we are
+close, but not exact, as is the nature of Monte Carlo methods.  If we
+increase the number of draws, our error will go down.  Theoretically,
+with enough draws, we can get any desired precision; in practice, we
+don't have that long to wait and have to make due with only a few
+digits of accuracy in our Monte Carlo estimates. This is usually not a
+problem because statistical uncertainty still dominates our numerical
+imprecision in most applications.
 
 
 # Laplace's problem: Male birth ratio
@@ -699,7 +923,7 @@ posterior, which reports all of these values.  We just call The
 `.summary()` function on the sample.  
 
 ```{python}
-sample.summary(sig_figs=3)
+sample.summary(sig_figs = 3)
 ```
 
 The rows are for our random variables, with `lp__` indicating the
@@ -720,9 +944,10 @@ which can vary from variable to variable, and the effective sample
 size rate (per second).  The final column reports $\widehat{R}$, which we
 discuss in the next section.
 
+
 # Warmup and convergence monitoring
 
-When runnig Markov chains, we want to make sure that we have moved far
+When running Markov chains, we want to make sure that we have moved far
 enough that our draws are approximately from the posterior.  A
 standard way to monitor convergence is to start multiple Markov chains
 at different initializations (ideally chosen from a diffuse
@@ -751,7 +976,6 @@ chain.  All of our posterior analysis will be with draws from the
 Markov chain, not from warmup.  We can save and extract the warmup
 draws to investigate the behavior of warmup.
 
-
 ## Potential scale reduction and $\widehat{R}$
 
 Stan uses the _potential scale reduction_ statistic $\widehat{R}$
@@ -763,11 +987,12 @@ to 1 as the Markov chains converge to the same distributions.
 
 ## Practical guidelines
 
-A simple rule of thumb is to run chains as long as necessary with equal
-numbers of warmup and sampling iterations until the sampling
-iterations have $\hat{R} < 1.01$.  Running more warmup iterations is
-important because sampling will not be efficient if warmup has not
-converged and it at most uses a few more iterations.
+A simple rule of thumb is to run four chains as long as necessary with
+equal numbers of warmup and sampling iterations until the sample has
+$\hat{R} < 1.01$.  Running more warmup iterations is important because
+sampling will not be efficient if warmup has not converged and it at
+most uses a few more iterations compared to simply extending the
+number of sampling iterations.
 
 We also want to make sure that our effective sample size is at least
 25 per chain.  It is not that we need so many draws for inference, but
@@ -776,15 +1001,21 @@ lower.   One way to check that the ESS estimator is OK is to double
 the number of draws and make sure that the ESS also doubles.  If it
 doesn't, it's a sign that the first ESS estimate is unreliable.
 
-## Multi-threading
+## Running chains concurrently
 
-You can run chains in parallel, but you probably don't want to run
-more chains than you have physical cores on your CPU (hardware tends
-to report the ``virtual'' cores as well as physical cores).  But you
-may want to run even fewer if your chains are memory bound.  You can
-test the most efficient number of parallel chains to use for your
-hardware, operating system, and C++ compiler and settings.
-
+You can set the number of chains to run using the `chains` argument of
+the `sampling()` method and you can set the maximum number of chains
+to execute concurrently using `parallel_cores` (which defaults to 1,
+seqeuntial execution).  If you set the maximum number of parallel
+chains to be too low, CPU resources are potentially unused.  If you
+set the number too high, then either CPU or memory can bottleneck
+performance and cause it to be slower than running with fewer chains
+in parallel.  The only advice I can give here is to experiment.  In
+personal projects on our own hardware, the goal is usually the largest
+effective sample size in the minimum amount of time.  Perhaps we want
+to leave enough CPU power left over to continue to work on other
+things, or maybe not.  In a server setting, memory usage, latency,
+throughput, and I/O need to be balanced more carefully.
 
 
 # Appendices
@@ -854,7 +1085,7 @@ $$
 \overline{\theta} = \textrm{quantile}(Z, 0.5).
 $$
 The median estimator has the property of minimizing expected absolute
-error (in contrast to the posteiror mean estimate, which minimizes
+<error (in contrast to the posteiror mean estimate, which minimizes
 expected squared error), again assuming the model represents the true
 data generating process.
 
@@ -1164,5 +1395,278 @@ $$
 \widehat{\theta} - \theta
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
+
+# A/B testing
+
+A common application of statistics is to compare two things, such as
+the effectiveness of a new drug versus the current drug used to treat
+a condition on the one hand, or the effectiveness of two different ad
+presentations in getting users to click through.  This is usually called
+_A/B testing_ in a nod to comparing a hypothetical option A and option B.
+
+Let's consider some Mexican restaurants in New York City, Downtown
+Bakery II in the East Village, Taqueria Gramercry in Gramercy, and
+La Delicias Mexianas in Spanish Harlem.  Here's the number of reviews
+and 5-star reviews for these restaurants on the web site Yelp.
+
+| name | 5-star reviews | total reviews |
+|:--|--:|--:|
+| Downtown Bakery II | 141 | 276 | 0.511 |
+| Taqueria Gramercy | 84 | 143 | 0.587 |
+| La Delicias Mexicanas | 41 | 87 | 0.471 |
+
+We can estimate a few things.  First, we can estimate the probability
+that each restaurant really is a 5-star restaurant.  We will parameterize
+this directly with a rate of 5-star reviews parameter for each restaurant.
+Then we can rank the restaurants based on their probability of being a 5-star restaurant.
+
+We will assume there are a total of $K$ items being compared.  In
+traditional A/B testing, $K = 2$, but our example uses $K = 3$ and our
+code works for any $K$.  We will also assume a Dirichlet prior on the
+chances of success $\theta$.
+
+```{.stan filename='stan/ab-test.stan'}
+data {
+  int<lower=0> K;
+  array[K] int<lower=0> trials;
+  array[K] int<lower=0> successes;
+  real<lower=0> alpha;  
+  real<lower=0> beta;  
+}
+parameters {
+  array[K] real<lower=0, upper=1> theta;
+}
+model {
+  successes ~ binomial(trials, theta);
+  theta ~ beta(alpha, beta);
+}
+generated quantities {
+  array[K] int<lower=0, upper=1> is_best;
+  for (k in 1:K) {
+    is_best[k] = theta[k] == max(theta);
+  }
+}
+```
+
+We have coded the data for $K$ items directly in terms of number of
+trials and number of successes.  We have also supplied the prior for
+the probabilities of success as data as `alpha` and `beta`.  The model
+is the same binomial as we had before, except now the likelihood and
+priors are vectorized.  In general, Stan is able to take something
+like the binomial distribution, which has an integer number of trials,
+integer number of successes, and a scalar success probability and
+take vectors for all of these.  What we have written above is identical
+to what we would get with a loop,
+
+```stan
+  for (k in 1:K) {
+    successes[k] ~ binomial(trials[k], theta[k])
+  }
+```
+
+The vectorization of `theta` is different in that only `theta` is an
+array, whereas `alpha` and `beta` are scalars.  The sampling statement for
+`theta` is equivalent to
+
+```stan
+  for (k in 1:K) {
+    theta[k] ~ beta(alpha, beta);
+  }
+```
+
+Because `alpha` and `beta` are scalars, they are not indexed.  Rather,
+they are _broadcast_, meaning that the same `alpha` and `beta` is
+reused for each dimension of `theta`.
+
+So now let's call and fit this model and print the summary.  We
+are setting $\alpha = \beta = 2$, which is equivalent to setting
+them equal to 1 and adding 2 trials and 1 success to the data for
+each restaurant.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/ab-test.stan')
+data = {'K': 3, 'trials': [276, 143, 87], 'successes': [141, 84, 41],
+        'alpha': 2, 'beta': 2}
+sample = model.sample(data = data, seed = 123,
+		      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)
+```
+
+First, we make sure that our $\widehat{R}$ values are less than 1.01
+and that our $N^{\textrm eff}$ are all greater than 25 per chain (4
+chains here with default settings).  In fact, we can see that our
+sampling is nearly as efficient as if we had independent posterior
+draws.  The probability of a 5-star review is our value for `theta`,
+which are 51% for Downtown Bakery, 59% for Taqueria Gramercy, and 47%
+for La Delicias.  Even so, we see that the probability that Taqueria
+Gramercy is the most likely to have their next review be a 5-star
+review, it's still only 90% that's the case.  This is because binomial
+data is weak and we only have observations in the hundreds.  (Editor:
+Don't listen to Yelp---La Delicias is the best of these restaurants by
+far.)
+
+# Regression and predicition
+
+In this section, we will go over simple regression models in Stan and
+see how to generate predictions for new items based on fitted
+parameters.
+
+We will analyze Fisher's classic iris data set, which provides sepal
+and petal length and width (in centimeters) as well as the species of
+iris.  First we read it in, then we will plot petal width versus petal
+length, with species indicated by color.
+
+```{python}
+df = pd.read_csv('../stan/iris-data.csv')
+mydraw(
+  pn.ggplot(df, pn.aes(x='petal_width', y='petal_length', color='species')) +
+  pn.geom_point() +
+  pn.labs(x = "petal width (cm)", y = "petal length (cm)")
+)
+```
+
+We can see that the data have been quantized to the millimeter.  We
+can also see that the three species have highly variable sizes, but
+a roughly linearly relation between petal width and petal length.  
+
+We can now write a Stan model to regress petal length on the petal width.
+
+```{.stan filename='../stan/iris-petals.stan'}
+data {
+  int<lower=0> N;
+  array[N] real<lower=0> petal_width;
+  array[N] real<lower=0> petal_length;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+model {
+  petal_length ~ normal(alpha + beta * petal_width, sigma);
+  alpha ~ normal(0, 5);
+  beta ~ normal(0, 5);
+  sigma ~ lognormal(0, 1);
+}
+```
+
+We can then compile and fit the model and display the resulting
+fit for `alpha` and `beta` as a scatterplot.
+
+```{python}
+N = df.shape[0]
+petal_width = df['petal_width']
+petal_length = df['petal_length']
+model = csp.CmdStanModel(stan_file = '../stan/iris-petals.stan')
+data = {'N': N, 'petal_width': petal_width, 'petal_length': petal_length}
+sample = model.sample(data = data, seed = 123,
+		      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)
+```
+
+This summary doesn't give us a good feeling for the uncertainty in the linear relationship.
+We could plot the line determined by $\widehat{\alpha}, \widehat{\beta}$ along with the
+uncertainty determined by $\widehat{\sigma}$, but we would be missing the characterization of
+the other possible values of $\alpha, \beta, \sigma$ that are consistent with our data.
+
+## Posterior predictive inference
+
+Now let's say we have a new observation where we know the petal width
+and want to predict its length.  Mathematically, to make a prediction
+for a new item, we use _posteiror predictive inference_.
+
+First, let's consider evaluating the log density of a new petal's
+length ($\tilde{y}$) given its observed width ($\tilde{x}$), having
+observed our original data $x$ and $y$.  In Bayesian inference,
+we evaluate the _posterior predictive distribution_, where we
+let $\Theta$ be our random parameters with realization $\theta$,
+\begin{align}
+p(\tilde{y} \mid \tilde{x}, x, y)
+&= \mathbb{E}[p(\tilde{y} \mid \tilde{x}, \theta) \mid x, y]
+\\[6pt]
+&= \int_{\Theta} p(\tilde{y} \mid \tilde{x}, \theta) \cdot p(\theta \mid x, y) \, \textrm{d}\theta
+\\[6pt]
+&\approx \frac{1}{M} \sum_{m=1}^M \, p(\tilde{y} \mid \tilde{x}, \theta^{(m)}),
+\end{align}
+where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$ are draws from the posterior.
+This is just marginalizing out the parameters.  It can help to break the
+integral down into the two components of uncertainty, sampling uncertainty
+due to our sampling distrubiton and posterior uncertainty in the values of our parameters,
+$$
+\int_{\Theta}
+\underbrace{p(\tilde{y} \mid \tilde{x}, \theta)}_{\textrm{sampling uncertainty}} 
+\cdot
+\underbrace{p(\theta \mid x, y)}_{\textrm{estimation uncertainty}}
+\, \textrm{d}\theta
+$$
+In our case, $\theta = \begin{bmatrix}\alpha & \beta & \sigma\end{bmatrix}$ and the sampling
+distribution is
+$$
+p(\tilde{y} \mid \tilde{x}, \alpha, \beta, \sigma)
+=
+\textrm{normal}(\tilde{y} \mid \alpha + \beta \cdot \tilde{x}, \sigma).
+$$
+Even if we know the parameter values $\alpha$, $\beta$, and $\sigma$ exactly, we can
+only predict $\tilde{y}$ to within $\epsilon$, where $\epsilon \sim \textrm{normal}(0, \sigma)$.
+If we plug in a point estimate $\widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}$ for our parameters,
+we might get approximate inference that takes into account sampling uncertainty, but not estimation uncertainty, e.g., 
+$$
+p(\tilde{y} \mid \tilde{x}, x, y)
+\approx
+p(\tilde{y} \mid \tilde{x}, \widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}).
+$$
+
+So far, this only gives us a way to evaluate the log density of a
+resulting outcome $\tilde{y}$ given a predictor $\tilde{x}$.  If we
+want to simulate possible $\tilde{y}$, we have to make sure to add
+sampling uncertainty and draw
+$$
+\tilde{y}^{(m)} \sim \textrm{normal}\!\left(\alpha^{(m)} + \beta^{(m)} \cdot \tilde{x} \mid \sigma^{(m)}\right),
+$$
+where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
+\sigma \mid x, y)$ are posterior draws.  In general, if we then want to estimate
+$\tilde{y}$, we can take posterior means of these values.  In the case here,
+where our sampling distribution is symmetric, we can directly compute
+expected values of $\tilde{y}$ as $\alpha + \beta \cdot \tilde{x}$, so we
+can get by plugging in those values rather than sampling for an estimate of $\hat{y}$.
+
+Let's put all this together into a Stan program.  First, let's make
+posterior predictions for some new $\tilde{y}$.  We can do this with a
+Stan program that just includes the parameters and the new data and a
+generated quantities block.  We can run the program with the old
+sample for our parameters to generate our predictions.  We could've also
+just included the generated quantities block in the original program.
+
+```{.stan filename="iris-predict.stan"}
+data {
+  int<lower=0> N_tilde;
+  vector<lower=0>[N_tilde] petal_width;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+generated quantities {
+  vector<lower=0>[N_tilde] petal_length_sim
+    = normal_rng(alpha + beta * petal_width, sigma);
+  vector<lower=0>[N_tilde] petal_length_hat
+    = alpha + beta * petal_width;
+}
+```
+
+It is important that we have used _exactly the same parameters_ as in the original model.
+Fitting generated quantities, we will read that fit back in and use those draws
+to run the new generated quantities block, which will do our predictions for new data.
+
+```{python}
+data = {'N_tilde': 3,
+        'petal_width_tilde': [0.4, 1.75, 3.8]}
+model = csp.CmdStanModel(stan_file = '../stan/iris-posterior-predictive-sim.stan')
+pps_sample = model.generate_quantities(data = data, seed = 123,
+                                       previous_fit = sample,
+                                       show_console = False)
+```
+
 
 # References

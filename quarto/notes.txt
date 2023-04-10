@@ -1,0 +1,43 @@
+We have printed three results. First, we print a Bayesian point
+estimate of $\theta$, which is just the mean of the posterior draws.
+Second, we print the 95\% interval for $\theta$ in the posterior,
+which is $(0.510, 0.514)$, meaning that even with over 200,000
+observations, we can still only estimate the probabilty of a male
+birth to two decimal places of accuracy (this is not due to using
+Bayesian estimation, it's due to binomial data being very weak).
+Finally, we print our estimate of the probability that a boy birth is
+more likely than a girl birth, which represents the question Laplace
+wanted to answer. This probability prints as 1.0, but this is an
+artifact of using Monte Carlo integration and of the representation of
+real numbers using floating point arithmetic on digital computers.
+Laplace calculated the answer analytically as roughly $1 - 10^{-42}$.
+We would need an astronomical number of Monte Carlo draws to estimate
+the true posterior probability of a boy birth being more likely with
+good relative accuracy (the MCMC central limit theorem only governs
+convergence in terms of absolute accuracy). Even if we could take
+enough draws, we can't represent $1 - 10^{-42}$ using the double
+precision (64-bit) floating point arithmetic that Stan uses. The
+smallest $\epsilon$ such that $1 - \epsilon < 1$ is known as the
+_machine precision_. For the double-precision floating point
+arithmetic used by Stan, that's roughly $\epsilon = 10^{-16}$.  Here's
+an example of the asymmetry of $0 + \epsilon$ versus $1 - \epsilon$ in
+double-precision floating point (Python's default).
+
+```{python}
+print(f"{(1 + 10**-16 == 1) = }")
+print(f"{(1 + 10**-15 == 1) = }")
+print(f"{(10**-16 == 0) = }")
+print(f"{(10**-15 == 0) = }")
+```
+
+So even though `10**-16` does not underflow to 0, `1 + 10**-16` rounds
+to 1.  On the other hand, `10**-15$ is large enough that $1 - 10**-15$
+does not round to 1.  We can also inspect the machine precision
+directly using NumPy.
+
+```{python}
+print(f"machine precision: {np.finfo(float).eps = }")
+```
+
+The resulting machine precision between $10^{-15}$ and $10^{-16}$ is
+consistent with our rounding results.
