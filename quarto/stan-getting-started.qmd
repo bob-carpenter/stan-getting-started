@@ -13,14 +13,14 @@ format:
     fontsize: 14pt
     linestretch: 1.5
     number-sections: true
-    number-depth: 3
+    number-depth: 2
     toc: true
     toc-location: right
     code-fold: true
     css: style.css
   pdf:
     number-sections: true
-    number-depth: 3
+    number-depth: 2
     shift-heading-level-by: -1
     margin-bottom: 1in
     fig-pos: "t!"
@@ -89,6 +89,54 @@ available online and in book form).  I'll be using [Python
 [CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html) interface
 to Stan.  Click the links and follow the install instructions if you
 would like to follow along in code.
+
+## Which Stan interface should I use?
+
+### Out of process interfaces
+
+I would strongly recommend one of our more recent interfaces that
+invoke Stan's command-line interface in a separate process.
+
+* [CmdStanPy](https://mc-stan.org/cmdstanpy/): Python
+* [CmdStanR](https://https://mc-stan.org/cmdstanr/): R
+* [Stan.jl](https://mc-stan.org/users/interfaces/julia-stan): Julia
+
+The process they call is the Stan command-line interface (CLI).
+
+* [CmdStan](https://mc-stan.org/users/interfaces/cmdstan): CLI
+
+This makes them relatively easy to install because there are no C++
+compatibility issues to work out between the analysis languages.
+
+
+### Model interface
+
+We have recently developed a more portable in-memory interface to
+Stan's log density function along with gradients and Hessians, and the
+constraining and unconstraining parameter transforms.  These are coded
+using a relatively portable low-level memory interface (`.C` in R,
+`.ctypes` in Python).
+
+* [BridgeStan](https://github.com/roualdes/bridgestan): R, Python, Julia, C, Rust 
+
+
+### In process interfaces
+
+The first two interfaces developed for Stan were for R and Python.
+
+* R: [RStan](http://mc-stan.org/rstan/)
+* Python: [PyStan](https://pystan.readthedocs.io/en/latest/index.html)
+
+More recently, the Python back end was replaced with a web service.
+
+* HTTP: [HttpStan](https://github.com/stan-dev/httpstan)
+
+All three of these interfaces use high-level, foreign-function interfaces
+(FFI) to Stan's C++ (Cython in Python, Rcpp in R), which complicates
+installation, especially on Windows.  None of them are as fast as the
+out-of-process interfaces (unless you have a very very slow file
+system) and all of them consume more memory.
+
 
 ## Python boilerplate
 
@@ -1040,7 +1088,7 @@ $$
 \overline{\theta} = \textrm{quantile}(Z, 0.5).
 $$
 The median estimator has the property of minimizing expected absolute
-error (in contrast to the posteiror mean estimate, which minimizes
+<error (in contrast to the posteiror mean estimate, which minimizes
 expected squared error), again assuming the model represents the true
 data generating process.
 
@@ -1518,5 +1566,110 @@ sample = model.sample(data = data, seed = 123,
 		      show_progress = False, show_console = False)
 sample.summary(sig_figs = 2)
 ```
+
+This summary doesn't give us a good feeling for the uncertainty in the linear relationship.
+We could plot the line determined by $\widehat{\alpha}, \widehat{\beta}$ along with the
+uncertainty determined by $\widehat{\sigma}$, but we would be missing the characterization of
+the other possible values of $\alpha, \beta, \sigma$ that are consistent with our data.
+
+## Posterior predictive inference
+
+Now let's say we have a new observation where we know the petal width
+and want to predict its length.  Mathematically, to make a prediction
+for a new item, we use _posteiror predictive inference_.
+
+First, let's consider evaluating the log density of a new petal's
+length ($\tilde{y}$) given its observed width ($\tilde{x}$), having
+observed our original data $x$ and $y$.  In Bayesian inference,
+we evaluate the _posterior predictive distribution_, where we
+let $\Theta$ be our random parameters with realization $\theta$,
+\begin{align}
+p(\tilde{y} \mid \tilde{x}, x, y)
+&= \mathbb{E}[p(\tilde{y} \mid \tilde{x}, \theta) \mid x, y]
+\\[6pt]
+&= \int_{\Theta} p(\tilde{y} \mid \tilde{x}, \theta) \cdot p(\theta \mid x, y) \, \textrm{d}\theta
+\\[6pt]
+&\approx \frac{1}{M} \sum_{m=1}^M \, p(\tilde{y} \mid \tilde{x}, \theta^{(m)}),
+\end{align}
+where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$ are draws from the posterior.
+This is just marginalizing out the parameters.  It can help to break the
+integral down into the two components of uncertainty, sampling uncertainty
+due to our sampling distrubiton and posterior uncertainty in the values of our parameters,
+$$
+\int_{\Theta}
+\underbrace{p(\tilde{y} \mid \tilde{x}, \theta)}_{\textrm{sampling uncertainty}} 
+\cdot
+\underbrace{p(\theta \mid x, y)}_{\textrm{estimation uncertainty}}
+\, \textrm{d}\theta
+$$
+In our case, $\theta = \begin{bmatrix}\alpha & \beta & \sigma\end{bmatrix}$ and the sampling
+distribution is
+$$
+p(\tilde{y} \mid \tilde{x}, \alpha, \beta, \sigma)
+=
+\textrm{normal}(\tilde{y} \mid \alpha + \beta \cdot \tilde{x}, \sigma).
+$$
+Even if we know the parameter values $\alpha$, $\beta$, and $\sigma$ exactly, we can
+only predict $\tilde{y}$ to within $\epsilon$, where $\epsilon \sim \textrm{normal}(0, \sigma)$.
+If we plug in a point estimate $\widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}$ for our parameters,
+we might get approximate inference that takes into account sampling uncertainty, but not estimation uncertainty, e.g., 
+$$
+p(\tilde{y} \mid \tilde{x}, x, y)
+\approx
+p(\tilde{y} \mid \tilde{x}, \widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}).
+$$
+
+So far, this only gives us a way to evaluate the log density of a
+resulting outcome $\tilde{y}$ given a predictor $\tilde{x}$.  If we
+want to simulate possible $\tilde{y}$, we have to make sure to add
+sampling uncertainty and draw
+$$
+\tilde{y}^{(m)} \sim \textrm{normal}\!\left(\alpha^{(m)} + \beta^{(m)} \cdot \tilde{x} \mid \sigma^{(m)}\right),
+$$
+where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
+\sigma \mid x, y)$ are posterior draws.  In general, if we then want to estimate
+$\tilde{y}$, we can take posterior means of these values.  In the case here,
+where our sampling distribution is symmetric, we can directly compute
+expected values of $\tilde{y}$ as $\alpha + \beta \cdot \tilde{x}$, so we
+can get by plugging in those values rather than sampling for an estimate of $\hat{y}$.
+
+Let's put all this together into a Stan program.  First, let's make
+posterior predictions for some new $\tilde{y}$.  We can do this with a
+Stan program that just includes the parameters and the new data and a
+generated quantities block.  We can run the program with the old
+sample for our parameters to generate our predictions.  We could've also
+just included the generated quantities block in the original program.
+
+```{.stan filename="iris-predict.stan"}
+data {
+  int<lower=0> N_tilde;
+  vector<lower=0>[N_tilde] petal_width;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+generated quantities {
+  vector<lower=0>[N_tilde] petal_length_sim
+    = normal_rng(alpha + beta * petal_width, sigma);
+  vector<lower=0>[N_tilde] petal_length_hat
+    = alpha + beta * petal_width;
+}
+```
+
+It is important that we have used _exactly the same parameters_ as in the original model.
+Fitting generated quantities, we will read that fit back in and use those draws
+to run the new generated quantities block, which will do our predictions for new data.
+
+```{python}
+data = {'N_tilde': 3,
+        'petal_width_tilde': [0.4, 1.75, 3.8]}
+model = csp.CmdStanModel(stan_file = '../stan/iris-posterior-predictive-sim.stan')
+pps_sample = model.generate_quantities(data = data, seed = 123,
+                                       previous_fit = sample,
+                                       show_console = False)
+```
+
 
 # References
