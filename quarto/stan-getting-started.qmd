@@ -164,7 +164,7 @@ import itertools
 import logging
 import warnings
 
-csp.utils.get_logger().setLevel(logging.WARNING)
+csp.utils.get_logger().setLevel(logging.ERROR)
 
 warnings.filterwarnings( "ignore", module
 = "plotnine\..*" )
@@ -1851,7 +1851,7 @@ Let's run the model and summarize the results.
 ```{python}
 log_model = csp.CmdStanModel(stan_file = '../stan/iris-petals-log.stan')
 log_sample = log_model.sample(data = iris_data(), seed = 123,
-		              show_progress = True, show_console = False)
+		              show_progress = False, show_console = False)
 log_sample.summary(sig_figs = 2)
 ```
 
