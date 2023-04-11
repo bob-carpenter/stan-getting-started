@@ -89,22 +89,53 @@ would like to follow along in code.
 
 ## Which Stan interface should I use?
 
+Stan can be accessed directly from the command line or through
+analysis languages like Python, R, or Julia.  The compiled model class
+can also be accessed directly in these languages.
+
+### CmdStan
+
+The reference implementation of Stan is CmdStan, which is
+a command-line interface (CLI) written entirely in C++.  
+
+* [CmdStan](https://mc-stan.org/users/interfaces/cmdstan): CLI
+
+CmdStan produces comma-separated value (CSV) output, which makes it
+easy to read into languages such as R, Python, or Julia for further
+analysis.
+
 ### Out of process interfaces
 
-I would strongly recommend one of our more recent interfaces that
-invoke Stan's command-line interface in a separate process.
+I would strongly recommend one of the following interfaces, which
+write data to a file, execute a separate process for CmdStan, then
+read the results in through the file system.
 
 * [CmdStanPy](https://mc-stan.org/cmdstanpy/): Python
 * [CmdStanR](https://https://mc-stan.org/cmdstanr/): R
 * [Stan.jl](https://mc-stan.org/users/interfaces/julia-stan): Julia
 
-The process they call is the Stan command-line interface (CLI).
+The out-of-process architecture makes these interfaces relatively easy
+to install because there are no C++ compatibility issues to work out
+between the analysis languages and Stan.  This case study uses
+CmdStanPy.
 
-* [CmdStan](https://mc-stan.org/users/interfaces/cmdstan): CLI
+### In process interfaces
 
-This makes them relatively easy to install because there are no C++
-compatibility issues to work out between the analysis languages.
+The following interfaces were the first two developed for Stan.
 
+* [RStan](http://mc-stan.org/rstan/): R
+* [PyStan](https://pystan.readthedocs.io/en/latest/index.html): Python
+
+The Python in-memory interface replaced with the following web service.
+
+* [HttpStan](https://github.com/stan-dev/httpstan): HTTP
+
+Both RStan and HttpStan (and hence PyStan) rely on high-level foreign
+function interfaces (FFI) to Stan (specifically Cython and Rcpp),
+which means they invoke Stan in memory in the same process running R
+or HttpStan.  This induces compatibility requirements between the C++
+used for Python and R and the C++ used for compiling a Stan program.
+This in turn complicates installation, particularly on Windows.
 
 ### Model interface
 
@@ -116,23 +147,6 @@ using a relatively portable low-level memory interface (`.C` in R,
 
 * [BridgeStan](https://github.com/roualdes/bridgestan): R, Python, Julia, C, Rust 
 
-
-### In process interfaces
-
-The first two interfaces developed for Stan were for R and Python.
-
-* R: [RStan](http://mc-stan.org/rstan/)
-* Python: [PyStan](https://pystan.readthedocs.io/en/latest/index.html)
-
-More recently, the Python back end was replaced with a web service.
-
-* HTTP: [HttpStan](https://github.com/stan-dev/httpstan)
-
-All three of these interfaces use high-level, foreign-function interfaces
-(FFI) to Stan's C++ (Cython in Python, Rcpp in R), which complicates
-installation, especially on Windows.  None of them are as fast as the
-out-of-process interfaces (unless you have a very very slow file
-system) and all of them consume more memory.
 
 
 ## Python boilerplate
@@ -195,7 +209,7 @@ simply $p(y \mid N, \theta)$ and allowing context to disambiguate.
 
 ## A first Stan program
 
-Now lets say we wanted to generate random instantiations of $Y$ for
+Now let's say we wanted to generate random instantiations of $Y$ for
 given values of $N$ and $\theta$. We can do that using the following
 Stan program, which we will unpack line by line after its listing.
 
@@ -1511,6 +1525,8 @@ In this section, we will go over simple regression models in Stan and
 see how to generate predictions for new items based on fitted
 parameters.
 
+## Fisher's iris data set
+
 We will analyze Fisher's classic iris data set, which provides sepal
 and petal length and width (in centimeters) as well as the species of
 iris.  First we read it in, then we will plot petal width versus petal
@@ -1525,17 +1541,38 @@ mydraw(
 )
 ```
 
-We can see that the data have been quantized to the millimeter.  We
-can also see that the three species have highly variable sizes, but
-a roughly linearly relation between petal width and petal length.  
+The three species are of very different sizes, but there is a roughly
+linear relation between petal width and petal length that fits the
+entire
+data.
 
-We can now write a Stan model to regress petal length on the petal width.
+The width values all have exactly one decimal place of accuracy, which
+means they were recorded to the nearest millimeter. There are models
+that deal with this kind of measurement quantization, but we will not
+consider it now and proceed as if there were no rounding of our
+measurements.
+
+## Linear regression
+
+A simple regression model where petal width is $x$ and petal length is
+$y$ would take
+$$
+y \sim \textrm{normal}(\alpha + \beta \cdot x, \sigma),
+$$
+where $\alpha$ is the _intercept_, $\beta$ is the _slope_, and
+$\sigma$ is the _error scale_.  Regressions are sometimes expressed
+equivalently as
+$$
+y = \alpha + \beta \cdot x + \epsilon,  \qquad \epsilon \sim \textrm{normal}(0, \sigma)
+$$
+
+Here is a simple Stan model to regress petal length on petal width.
 
 ```{.stan filename='../stan/iris-petals.stan'}
 data {
   int<lower=0> N;
-  array[N] real<lower=0> petal_width;
-  array[N] real<lower=0> petal_length;
+  vector<lower=0>[N] petal_width;
+  vector<lower=0>[N] petal_length;
 }
 parameters {
   real alpha;
@@ -1549,6 +1586,28 @@ model {
   sigma ~ lognormal(0, 1);
 }
 ```
+
+The data block says there are $N$ observations of petal width and
+length. The widths and lengths are declared as vectors, with lower
+bounds of zero because lengths cannot be negative. We write the
+parameters out in the parameter block, making sure to include the
+lower bound for $\sigma$---the program will not work without that.
+
+The model has the regression as written in math. But the math referred
+to scalar $x$ and $y$, whereas now we have vectors. The way Stan
+works, the normal distribution is applied to each element of the
+container, and any non-container is repeated. So this is equivalent to
+the less efficient form
+```stan
+  for (n in 1:N) {
+    petal_length[n] ~ normal(alpha + beta * petal_width[n], sigma);
+  }  
+```
+We then have priors for the regression coefficients and error scale.
+The coefficients are unconstrained, but the error scale is constrained
+to be positive, so we use a lognormal distribution (we could have also
+used a half normal and we should if scales near zero are possible).
+
 
 We can then compile and fit the model and display the resulting
 fit for `alpha` and `beta` as a scatterplot.
@@ -1564,10 +1623,39 @@ sample = model.sample(data = data, seed = 123,
 sample.summary(sig_figs = 2)
 ```
 
-This summary doesn't give us a good feeling for the uncertainty in the linear relationship.
-We could plot the line determined by $\widehat{\alpha}, \widehat{\beta}$ along with the
-uncertainty determined by $\widehat{\sigma}$, but we would be missing the characterization of
-the other possible values of $\alpha, \beta, \sigma$ that are consistent with our data.
+This summary doesn't give us a good feeling for the uncertainty in the
+linear relationship.  To do that, we will plot multiple draws from the
+posterior along with the data.
+
+```{python}
+alpha_draws = sample.stan_variable('alpha')
+beta_draws = sample.stan_variable('beta')
+plot =  pn.ggplot(df, pn.aes(x='petal_width', y='petal_length', color='species'))
+plot = plot +  pn.geom_point()
+plot = plot +  pn.labs(x = "petal width (cm)", y = "petal length (cm)")
+for a, b in zip(alpha_draws[0:20], beta_draws[0:20]):
+    plot = plot + pn.geom_abline(intercept = a, slope = b,
+                                 alpha = 0.5, size = 0.2)
+mydraw(
+  plot
+)
+```
+
+In order to fit all three groups of data, the plot doesn't do such a
+great job of fitting any of them---the larger *iris setosa* instances
+haver overestimated petal lengths, whereas they are overestimated for
+*iris versicolor*.
+
+We didn't include the error scale, but it's roughly 0.5.  That means
+it won't be uncommon to get errors greater than 1 or less than -1.
+For *iris setosa*, this could easily result in predictions with
+negative lengths!
+
+## Log-linear regression
+
+We'll fix both problems in Stan. First, we'll include a regression per
+species. Second, we'll convert to the log scale so that our predicted
+sizes remain positive.
 
 ## Posterior predictive inference
 
@@ -1640,7 +1728,7 @@ just included the generated quantities block in the original program.
 ```{.stan filename="iris-predict.stan"}
 data {
   int<lower=0> N_tilde;
-  vector<lower=0>[N_tilde] petal_width;
+  vector<lower=0>[N_tilde] petal_width_tilde;
 }
 parameters {
   real alpha;
@@ -1648,16 +1736,31 @@ parameters {
   real<lower=0> sigma;
 }
 generated quantities {
-  vector<lower=0>[N_tilde] petal_length_sim
-    = normal_rng(alpha + beta * petal_width, sigma);
-  vector<lower=0>[N_tilde] petal_length_hat
-    = alpha + beta * petal_width;
+  vector<lower=0>[N_tilde] E_petal_length_tilde
+    = alpha + beta * petal_width_tilde;
+  vector<lower=0>[N_tilde] petal_length_tilde
+    = to_vector(normal_rng(E_petal_length_tilde, sigma));
 }
 ```
 
-It is important that we have used _exactly the same parameters_ as in the original model.
-Fitting generated quantities, we will read that fit back in and use those draws
-to run the new generated quantities block, which will do our predictions for new data.
+This program declares two new data variables, `N_tilde` for the
+number of predicted items, and `petal_width_tilde`, a vector of
+petal widths of size `N_tilde`.  
+
+It is important that this program use _exactly the same parameters_ as
+the original program.   After our original fit, we read that sample
+back in for the parameters, then run generated quantities (and the
+transformed parameter block if there is one).
+
+The generated quantities block first calculates the expected petal
+length given the petal width and assigns it to the variable
+`E_petal_length_tilde`. This code is vectorized so that it calculates
+all of the input petal widths at once.  The second variable is
+then set by sampling according to the sampling distribution
+using the `normal_rng` function.  This function is also vectorized,
+but it returns an array, so we convert it to a vector just to keep
+all the types the same.
+
 
 ```{python}
 data = {'N_tilde': 3,
@@ -1666,7 +1769,30 @@ model = csp.CmdStanModel(stan_file = '../stan/iris-posterior-predictive-sim.stan
 pps_sample = model.generate_quantities(data = data, seed = 123,
                                        previous_fit = sample,
                                        show_console = False)
+for i in range(3):
+  length_draws = pps_sample.stan_variable('petal_length_tilde')[0:100, i]
+  E_length_draws = pps_sample.stan_variable('E_petal_length_tilde')[0:100, i]
+  print(f"{i=}:  mean(E_petal_length_tilde[{i}]) = {np.mean(E_length_draws):.2f}; sd(E_petal_length_tilde[{i}]) = {np.std(E_length_draws):.2f}")
+  print(f"      mean(petal_length_tilde[{i}]) = {np.mean(length_draws):.2f}; sd(petal_length[{i}]) = {np.std(length_draws):.2f}\n")
 ```
+
+For each of our input petal widths (0.5, 1.75, 3.8), we see the
+posterior mean prediction for petal width and its standard deviation
+calculated two ways. First, we take the posterior draws for the
+expected petal length, `E_petal_length_tilde`, which is just the
+linear prediction of petal value. The uncertainty comes only from
+estimation uncertainty in $\alpha$ and $\beta$. Second, we take the
+posterior draws for petal length, which include an additional normal
+error term with scale $\sigma$. The means are roughly the same either
+way, but the standard deviation is much higher in the case of
+sampling. The second variable, `petal_length_tilde`, includes both
+sources of posterior uncertainty, estimation uncertainty and
+uncertainty from the sampling distribution.
+
+**Exercise:**  It doesn't really make sense to treat the error here
+as normal---it means predictions in the 1cm range and in the 5cm range
+have the same error scale.  To make error multiplicative, use a
+lognormal rather than normal model.
 
 
 # References
