@@ -8,7 +8,7 @@ execute:
 format:
   html:
     highlight-style: arrow
-    mainfont: "Palatino"
+    mainfont: Palatino
     monofont: "Menlo, Lucida Console"
     fontsize: 14pt
     linestretch: 1.5
@@ -17,11 +17,18 @@ format:
     toc: true
     toc-location: right
     code-fold: true
+    code-copy: true
     css: style.css
   pdf:
+    include-in-header:
+      - file: header.tex
+    mainfont: Palatino
+#    monofont: SourceCodePro
+    monofontoptions:
+      - Scale=0.6
     number-sections: true
     number-depth: 2
-    shift-heading-level-by: -1
+#    shift-heading-level-by: -1
     margin-bottom: 1in
     fig-pos: "t!"
     biblio-title: "References"
@@ -29,6 +36,7 @@ format:
     link-citations: true
     link-bibliography: true
     pdf-engine: xelatex
+    highlight-style: github
 bibliography: references.bib
 ---
 
@@ -62,6 +70,12 @@ model is well-specified in the sense of matching the true data
 generating process, then Bayesian statistical inference can be shown
 to have several desirable properties, such as calibration and
 resistance to overfitting.
+
+As an Appendix, I have provided a short introduction to Bayesian
+inference, including Markov chain Monte Carlo as used by Stan.  This
+establishes both the notation and what we are trying to compute with
+Stan.
+
 
 ## Pre-requisites
 
@@ -157,17 +171,20 @@ packages we will use throughout these notes.
 ```{python}
 # PROJECT SETUP
 import cmdstanpy as csp
+
 import numpy as np
+
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.filterwarnings( "ignore", module
+= "plotnine\..*" )
+
+import logging
+csp.utils.get_logger().setLevel(logging.ERROR)
+
 import pandas as pd
 import plotnine as pn
 import itertools
-import logging
-import warnings
-
-csp.utils.get_logger().setLevel(logging.ERROR)
-
-warnings.filterwarnings( "ignore", module
-= "plotnine\..*" )
 
 def mydraw(x):
     x.draw()
@@ -267,8 +284,8 @@ N = 100
 theta = 0.3
 data = {'N': N, 'theta': theta}
 model = csp.CmdStanModel(stan_file = '../stan/binomial-rng.stan')
-sample = model.sample(data = data, seed = 123,
-                      iter_sampling = 10, iter_warmup = 0, chains = 1,
+sample = model.sample(data = data, seed = 123, chains = 1,
+                      iter_sampling = 10, iter_warmup = 0,
                       show_progress = False, show_console = False)
 ```
 
@@ -287,7 +304,8 @@ number of draws (10 here). We can extract the draws for the variable
 
 ```{python}
 y = sample.stan_variable('y')
-print("N = ", N, ";  theta = ", theta, ";  y(0:10) =", *y.astype(int))
+print("N = ", N, ";  theta = ", theta,
+      ";  y(0:10) =", *y.astype(int))
 ```
 
 Let's put that in a loop and see what it looks like for 10, 100, 1000,
@@ -296,9 +314,10 @@ and 10,000 trials.
 ```{python}
 for N in [10, 100, 1_000, 10_000]:
     data = {'N': N, 'theta': theta}
-    sample = model.sample(data = data, seed = 123,
-                          iter_sampling = 10, iter_warmup = 0, chains = 1,
-			  show_progress = False, show_console = False)
+    sample = model.sample(data = data, seed = 123, chains = 1,
+                          iter_sampling = 10, iter_warmup = 0,
+                          show_progress = False,
+			  show_console = False)
     y = sample.stan_variable('y')
     print("N =", N)
     print("  y: ", *y.astype(int))
@@ -325,9 +344,10 @@ theta = 0.3
 M = 100_000
 for N in [10, 100, 1_000]:
     data = {'N': N, 'theta': theta}
-    sample = model.sample(data = data, seed = 123,
-                          iter_sampling = M, iter_warmup = 0, chains = 1,
-			  show_progress = False, show_console = False)
+    sample = model.sample(data = data, seed = 123, chains = 1,
+                          iter_sampling = M, iter_warmup = 0,
+                          show_progress = False,
+			  show_console = False)
     y = sample.stan_variable('y')
     theta_hat = y / N
     ps.extend(theta_hat)
@@ -338,14 +358,16 @@ mydraw(
     pn.ggplot(df, pn.aes(x = xlabel))
   + pn.geom_histogram(binwidth=0.01)
   + pn.facet_grid('. ~ trials')
-  + pn.scales.scale_x_continuous(limits = [0, 1], breaks = [0, 1/4, 1/2, 3/4, 1],
-                                 labels = ["0", "1/4", "1/2", "3/4", "1"],
-                                 expand=[0, 0])
+  + pn.scales.scale_x_continuous(limits = [0, 1],
+                         breaks = [0, 1/4, 1/2, 3/4, 1],
+                         labels = ["0", "1/4", "1/2", "3/4", "1"],
+                         expand=[0, 0])
   + pn.scales.scale_y_continuous(expand=[0, 0, 0.05, 0])
   + pn.theme(aspect_ratio = 1,
              panel_spacing = 0.1,
              strip_text = pn.element_text(size = 6),
-             strip_background = pn.element_rect(height=0.08, fill = "lightgray"),
+             strip_background = pn.element_rect(height=0.08,
+	                            fill = "lightgray"),
              axis_text_y = pn.element_blank(),
              axis_ticks_major_y = pn.element_blank(),
              axis_ticks_minor_y = pn.element_blank(),
@@ -429,7 +451,8 @@ We can fit the model in Python as we did before and extract the simulated
 Markov chain $y$.
 
 ```{python}
-model = csp.CmdStanModel(stan_file = '../stan/markov-autocorrelation.stan')
+model = csp.CmdStanModel(
+               stan_file = '../stan/markov-autocorrelation.stan')
 M = 1000
 rhos = []
 iterations = []
@@ -437,9 +460,9 @@ draws = []
 estimates = []
 for rho in [0.05, 0.5, 0.95]:
     data = {'M': M, 'rho': rho}
-    sample = model.sample(data = data, seed = 123,
-                          iter_warmup = 0, iter_sampling = 1, chains = 1,
-			  show_progress = False, show_console = False)
+    sample = model.sample(data = data, seed = 123, chains = 1,
+                      iter_warmup = 0, iter_sampling = 1,
+                      show_progress = False, show_console = False)
     y_sim = sample.stan_variable('y')
     cum_sum = np.cumsum(y_sim)
     its = np.arange(1, M + 1)
@@ -451,7 +474,8 @@ for rho in [0.05, 0.5, 0.95]:
 df = pd.DataFrame({'draw': draws, 'iteration': iterations,
                    'estimate': estimates, 'rho': rhos})
 mydraw(
-    pn.ggplot(df, pn.aes(x='iteration', y='estimate', group='rho', color='rho'))
+    pn.ggplot(df, pn.aes(x='iteration', y='estimate',
+                  group='rho', color='rho'))
     + pn.geom_line()
     + pn.labs(x = "iteration", y = "estimate")
 )
@@ -509,14 +533,16 @@ M = 10_000
 model = csp.CmdStanModel(stan_file = '../stan/monte-carlo-pi.stan')
 sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
                       show_progress = False, show_console = False,
-		      seed = 123)
+                      seed = 123)
 x_draws = sample.stan_variable('x')
 y_draws = sample.stan_variable('y')
 inside_draws = [int(i) for i in sample.stan_variable('inside')]
 inside_named_draws = np.array(["out", "in"])[inside_draws]
-df = pd.DataFrame({'x': x_draws, 'y': y_draws, 'inside': inside_named_draws})
+df = pd.DataFrame({'x': x_draws, 'y': y_draws,
+                   'inside': inside_named_draws})
 mydraw(
-  pn.ggplot(df, pn.aes(x = 'x', y = 'y', group='inside', color='inside'))
+  pn.ggplot(df, pn.aes(x = 'x', y = 'y',
+                group='inside', color='inside'))
   + pn.geom_point(size = 0.1)
   + pn.labs(x = 'x', y = 'y')
   + pn.coord_fixed(ratio = 1)
@@ -531,7 +557,8 @@ area (4) to get our estimate for $\pi$.
 ```{python}
 Pr_is_inside = np.mean(inside_draws)
 pi_hat = 4 * Pr_is_inside
-print(f"Pr[Y is inside circle] = {Pr_is_inside:.3f};   estimate for pi = {pi_hat:.3f}")
+print(f"Pr[Y is inside circle] = {Pr_is_inside:.3f};")
+print(f"estimate for pi = {pi_hat:.3f}")
 ```
 
 The true value of $\pi$ to 3 digits of accuracy is $3.142$, so we are
@@ -652,7 +679,7 @@ data = {'N': boys + girls, 'y': boys}
 M = 10_000
 sample = model.sample(data = data, seed = 123,
                       iter_sampling = M, iter_warmup = 1000,
-		      show_progress = False, show_console = False)
+                      show_progress = False, show_console = False)
 ```
 
 As before, we proceed by first extracting the draws for the variables
@@ -669,7 +696,8 @@ value of $\theta$ and its uncertainty given our observed data $y$.
 
 ```{python}
 mydraw(
-  pn.ggplot(pd.DataFrame({'theta': theta_draws}), pn.aes(x = 'theta')) +
+  pn.ggplot(pd.DataFrame({'theta': theta_draws}),
+            pn.aes(x = 'theta')) +
   pn.geom_histogram(color='white') +
   pn.labs(x = 'θ') +
   pn.theme(axis_text_y = pn.element_blank(),
@@ -747,7 +775,8 @@ calculated with empirical quantiles.
 ```{python}
 quantile_05 = np.quantile(theta_draws, 0.025)
 quantile_95 = np.quantile(theta_draws, 0.975)
-print(f"0.05 quantile = {quantile_05:.3f};  0.95 quantile = {quantile_95:.3f}")
+print(f"""0.05 quantile = {quantile_05:.3f};
+  0.95 quantile = {quantile_95:.3f}""")
 ```
 
 #### Posterior intervals
@@ -758,7 +787,8 @@ containing 90% of the posterior probability mass, with half of the
 remaining mass (5%) taking on higher values and the other half of the
 remaining mass (5%) taking on lower values.
 ```{python}
-print(f"central 90% posterior interval for theta = ({quantile_05:.3f}, {quantile_95:.3f})")
+print(f"central 90% posterior interval for theta")
+print(f"    = ({quantile_05:.3f}, {quantile_95:.3f})")
 ```
 Other intervals are computed in the exact same way.
 
@@ -1032,103 +1062,657 @@ to leave enough CPU power left over to continue to work on other
 things, or maybe not.  In a server setting, memory usage, latency,
 throughput, and I/O need to be balanced more carefully.
 
+# A/B testing
+
+A common application of statistics is to compare two things, such as
+the effectiveness of a new drug versus the current drug used to treat
+a condition on the one hand, or the effectiveness of two different ad
+presentations in getting users to click through.  This is usually called
+_A/B testing_ in a nod to comparing a hypothetical option A and option B.
+
+Let's consider some Mexican restaurants in New York City, Downtown
+Bakery II in the East Village, Taqueria Gramercry in Gramercy, and
+La Delicias Mexianas in Spanish Harlem.  Here's the number of reviews
+and 5-star reviews for these restaurants on the web site Yelp.
+
+| name | 5-star reviews | total reviews |
+|:--|--:|--:|
+| Downtown Bakery II | 141 | 276 | 0.511 |
+| Taqueria Gramercy | 84 | 143 | 0.587 |
+| La Delicias Mexicanas | 41 | 87 | 0.471 |
+
+We can estimate a few things.  First, we can estimate the probability
+that each restaurant really is a 5-star restaurant.  We will parameterize
+this directly with a rate of 5-star reviews parameter for each restaurant.
+Then we can rank the restaurants based on their probability of being a 5-star restaurant.
+
+We will assume there are a total of $K$ items being compared.  In
+traditional A/B testing, $K = 2$, but our example uses $K = 3$ and our
+code works for any $K$.  We will also assume a Dirichlet prior on the
+chances of success $\theta$.
+
+```{.stan filename='stan/ab-test.stan'}
+data {
+  int<lower=0> K;
+  array[K] int<lower=0> trials;
+  array[K] int<lower=0> successes;
+  real<lower=0> alpha;  
+  real<lower=0> beta;  
+}
+parameters {
+  array[K] real<lower=0, upper=1> theta;
+}
+model {
+  successes ~ binomial(trials, theta);
+  theta ~ beta(alpha, beta);
+}
+generated quantities {
+  array[K] int<lower=0, upper=1> is_best;
+  for (k in 1:K) {
+    is_best[k] = theta[k] == max(theta);
+  }
+}
+```
+
+We have coded the data for $K$ items directly in terms of number of
+trials and number of successes.  We have also supplied the prior for
+the probabilities of success as data as `alpha` and `beta`.  The model
+is the same binomial as we had before, except now the likelihood and
+priors are vectorized.  In general, Stan is able to take something
+like the binomial distribution, which has an integer number of trials,
+integer number of successes, and a scalar success probability and
+take vectors for all of these.  What we have written above is identical
+to what we would get with a loop,
+
+```stan
+  for (k in 1:K) {
+    successes[k] ~ binomial(trials[k], theta[k])
+  }
+```
+
+The vectorization of `theta` is different in that only `theta` is an
+array, whereas `alpha` and `beta` are scalars.  The sampling statement for
+`theta` is equivalent to
+
+```stan
+  for (k in 1:K) {
+    theta[k] ~ beta(alpha, beta);
+  }
+```
+
+Because `alpha` and `beta` are scalars, they are not indexed.  Rather,
+they are _broadcast_, meaning that the same `alpha` and `beta` is
+reused for each dimension of `theta`.
+
+So now let's call and fit this model and print the summary.  We
+are setting $\alpha = \beta = 2$, which is equivalent to setting
+them equal to 1 and adding 2 trials and 1 success to the data for
+each restaurant.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/ab-test.stan')
+data = {'K': 3, 'trials': [276, 143, 87],
+        'successes': [141, 84, 41],
+        'alpha': 2, 'beta': 2}
+sample = model.sample(data = data, seed = 123,
+                      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)
+```
+
+First, we make sure that our $\widehat{R}$ values are less than 1.01
+and that our $N^{\textrm eff}$ are all greater than 25 per chain (4
+chains here with default settings).  In fact, we can see that our
+sampling is nearly as efficient as if we had independent posterior
+draws.  The probability of a 5-star review is our value for `theta`,
+which are 51% for Downtown Bakery, 59% for Taqueria Gramercy, and 47%
+for La Delicias.  Even so, we see that the probability that Taqueria
+Gramercy is the most likely to have their next review be a 5-star
+review, it's still only 90% that's the case.  This is because binomial
+data is weak and we only have observations in the hundreds.  (Editor:
+Don't listen to Yelp---La Delicias is the best of these restaurants by
+far.)
+
+# Regression and predicition
+
+In this section, we will go over simple regression models in Stan and
+see how to generate predictions for new items based on fitted
+parameters.
+
+## Fisher's iris data set
+
+We will analyze Fisher's classic iris data set, which provides sepal
+and petal length and width (in centimeters) as well as the species of
+iris.  First we read it in, then we will plot petal width versus petal
+length, with species indicated by color.
+
+```{python}
+df = pd.read_csv('../stan/iris-data.csv')
+mydraw(
+  pn.ggplot(df, pn.aes(x='petal_width', y='petal_length',
+                       color='species')) +
+  pn.geom_point() +
+  pn.labs(x = "petal width (cm)", y = "petal length (cm)")
+)
+```
+
+The three species are of very different sizes, but there is a roughly
+linear relation between petal width and petal length that fits the
+entire
+data.
+
+The width values all have exactly one decimal place of accuracy, which
+means they were recorded to the nearest millimeter. There are models
+that deal with this kind of measurement quantization, but we will not
+consider it now and proceed as if there were no rounding of our
+measurements.
+
+## Linear regression
+
+A simple regression model where petal width is $x$ and petal length is
+$y$ would take
+$$
+y \sim \textrm{normal}(\alpha + \beta \cdot x, \sigma),
+$$
+where $\alpha$ is the _intercept_, $\beta$ is the _slope_, and
+$\sigma$ is the _error scale_.  Regressions are sometimes expressed
+equivalently as
+$$
+y = \alpha + \beta \cdot x + \epsilon,  \qquad \epsilon \sim \textrm{normal}(0, \sigma)
+$$
+
+Here is a simple Stan model to regress petal length on petal width.
+
+```{.stan filename='../stan/iris-petals.stan'}
+data {
+  int<lower=0> N;
+  vector<lower=0>[N] petal_width;
+  vector<lower=0>[N] petal_length;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+model {
+  petal_length ~ normal(alpha + beta * petal_width, sigma);
+  alpha ~ normal(0, 5);
+  beta ~ normal(0, 5);
+  sigma ~ lognormal(0, 1);
+}
+```
+
+The data block says there are $N$ observations of petal width and
+length. The widths and lengths are declared as vectors, with lower
+bounds of zero because lengths cannot be negative. We write the
+parameters out in the parameter block, making sure to include the
+lower bound for $\sigma$---the program will not work without that.
+
+The model has the regression as written in math. But the math referred
+to scalar $x$ and $y$, whereas now we have vectors. The way Stan
+works, the normal distribution is applied to each element of the
+container, and any non-container is repeated. So this is equivalent to
+the less efficient form
+```stan
+  for (n in 1:N) {
+    petal_length[n] ~ normal(alpha + beta * petal_width[n],
+                             sigma);
+  }  
+```
+We then have priors for the regression coefficients and error scale.
+The coefficients are unconstrained, but the error scale is constrained
+to be positive, so we use a lognormal distribution (we could have also
+used a half normal and we should if scales near zero are possible).
+
+
+We can then compile and fit the model and display the resulting
+fit for `alpha` and `beta` as a scatterplot.
+
+```{python}
+def iris_data_frame():
+    return pd.read_csv('../stan/iris-data.csv')
+
+def iris_data():
+    df = iris_data_frame()
+    N = df.shape[0]
+    petal_width = df['petal_width']
+    petal_length = df['petal_length']
+    species = 1 + pd.Series(df['species']).astype('category').cat.codes
+    num_species = 3
+    data = {'N': N,
+            'K': num_species,
+            'species': species,
+            'petal_width': petal_width,
+            'petal_length': petal_length,}
+    return data
+  
+model = csp.CmdStanModel(stan_file = '../stan/iris-petals.stan')
+sample = model.sample(data = iris_data(), seed = 123,
+                      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)
+```
+We have added both the species as a string and the species as an
+index (using pandas's notion of a factor).
+
+
+This summary doesn't give us a good feeling for the uncertainty in the
+linear relationship.  To do that, we will plot multiple draws from the
+posterior along with the data.
+
+```{python}
+alpha_draws = sample.stan_variable('alpha')
+beta_draws = sample.stan_variable('beta')
+plot =  pn.ggplot(df, pn.aes(x='petal_width', y='petal_length',
+                             color='species'))
+plot = plot +  pn.geom_point()
+plot = plot +  pn.labs(x = "petal width (cm)", y = "petal length (cm)")
+for a, b in zip(alpha_draws[0:20], beta_draws[0:20]):
+    plot = plot + pn.geom_abline(intercept = a, slope = b,
+                                 alpha = 0.5, size = 0.2)
+mydraw(
+  plot
+)
+```
+
+In order to fit all three groups of data, the plot doesn't do such a
+great job of fitting any of them---the larger *iris setosa* instances
+haver overestimated petal lengths, whereas they are overestimated for
+*iris versicolor*.
+
+We didn't include the error scale, but it's roughly 0.5.  That means
+it won't be uncommon to get errors greater than 1 or less than -1.
+For *iris setosa*, this could easily result in predictions with
+negative lengths!
+
+## Log-linear regression
+
+We'll fix both problems in Stan. First, we'll include a regression per
+species. Second, we'll convert to the log scale so that our predicted
+sizes remain positive.
+
+## Posterior predictive inference
+
+Now let's say we have a new observation where we know the petal width
+and want to predict its length.  Mathematically, to make a prediction
+for a new item, we use _posteiror predictive inference_.
+
+First, let's consider evaluating the log density of a new petal's
+length ($\tilde{y}$) given its observed width ($\tilde{x}$), having
+observed our original data $x$ and $y$.  In Bayesian inference,
+we evaluate the _posterior predictive distribution_, where we
+let $\Theta$ be our random parameters with realization $\theta$,
+\begin{align}
+p(\tilde{y} \mid \tilde{x}, x, y)
+&= \mathbb{E}[p(\tilde{y} \mid \tilde{x}, \theta) \mid x, y]
+\\[6pt]
+&= \int_{\Theta} p(\tilde{y} \mid \tilde{x}, \theta) \cdot p(\theta \mid x, y) \, \textrm{d}\theta
+\\[6pt]
+&\approx \frac{1}{M} \sum_{m=1}^M \, p(\tilde{y} \mid \tilde{x}, \theta^{(m)}),
+\end{align}
+where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$ are draws from the posterior.
+This is just marginalizing out the parameters.  It can help to break the
+integral down into the two components of uncertainty, sampling uncertainty
+due to our sampling distribution and posterior uncertainty in the values of our parameters,
+$$
+\int_{\Theta}
+\underbrace{p(\tilde{y} \mid \tilde{x}, \theta)}_{\textrm{sampling uncertainty}} 
+\cdot
+\underbrace{p(\theta \mid x, y)}_{\textrm{estimation uncertainty}}
+\, \textrm{d}\theta
+$$
+In our case, $\theta = \begin{bmatrix}\alpha & \beta & \sigma\end{bmatrix}$ and the sampling
+distribution is
+$$
+p(\tilde{y} \mid \tilde{x}, \alpha, \beta, \sigma)
+=
+\textrm{normal}(\tilde{y} \mid \alpha + \beta \cdot \tilde{x}, \sigma).
+$$
+Even if we know the parameter values $\alpha$, $\beta$, and $\sigma$ exactly, we can
+only predict $\tilde{y}$ to within $\epsilon$, where $\epsilon \sim \textrm{normal}(0, \sigma)$.
+If we plug in a point estimate $\widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}$ for our parameters,
+we might get approximate inference that takes into account sampling uncertainty, but not estimation uncertainty, e.g., 
+$$
+p(\tilde{y} \mid \tilde{x}, x, y)
+\approx
+p(\tilde{y} \mid \tilde{x}, \widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}).
+$$
+
+So far, this only gives us a way to evaluate the log density of a
+resulting outcome $\tilde{y}$ given a predictor $\tilde{x}$.  If we
+want to simulate possible $\tilde{y}$, we have to make sure to add
+sampling uncertainty and draw
+$$
+\tilde{y}^{(m)} \sim \textrm{normal}\!\left(\alpha^{(m)} + \beta^{(m)} \cdot \tilde{x} \mid \sigma^{(m)}\right),
+$$
+where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
+\sigma \mid x, y)$ are posterior draws.  In general, if we then want to estimate
+$\tilde{y}$, we can take posterior means of these values.  In the case here,
+where our sampling distribution is symmetric, we can directly compute
+expected values of $\tilde{y}$ as $\alpha + \beta \cdot \tilde{x}$, so we
+can get by plugging in those values rather than sampling for an estimate of $\hat{y}$.
+
+Let's put all this together into a Stan program.  First, let's make
+posterior predictions for some new $\tilde{y}$.  We can do this with a
+Stan program that just includes the parameters and the new data and a
+generated quantities block.  We can run the program with the old
+sample for our parameters to generate our predictions.  We could've also
+just included the generated quantities block in the original program.
+
+```{.stan filename="iris-predict.stan"}
+data {
+  int<lower=0> N_tilde;
+  vector<lower=0>[N_tilde] petal_width_tilde;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+generated quantities {
+  vector<lower=0>[N_tilde] E_petal_length_tilde
+    = alpha + beta * petal_width_tilde;
+  vector<lower=0>[N_tilde] petal_length_tilde
+    = to_vector(normal_rng(E_petal_length_tilde, sigma));
+}
+```
+
+This program declares two new data variables, `N_tilde` for the
+number of predicted items, and `petal_width_tilde`, a vector of
+petal widths of size `N_tilde`.  
+
+It is important that this program use _exactly the same parameters_ as
+the original program.   After our original fit, we read that sample
+back in for the parameters, then run generated quantities (and the
+transformed parameter block if there is one).
+
+The generated quantities block first calculates the expected petal
+length given the petal width and assigns it to the variable
+`E_petal_length_tilde`. This code is vectorized so that it calculates
+all of the input petal widths at once.  The second variable is
+then set by sampling according to the sampling distribution
+using the `normal_rng` function.  This function is also vectorized,
+but it returns an array, so we convert it to a vector just to keep
+all the types the same.
+
+
+```{python}
+data = {'N_tilde': 3,
+        'petal_width_tilde': [0.4, 1.75, 3.8]}
+model = csp.CmdStanModel(
+     stan_file = '../stan/iris-posterior-predictive-sim.stan')
+pps_sample = model.generate_quantities(data = data, seed = 123,
+                                       previous_fit = sample,
+                                       show_console = False)
+for i in range(3):
+  length_draws = \
+      pps_sample.stan_variable('petal_length_tilde')[0:100, i]
+  E_length_draws = \
+      pps_sample.stan_variable('E_petal_length_tilde')[0:100, i]
+  print(f"""{i=}:  mean(E_petal_length_tilde[{i}])
+ = {np.mean(E_length_draws):.2f};
+  sd(E_petal_length_tilde[{i}]) = {np.std(E_length_draws):.2f}""")
+  print(f"""      mean(petal_length_tilde[{i}])
+ = {np.mean(length_draws):.2f};
+  sd(petal_length[{i}]) = {np.std(length_draws):.2f}\n""")
+```
+
+For each of our input petal widths (0.5, 1.75, 3.8), we see the
+posterior mean prediction for petal width and its standard deviation
+calculated two ways. First, we take the posterior draws for the
+expected petal length, `E_petal_length_tilde`, which is just the
+linear prediction of petal value. The uncertainty comes only from
+estimation uncertainty in $\alpha$ and $\beta$. Second, we take the
+posterior draws for petal length, which include an additional normal
+error term with scale $\sigma$. The means are roughly the same either
+way, but the standard deviation is much higher in the case of
+sampling. The second variable, `petal_length_tilde`, includes both
+sources of posterior uncertainty, estimation uncertainty and
+uncertainty from the sampling distribution.
+
+## Lognormal and transformed data
+
+In this section, we will convert our iris model to the log scale using
+the transformed data block.  The only difference to our original model
+is that we now use the logs of the petal width and petal length and we
+use a lognormal distribution for the regression of the length on the
+width.
+
+The _lognormal distribution_ is a simple transform of a normal
+distribution with support over positive values.  If $u \sim
+\textrm{normal}(\mu, \sigma)$, then $\exp(u) \sim
+\textrm{lognormal}(\mu, \sigma)$.  The exponential (inverse) transform
+ensures the result is positive.
+
+The other way around, if $v \sim \textrm{lognormal}(\mu, \sigma)$,
+then $\log v \sim \textrm{normal}(\mu, \sigma)$.  This will allow us
+to transform our Stan program.
+
+```{.stan filename='../stan/iris-petals-log.stan'}
+data {
+  int<lower=0> N;
+  vector<lower=0>[N] petal_width;
+  vector<lower=0>[N] petal_length;
+}
+transformed data {
+  vector[N] log_petal_width = log(petal_width);
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+model {
+  petal_length ~ lognormal(alpha + beta * log_petal_width, sigma);
+  alpha ~ normal(0, 3);
+  beta ~ normal(0, 3);
+  sigma ~ lognormal(0, 0.6);
+}
+```
+
+We have introduced a new block for transformed data, in which we have defined
+a vector of log petal widths to use as a predictor.  The petal lengths
+are already positive, so those stay the same.  The effect is that we
+are regressing log petal length on log petal width and the sampling statement
+could have been replaced with
+```stan
+  log(petal_length) ~ normal(alpha + beta * log_petal_width, sigma);
+```
+The result would be the same up to a constant normalizing term
+involving petal length (which is constant) in the lognormal density.
+
+
+Let's run the model and summarize the results.
+
+```{python}
+log_model = csp.CmdStanModel(stan_file =
+                               '../stan/iris-petals-log.stan')
+log_sample = log_model.sample(data = iris_data(), seed = 123,
+                              show_progress = False,
+			      show_console = False)
+log_sample.summary(sig_figs = 2)
+```
+
+One advantage of the log scale is that the regression makes more sense
+because $\exp(\alpha + \beta \cdot \log w) = \exp(\alpha) \cdot
+w^{\beta}$.  By taking exponents, the intercept becomes a multiplier
+and the slope becomes an exponent.  The error also moves to the multiplicative scale, which makes a lot more sense here
+as we wouldn't expect the same error on the 0.5cm and 5cm scales.
+Now consider our estimated values $\widehat{\alpha} = 1.3$ and $\widehat{\beta} = 0.57$
+and $\sigma = 0.16$, which introduce the relationship, with the plus or minus ($\pm$) covering roughly
+the central 95% interval of probability mass.
+\begin{align}
+\textrm{length}
+&= \exp(\alpha + \beta * \log(\textrm{width}) \ \pm \ 2 \cdot \sigma)
+\\[6pt]
+&= 3.67 \cdot \textrm{width}^{0.56} \cdot 1.38^{\pm 1}.
+\end{align}
+The plus or minus 1 on the exponent turns into either multiplication or division by 1.38. 
+
+The posterior intervals are tighter for the lognormal model, which
+generally indicates a better fit to data.  Let's see what the data and
+some posterior draws of the regression look like on the log scale.
+
+```{python}
+df = iris_data_frame()
+df['log_petal_length'] = np.log(df['petal_length'])
+df['log_petal_width'] = np.log(df['petal_width'])
+alpha_draws = log_sample.stan_variable('alpha')
+beta_draws = log_sample.stan_variable('beta')
+plot =  pn.ggplot(df, pn.aes(x='log_petal_width',
+                             y='log_petal_length',
+			     color='species'))
+plot = plot +  pn.geom_point()
+plot = plot +  pn.labs(x = "petal width (log cm)",
+                       y = "petal length (log cm)")
+for a, b in zip(alpha_draws[0:20], beta_draws[0:20]):
+    plot = plot + pn.geom_abline(intercept = a, slope = b,
+                                 alpha = 0.5, size = 0.2)
+mydraw(
+  plot
+)
+```
+
+Now the *iris versicolor* and *iris virginica* look good, but the
+smaller *iris setosa* is still poorly characterized.  We'll fix this
+problem in the next section.
+
+## Multi-indexing: varying slopes and varying intercepts
+
+We can see from the previous section that a single regression line
+doesn't fit all three species of iris well.  While the lognormal model
+is better, it still fails to capture *iris setosa* well.  On the log
+scale, it does look like it will be possible to capture *iris
+setosa*'s scale, as long we can build separate regresisons for each.
+The varying slopes and varying intercepts are both types of varying
+effects which are sometimes called _random effects_, in contrast to
+the previous models' _fixed effects_, which do not vary by group.
+
+Mathematically, we now have three intercepts (and slopes), one for
+each species of iris.  We will represent these as 3-vectors, $\alpha,
+\beta \in \mathbb{R}^3$.  Given our $N$ data items, we will introduce
+a series of indexes $\textrm{species} \in \{ 1, 2, 3 \}^N$, where
+$\textrm{species}_n$ is the species of the $n$-th data item.  Sticking
+to the log scale, our regression now looks like this,
+$$
+\textrm{length}_n
+\sim \textrm{lognormal}(\alpha_{\textrm{species}_n}
+                         + \beta_{\textrm{species}_n} \cdot \log \textrm{width}_n,
+                        \sigma).
+$$
+The value $\alpha_{\textrm{species}_n}$ is the intercept for
+$\textrm{species}_n \in \{1, 2, 3\}$.  We have kept the same
+error term $\sigma$, though we could have split that out on
+a per-species basis like the slope and intercept, too.
+
+The Stan code follows the statistical notation.  
+
+```{.stan filename='../stan/iris-petals-varying.stan'}
+data {
+  int<lower=0> N;
+  vector<lower=0>[N] petal_width;
+  vector<lower=0>[N] petal_length;
+  int<lower=0> K;
+  array[N] int<lower=1, upper=K> species;
+}
+transformed data {
+  vector[N] log_petal_width = log(petal_width);
+}
+parameters {
+  vector[K] alpha;
+  vector[K] beta;
+  real<lower=0> sigma;
+}
+model {
+  petal_length ~ lognormal(alpha[species]
+                             + beta[species] .* log_petal_width,
+                           sigma);
+  alpha ~ normal(0, 3);
+  beta ~ normal(0, 3);
+  sigma ~ lognormal(0, 0.6);
+}
+```
+
+Here, we take $K$ to be the number of species and the species
+indicator thus takes on values between $1$ and $K$ (inclusive).  Where
+before we had `alpha` and `beta` for the intercept and slope, we now
+have `alpha[species]` and `beta[species]`.  Further, the product of
+the slope and width is now an elementwise product (`.*`).  The
+sampling statement above is equivalent to
+```{stan}
+for (n in 1:N) {
+  petal_length[n]
+    ~ lognormal(alpha[species[n]]
+                  + beta[species[n]] * log_petal_width[n],
+                sigma);
+}
+```
+
+### Elementwise products in Stan
+
+The elementwise product (`.*`) uses MATLAB syntax and is defined so that
+```stan
+(a .* b)[n] == a[n] * b[n]  // true
+```
+Elementwise division (`./`) works the same way and we don't need
+elementwise addition or subtraction because those operations are already
+defined as regular vector addition and subtraction.
+
+### Multi-indexing in Stan
+
+This model uses a technique we call multi-indexing and it works the
+similarly to the way indexing works in R.  Suppose we have a vector
+of size `J` and an array of indexes of size `N`.  
+```stan
+array[N] int idxs;
+vector[J] foo;
+```
+We can use the multiple indexes in `idxs` to index `foo` as `foo[idxs]`.
+the result is a size `N` vector (the type is taken from `foo` and the
+size from `idxs`), with values given by indexing into `idxs`, e.g., for
+`n` in `1:N`, we have
+```stan
+cols(foo[idxs]) == N          // true
+foo[idxs][n] == foo[idxs[n]]  // true
+```
+which tells the number of columsn of `foo[idxs]` is `N` and
+that indexing is done by indexing into `idxs`.
+
+This works the same way for range indexing, such as `foo[1:3]`,
+and for indexing with array literals like `{7, 9, 3}`, e.g.,
+```{stan}
+foo[3:5] = {foo[3], foo[4], foo[5]}         // true
+foo[{7, 9, 3}] == {foo[7], foo[9], foo[3]}  // true
+```
+
+### Fitting our varying effects model
+
+First, we add a `species` column to our data frame to represent the species
+of the iris as an integer 1, 2, or 3.  Then we will just read in
+the data and fit and summarize the results.
+
+```{python}
+vary_model = csp.CmdStanModel(
+                  stan_file = '../stan/iris-petals-varying.stan')
+vary_sample = vary_model.sample(data = iris_data(), seed = 123,
+                                show_progress = False,
+				show_console = False)
+vary_sample.summary(sig_figs = 2)
+```
+
+There are a few things worth noting in this summary.  First, recall
+that the parameter estimates in the fixed effects model were
+$\widehat{\alpha} = 1.3$, $\widehat{\beta} = 0.57$, and
+$\widehat{\sigma} = 0.16$.  In the varying effects model, we see that
+the estimates for $\alpha_k$ and $\beta_k$ vary considerably by $k$.
+For example, as we see in the data, there is very little effect of
+width on length for *iris setosa* $\widehat{\beta}_1 = 0.075$, where
+there is a large effect for *iris * of $\widehat{\beta}_2 = 0.6$.
+Furthermore, our value for $\sigma$ is lower, which indicates lower
+residual error in our predictors.  We will leave evaluating varying
+error scales to the reader.
 
 # Appendices
 
-# Expectation notation
-
-If we have a (potentially multivariate) random variable $Z$, we write
-$\mathbb{E}[Z]$ for its _expectation_, which is defined as its average
-value.  This assumes we have a fixed measure to provide a density
-$p_Z(z)$ for the random variable $Z$.  We compute the average value by
-averaging over the possible values for $Z$ with weights given by its
-density,
-
-$$
-\mathbb{E}[Z] = \int_{Z} z \cdot p_Z(z) \, \textrm{d}z.
-$$
-
-With Bayesian statistics, we are typically interested in conditional
-expectations, which is the value of a random variable conditioned on
-the observed value of a second random variable.  Suppose $Y$ is a
-second random variable and we observe that $Y = y$.  The _conditional
-expectation_ of $Z$ given $Y = y$ is written
-$$
-\mathbb{E}[Z \mid Y = y]
-= \int_{Z} z \cdot p(z \mid y) \, \textrm{d}z.
-$$
-That is, we take a weighted average of the value of $Z$ with weights
-determined by the posterior density $p_{Z \mid Y}(z \mid y)$.  As
-before, this assumes a fixed, joint measure for $Y$ and $Z$.
-
-We are typically concerned with cases where $Z = f(\Theta)$ is a
-function of the parameters $\Theta$ (and perhaps some data, as well),
-and the conditioning is with respect to observed data $y$, where we
-will drop the explicit $Y = y$ conditioning and just use $y$,
-$$
-\mathbb{E}[f(\Theta) \mid y]
-= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
-$$
-These posterior expectations simply average the value of the function
-$f(\theta)$ over the posterior $p(\theta \mid y)$.  All of our
-inferences proceed this way---by averaging a quantity of interest
-expressed as a function of parameters over the posterior
-
-
-
-# Quantiles, medians, and uncertainty intervals
-
-Suppose $Z$ is a univariate random variable (e.g., one of the
-parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
-univariate random variable $Z$, $\textrm{quantile}(Z, p)$, is defined
-by
-$$
-\textrm{quantile}(Z, p) = z
-\ \textrm{ if and only if } \
-\textrm{Pr}[Z \leq z] = p.
-$$
-That is, the $p$-quantile of $Z$ is the value $z$ such that the
-probability $Z$ is less than or equal to $z$ is $p$.  In Bayesian
-applications, we will typically be taking the probability for
-functions of parameters $Z = f(\Theta)$ and conditioning on observed data $y$.
-
-The 0.5-quantile is known as the _median_.  There is a 50% chance that
-a random variable takes on a value less than its median and a 50%
-chance that it takes on a value greater.  Another common Bayesian
-estimator for parameters $\Theta$ is their posterior median,
-$$
-\overline{\theta} = \textrm{quantile}(Z, 0.5).
-$$
-The median estimator has the property of minimizing expected absolute
-<error (in contrast to the posteiror mean estimate, which minimizes
-expected squared error), again assuming the model represents the true
-data generating process.
-
-
-If we have two probabilities, $0 \leq p^L \leq p^U \leq 1$, they
-define the $(p^L, p^U)$ _posterior interval_ 
-$$
-\textrm{interval}(Z, p^L, p^U)
-= \left(
-    \textrm{quantile}(Z, p^L),
-    \textrm{quantile}(Z, p^U)
-  \right).
-$$
-
-The probability that a point falls in the interval is given by the
-differences in probabilities,
-$$
-\textrm{Pr}\!\left[Z \in \textrm{interval}(Z, p^L, p^U)\right] = p^U - p^L.
-$$
-If $1 - p^U = p^L$, the interval is called the _central $(p^L - p^U)$ interval_.
-For example, the central 95% interval for $Z$ is
-$\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
-
-
-
-
-
-# Bayesian statistics
+## Bayesian statistics
 
 @bayes1763 introduced the paradigm of statistical inference that has
 come to be known as Bayesian statistics.  In retrospect, Bayes's idea
@@ -1146,7 +1730,7 @@ on the parameters by integrating over the posterior.
 
 We work through an example end-to-end in the next section.
 
-## Bayes's theorem
+### Bayes's theorem
 
 Bayes
 formalized his approach in the following theorem.
@@ -1208,7 +1792,97 @@ applications to model comparison we will need a normalizing sampling
 distribution $p(y \mid \theta)$ in order to make and compare
 probabilistic predictions.
 
-# Bayesian inference
+## Expectation notation
+
+If we have a (potentially multivariate) random variable $Z$, we write
+$\mathbb{E}[Z]$ for its _expectation_, which is defined as its average
+value.  This assumes we have a fixed measure to provide a density
+$p_Z(z)$ for the random variable $Z$.  We compute the average value by
+averaging over the possible values for $Z$ with weights given by its
+density,
+
+$$
+\mathbb{E}[Z] = \int_{Z} z \cdot p_Z(z) \, \textrm{d}z.
+$$
+
+With Bayesian statistics, we are typically interested in conditional
+expectations, which is the value of a random variable conditioned on
+the observed value of a second random variable.  Suppose $Y$ is a
+second random variable and we observe that $Y = y$.  The _conditional
+expectation_ of $Z$ given $Y = y$ is written
+$$
+\mathbb{E}[Z \mid Y = y]
+= \int_{Z} z \cdot p(z \mid y) \, \textrm{d}z.
+$$
+That is, we take a weighted average of the value of $Z$ with weights
+determined by the posterior density $p_{Z \mid Y}(z \mid y)$.  As
+before, this assumes a fixed, joint measure for $Y$ and $Z$.
+
+We are typically concerned with cases where $Z = f(\Theta)$ is a
+function of the parameters $\Theta$ (and perhaps some data, as well),
+and the conditioning is with respect to observed data $y$, where we
+will drop the explicit $Y = y$ conditioning and just use $y$,
+$$
+\mathbb{E}[f(\Theta) \mid y]
+= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
+$$
+These posterior expectations simply average the value of the function
+$f(\theta)$ over the posterior $p(\theta \mid y)$.  All of our
+inferences proceed this way---by averaging a quantity of interest
+expressed as a function of parameters over the posterior
+
+
+
+## Quantiles, medians, and uncertainty intervals
+
+Suppose $Z$ is a univariate random variable (e.g., one of the
+parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
+univariate random variable $Z$, $\textrm{quantile}(Z, p)$, is defined
+by
+$$
+\textrm{quantile}(Z, p) = z
+\ \textrm{ if and only if } \
+\textrm{Pr}[Z \leq z] = p.
+$$
+That is, the $p$-quantile of $Z$ is the value $z$ such that the
+probability $Z$ is less than or equal to $z$ is $p$.  In Bayesian
+applications, we will typically be taking the probability for
+functions of parameters $Z = f(\Theta)$ and conditioning on observed data $y$.
+
+The 0.5-quantile is known as the _median_.  There is a 50% chance that
+a random variable takes on a value less than its median and a 50%
+chance that it takes on a value greater.  Another common Bayesian
+estimator for parameters $\Theta$ is their posterior median,
+$$
+\overline{\theta} = \textrm{quantile}(Z, 0.5).
+$$
+The median estimator has the property of minimizing expected absolute
+<error (in contrast to the posteiror mean estimate, which minimizes
+expected squared error), again assuming the model represents the true
+data generating process.
+
+
+If we have two probabilities, $0 \leq p^L \leq p^U \leq 1$, they
+define the $(p^L, p^U)$ _posterior interval_ 
+$$
+\textrm{interval}(Z, p^L, p^U)
+= \left(
+    \textrm{quantile}(Z, p^L),
+    \textrm{quantile}(Z, p^U)
+  \right).
+$$
+
+The probability that a point falls in the interval is given by the
+differences in probabilities,
+$$
+\textrm{Pr}\!\left[Z \in \textrm{interval}(Z, p^L, p^U)\right] = p^U - p^L.
+$$
+If $1 - p^U = p^L$, the interval is called the _central $(p^L - p^U)$ interval_.
+For example, the central 95% interval for $Z$ is
+$\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
+
+
+## Bayesian inference
 
 Bayesian inference is largely about estimating quantities of interest
 based on a probability model and observed data.  In typical applied
@@ -1224,7 +1898,7 @@ particular, posterior intervals (sometimes called "credible
 intervals").
 
 
-## Parameter estimation
+### Parameter estimation
 
 The first quantity of interest is the value of parameters.  The
 standard Bayesian parameter estimate is the posterior mean, or
@@ -1262,7 +1936,7 @@ It's clear from the final form that the estimate $\widehat{\theta}$ is determine
 by averaging over posterior uncertainty. 
 
 
-## Event probabilities
+### Event probabilities
 
 An _event_ in statistics is a subset of the parameter space, $A
 \subseteq \Theta$, where $\Theta$ is the set of all valid parameter
@@ -1287,7 +1961,7 @@ we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
 is a value.
 
 
-## Posterior predictive inference
+### Posterior predictive inference
 
 Often we are interested in predicting new data $\tilde{y}$ given the
 observation of existing data $y$.  This is a form of _posterior
@@ -1306,7 +1980,7 @@ p(\tilde{y} \mid y)
 
 
 
-# Markov chain Monte Carlo
+## Markov chain Monte Carlo
 
 Stan performs asymptotically exact, full Bayesian inference using
 Markov chain Monte Carlo (MCMC).  MCMC starts from an initial value
@@ -1410,510 +2084,6 @@ $$
 \widehat{\theta} - \theta
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
-
-# A/B testing
-
-A common application of statistics is to compare two things, such as
-the effectiveness of a new drug versus the current drug used to treat
-a condition on the one hand, or the effectiveness of two different ad
-presentations in getting users to click through.  This is usually called
-_A/B testing_ in a nod to comparing a hypothetical option A and option B.
-
-Let's consider some Mexican restaurants in New York City, Downtown
-Bakery II in the East Village, Taqueria Gramercry in Gramercy, and
-La Delicias Mexianas in Spanish Harlem.  Here's the number of reviews
-and 5-star reviews for these restaurants on the web site Yelp.
-
-| name | 5-star reviews | total reviews |
-|:--|--:|--:|
-| Downtown Bakery II | 141 | 276 | 0.511 |
-| Taqueria Gramercy | 84 | 143 | 0.587 |
-| La Delicias Mexicanas | 41 | 87 | 0.471 |
-
-We can estimate a few things.  First, we can estimate the probability
-that each restaurant really is a 5-star restaurant.  We will parameterize
-this directly with a rate of 5-star reviews parameter for each restaurant.
-Then we can rank the restaurants based on their probability of being a 5-star restaurant.
-
-We will assume there are a total of $K$ items being compared.  In
-traditional A/B testing, $K = 2$, but our example uses $K = 3$ and our
-code works for any $K$.  We will also assume a Dirichlet prior on the
-chances of success $\theta$.
-
-```{.stan filename='stan/ab-test.stan'}
-data {
-  int<lower=0> K;
-  array[K] int<lower=0> trials;
-  array[K] int<lower=0> successes;
-  real<lower=0> alpha;  
-  real<lower=0> beta;  
-}
-parameters {
-  array[K] real<lower=0, upper=1> theta;
-}
-model {
-  successes ~ binomial(trials, theta);
-  theta ~ beta(alpha, beta);
-}
-generated quantities {
-  array[K] int<lower=0, upper=1> is_best;
-  for (k in 1:K) {
-    is_best[k] = theta[k] == max(theta);
-  }
-}
-```
-
-We have coded the data for $K$ items directly in terms of number of
-trials and number of successes.  We have also supplied the prior for
-the probabilities of success as data as `alpha` and `beta`.  The model
-is the same binomial as we had before, except now the likelihood and
-priors are vectorized.  In general, Stan is able to take something
-like the binomial distribution, which has an integer number of trials,
-integer number of successes, and a scalar success probability and
-take vectors for all of these.  What we have written above is identical
-to what we would get with a loop,
-
-```stan
-  for (k in 1:K) {
-    successes[k] ~ binomial(trials[k], theta[k])
-  }
-```
-
-The vectorization of `theta` is different in that only `theta` is an
-array, whereas `alpha` and `beta` are scalars.  The sampling statement for
-`theta` is equivalent to
-
-```stan
-  for (k in 1:K) {
-    theta[k] ~ beta(alpha, beta);
-  }
-```
-
-Because `alpha` and `beta` are scalars, they are not indexed.  Rather,
-they are _broadcast_, meaning that the same `alpha` and `beta` is
-reused for each dimension of `theta`.
-
-So now let's call and fit this model and print the summary.  We
-are setting $\alpha = \beta = 2$, which is equivalent to setting
-them equal to 1 and adding 2 trials and 1 success to the data for
-each restaurant.
-
-```{python}
-model = csp.CmdStanModel(stan_file = '../stan/ab-test.stan')
-data = {'K': 3, 'trials': [276, 143, 87], 'successes': [141, 84, 41],
-        'alpha': 2, 'beta': 2}
-sample = model.sample(data = data, seed = 123,
-		      show_progress = False, show_console = False)
-sample.summary(sig_figs = 2)
-```
-
-First, we make sure that our $\widehat{R}$ values are less than 1.01
-and that our $N^{\textrm eff}$ are all greater than 25 per chain (4
-chains here with default settings).  In fact, we can see that our
-sampling is nearly as efficient as if we had independent posterior
-draws.  The probability of a 5-star review is our value for `theta`,
-which are 51% for Downtown Bakery, 59% for Taqueria Gramercy, and 47%
-for La Delicias.  Even so, we see that the probability that Taqueria
-Gramercy is the most likely to have their next review be a 5-star
-review, it's still only 90% that's the case.  This is because binomial
-data is weak and we only have observations in the hundreds.  (Editor:
-Don't listen to Yelp---La Delicias is the best of these restaurants by
-far.)
-
-# Regression and predicition
-
-In this section, we will go over simple regression models in Stan and
-see how to generate predictions for new items based on fitted
-parameters.
-
-## Fisher's iris data set
-
-We will analyze Fisher's classic iris data set, which provides sepal
-and petal length and width (in centimeters) as well as the species of
-iris.  First we read it in, then we will plot petal width versus petal
-length, with species indicated by color.
-
-```{python}
-df = pd.read_csv('../stan/iris-data.csv')
-mydraw(
-  pn.ggplot(df, pn.aes(x='petal_width', y='petal_length', color='species')) +
-  pn.geom_point() +
-  pn.labs(x = "petal width (cm)", y = "petal length (cm)")
-)
-```
-
-The three species are of very different sizes, but there is a roughly
-linear relation between petal width and petal length that fits the
-entire
-data.
-
-The width values all have exactly one decimal place of accuracy, which
-means they were recorded to the nearest millimeter. There are models
-that deal with this kind of measurement quantization, but we will not
-consider it now and proceed as if there were no rounding of our
-measurements.
-
-## Linear regression
-
-A simple regression model where petal width is $x$ and petal length is
-$y$ would take
-$$
-y \sim \textrm{normal}(\alpha + \beta \cdot x, \sigma),
-$$
-where $\alpha$ is the _intercept_, $\beta$ is the _slope_, and
-$\sigma$ is the _error scale_.  Regressions are sometimes expressed
-equivalently as
-$$
-y = \alpha + \beta \cdot x + \epsilon,  \qquad \epsilon \sim \textrm{normal}(0, \sigma)
-$$
-
-Here is a simple Stan model to regress petal length on petal width.
-
-```{.stan filename='../stan/iris-petals.stan'}
-data {
-  int<lower=0> N;
-  vector<lower=0>[N] petal_width;
-  vector<lower=0>[N] petal_length;
-}
-parameters {
-  real alpha;
-  real beta;
-  real<lower=0> sigma;
-}
-model {
-  petal_length ~ normal(alpha + beta * petal_width, sigma);
-  alpha ~ normal(0, 5);
-  beta ~ normal(0, 5);
-  sigma ~ lognormal(0, 1);
-}
-```
-
-The data block says there are $N$ observations of petal width and
-length. The widths and lengths are declared as vectors, with lower
-bounds of zero because lengths cannot be negative. We write the
-parameters out in the parameter block, making sure to include the
-lower bound for $\sigma$---the program will not work without that.
-
-The model has the regression as written in math. But the math referred
-to scalar $x$ and $y$, whereas now we have vectors. The way Stan
-works, the normal distribution is applied to each element of the
-container, and any non-container is repeated. So this is equivalent to
-the less efficient form
-```stan
-  for (n in 1:N) {
-    petal_length[n] ~ normal(alpha + beta * petal_width[n], sigma);
-  }  
-```
-We then have priors for the regression coefficients and error scale.
-The coefficients are unconstrained, but the error scale is constrained
-to be positive, so we use a lognormal distribution (we could have also
-used a half normal and we should if scales near zero are possible).
-
-
-We can then compile and fit the model and display the resulting
-fit for `alpha` and `beta` as a scatterplot.
-
-```{python}
-def iris_data():
-  df = pd.read_csv('../stan/iris-data.csv')
-  N = df.shape[0]
-  petal_width = df['petal_width']
-  petal_length = df['petal_length']
-  data = {'N': N, 'petal_width': petal_width, 'petal_length': petal_length}
-  return data
-  
-model = csp.CmdStanModel(stan_file = '../stan/iris-petals.stan')
-sample = model.sample(data = iris_data(), seed = 123,
-		      show_progress = False, show_console = False)
-sample.summary(sig_figs = 2)
-```
-
-This summary doesn't give us a good feeling for the uncertainty in the
-linear relationship.  To do that, we will plot multiple draws from the
-posterior along with the data.
-
-```{python}
-alpha_draws = sample.stan_variable('alpha')
-beta_draws = sample.stan_variable('beta')
-plot =  pn.ggplot(df, pn.aes(x='petal_width', y='petal_length', color='species'))
-plot = plot +  pn.geom_point()
-plot = plot +  pn.labs(x = "petal width (cm)", y = "petal length (cm)")
-for a, b in zip(alpha_draws[0:20], beta_draws[0:20]):
-    plot = plot + pn.geom_abline(intercept = a, slope = b,
-                                 alpha = 0.5, size = 0.2)
-mydraw(
-  plot
-)
-```
-
-In order to fit all three groups of data, the plot doesn't do such a
-great job of fitting any of them---the larger *iris setosa* instances
-haver overestimated petal lengths, whereas they are overestimated for
-*iris versicolor*.
-
-We didn't include the error scale, but it's roughly 0.5.  That means
-it won't be uncommon to get errors greater than 1 or less than -1.
-For *iris setosa*, this could easily result in predictions with
-negative lengths!
-
-## Log-linear regression
-
-We'll fix both problems in Stan. First, we'll include a regression per
-species. Second, we'll convert to the log scale so that our predicted
-sizes remain positive.
-
-## Posterior predictive inference
-
-Now let's say we have a new observation where we know the petal width
-and want to predict its length.  Mathematically, to make a prediction
-for a new item, we use _posteiror predictive inference_.
-
-First, let's consider evaluating the log density of a new petal's
-length ($\tilde{y}$) given its observed width ($\tilde{x}$), having
-observed our original data $x$ and $y$.  In Bayesian inference,
-we evaluate the _posterior predictive distribution_, where we
-let $\Theta$ be our random parameters with realization $\theta$,
-\begin{align}
-p(\tilde{y} \mid \tilde{x}, x, y)
-&= \mathbb{E}[p(\tilde{y} \mid \tilde{x}, \theta) \mid x, y]
-\\[6pt]
-&= \int_{\Theta} p(\tilde{y} \mid \tilde{x}, \theta) \cdot p(\theta \mid x, y) \, \textrm{d}\theta
-\\[6pt]
-&\approx \frac{1}{M} \sum_{m=1}^M \, p(\tilde{y} \mid \tilde{x}, \theta^{(m)}),
-\end{align}
-where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$ are draws from the posterior.
-This is just marginalizing out the parameters.  It can help to break the
-integral down into the two components of uncertainty, sampling uncertainty
-due to our sampling distrubiton and posterior uncertainty in the values of our parameters,
-$$
-\int_{\Theta}
-\underbrace{p(\tilde{y} \mid \tilde{x}, \theta)}_{\textrm{sampling uncertainty}} 
-\cdot
-\underbrace{p(\theta \mid x, y)}_{\textrm{estimation uncertainty}}
-\, \textrm{d}\theta
-$$
-In our case, $\theta = \begin{bmatrix}\alpha & \beta & \sigma\end{bmatrix}$ and the sampling
-distribution is
-$$
-p(\tilde{y} \mid \tilde{x}, \alpha, \beta, \sigma)
-=
-\textrm{normal}(\tilde{y} \mid \alpha + \beta \cdot \tilde{x}, \sigma).
-$$
-Even if we know the parameter values $\alpha$, $\beta$, and $\sigma$ exactly, we can
-only predict $\tilde{y}$ to within $\epsilon$, where $\epsilon \sim \textrm{normal}(0, \sigma)$.
-If we plug in a point estimate $\widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}$ for our parameters,
-we might get approximate inference that takes into account sampling uncertainty, but not estimation uncertainty, e.g., 
-$$
-p(\tilde{y} \mid \tilde{x}, x, y)
-\approx
-p(\tilde{y} \mid \tilde{x}, \widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}).
-$$
-
-So far, this only gives us a way to evaluate the log density of a
-resulting outcome $\tilde{y}$ given a predictor $\tilde{x}$.  If we
-want to simulate possible $\tilde{y}$, we have to make sure to add
-sampling uncertainty and draw
-$$
-\tilde{y}^{(m)} \sim \textrm{normal}\!\left(\alpha^{(m)} + \beta^{(m)} \cdot \tilde{x} \mid \sigma^{(m)}\right),
-$$
-where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
-\sigma \mid x, y)$ are posterior draws.  In general, if we then want to estimate
-$\tilde{y}$, we can take posterior means of these values.  In the case here,
-where our sampling distribution is symmetric, we can directly compute
-expected values of $\tilde{y}$ as $\alpha + \beta \cdot \tilde{x}$, so we
-can get by plugging in those values rather than sampling for an estimate of $\hat{y}$.
-
-Let's put all this together into a Stan program.  First, let's make
-posterior predictions for some new $\tilde{y}$.  We can do this with a
-Stan program that just includes the parameters and the new data and a
-generated quantities block.  We can run the program with the old
-sample for our parameters to generate our predictions.  We could've also
-just included the generated quantities block in the original program.
-
-```{.stan filename="iris-predict.stan"}
-data {
-  int<lower=0> N_tilde;
-  vector<lower=0>[N_tilde] petal_width_tilde;
-}
-parameters {
-  real alpha;
-  real beta;
-  real<lower=0> sigma;
-}
-generated quantities {
-  vector<lower=0>[N_tilde] E_petal_length_tilde
-    = alpha + beta * petal_width_tilde;
-  vector<lower=0>[N_tilde] petal_length_tilde
-    = to_vector(normal_rng(E_petal_length_tilde, sigma));
-}
-```
-
-This program declares two new data variables, `N_tilde` for the
-number of predicted items, and `petal_width_tilde`, a vector of
-petal widths of size `N_tilde`.  
-
-It is important that this program use _exactly the same parameters_ as
-the original program.   After our original fit, we read that sample
-back in for the parameters, then run generated quantities (and the
-transformed parameter block if there is one).
-
-The generated quantities block first calculates the expected petal
-length given the petal width and assigns it to the variable
-`E_petal_length_tilde`. This code is vectorized so that it calculates
-all of the input petal widths at once.  The second variable is
-then set by sampling according to the sampling distribution
-using the `normal_rng` function.  This function is also vectorized,
-but it returns an array, so we convert it to a vector just to keep
-all the types the same.
-
-
-```{python}
-data = {'N_tilde': 3,
-        'petal_width_tilde': [0.4, 1.75, 3.8]}
-model = csp.CmdStanModel(stan_file = '../stan/iris-posterior-predictive-sim.stan')
-pps_sample = model.generate_quantities(data = data, seed = 123,
-                                       previous_fit = sample,
-                                       show_console = False)
-for i in range(3):
-  length_draws = pps_sample.stan_variable('petal_length_tilde')[0:100, i]
-  E_length_draws = pps_sample.stan_variable('E_petal_length_tilde')[0:100, i]
-  print(f"{i=}:  mean(E_petal_length_tilde[{i}]) = {np.mean(E_length_draws):.2f}; sd(E_petal_length_tilde[{i}]) = {np.std(E_length_draws):.2f}")
-  print(f"      mean(petal_length_tilde[{i}]) = {np.mean(length_draws):.2f}; sd(petal_length[{i}]) = {np.std(length_draws):.2f}\n")
-```
-
-For each of our input petal widths (0.5, 1.75, 3.8), we see the
-posterior mean prediction for petal width and its standard deviation
-calculated two ways. First, we take the posterior draws for the
-expected petal length, `E_petal_length_tilde`, which is just the
-linear prediction of petal value. The uncertainty comes only from
-estimation uncertainty in $\alpha$ and $\beta$. Second, we take the
-posterior draws for petal length, which include an additional normal
-error term with scale $\sigma$. The means are roughly the same either
-way, but the standard deviation is much higher in the case of
-sampling. The second variable, `petal_length_tilde`, includes both
-sources of posterior uncertainty, estimation uncertainty and
-uncertainty from the sampling distribution.
-
-## Lognormal and transformed data
-
-In this section, we will convert our iris model to the log scale using
-the transformed data block.  The only difference to our original model
-is that we now use the logs of the petal width and petal length and we
-use a lognormal distribution for the regression of the length on the
-width.
-
-The _lognormal distribution_ is a simple transform of a normal
-distribution with support over positive values.  If $u \sim
-\textrm{normal}(\mu, \sigma)$, then $\exp(u) \sim
-\textrm{lognormal}(\mu, \sigma)$.  The exponential (inverse) transform
-ensures the result is positive.
-
-The other way around, if $v \sim \textrm{lognormal}(\mu, \sigma)$,
-then $\log v \sim \textrm{normal}(\mu, \sigma)$.  This will allow us
-to transform our Stan program.
-
-```{.stan filename='../stan/iris-petals-log.stan'}
-data {
-  int<lower=0> N;
-  vector<lower=0>[N] petal_width;
-  vector<lower=0>[N] petal_length;
-}
-transformed data {
-  vector[N] log_petal_width = log(petal_width);
-}
-parameters {
-  real alpha;
-  real beta;
-  real<lower=0> sigma;
-}
-model {
-  petal_length ~ lognormal(alpha + beta * log_petal_width, sigma);
-  alpha ~ normal(0, 3);
-  beta ~ normal(0, 3);
-  sigma ~ lognormal(0, 0.6);
-}
-```
-
-We have introduced a new block for transformed data, in which we have defined
-a vector of log petal widths to use as a predictor.  The petal lengths
-are already positive, so those stay the same.  The effect is that we
-are regressing log petal length on log petal width and the sampling statement
-could have been replaced with
-```stan
-  log(petal_length) ~ normal(alpha + beta * log_petal_width, sigma);
-```
-The result would be the same up to a constant normalizing term
-involving petal length (which is constant) in the lognormal density.
-
-
-Let's run the model and summarize the results.
-
-```{python}
-log_model = csp.CmdStanModel(stan_file = '../stan/iris-petals-log.stan')
-log_sample = log_model.sample(data = iris_data(), seed = 123,
-		              show_progress = False, show_console = False)
-log_sample.summary(sig_figs = 2)
-```
-
-One advantage of the log scale is that the regression makes more sense
-because $\exp(\alpha + \beta \cdot \log w) = \exp(\alpha) \cdot
-w^{\beta}$.  By taking exponents, the intercept becomes a multiplier
-and the slope becomes an exponent.  The error also moves to the multiplicative scale, which makes a lot more sense here
-as we wouldn't expect the same error on the 0.5cm and 5cm scales.
-Now consider our estimated values $\widehat{\alpha} = 1.3$ and $\widehat{\beta} = 0.57$
-and $\sigma = 0.16$, which introduce the relationship, with the plus or minus ($\pm$) covering roughly
-the central 95% interval of probability mass.
-\begin{align}
-\textrm{length}
-&= \exp(\alpha + \beta * \log(\textrm{width}) \ \pm \ 2 \cdot \sigma)
-\\[6pt]
-&= 3.67 \cdot \textrm{width}^{0.56} \cdot 1.38^{\pm 1}.
-\end{align}
-The plus or minus 1 on the exponent turns into either multiplication or division by 1.38. 
-
-The posterior intervals are tighter for the lognormal model, which
-generally indicates a better fit to data.  Let's see what the data and
-some posterior draws of the regression look like on the log scale.
-
-```{python}
-df = pd.read_csv('../stan/iris-data.csv')
-df['log_petal_length'] = np.log(df['petal_length'])
-df['log_petal_width'] = np.log(df['petal_width'])
-alpha_draws = log_sample.stan_variable('alpha')
-beta_draws = log_sample.stan_variable('beta')
-plot =  pn.ggplot(df, pn.aes(x='log_petal_width', y='log_petal_length', color='species'))
-plot = plot +  pn.geom_point()
-plot = plot +  pn.labs(x = "petal width (log cm)", y = "petal length (log cm)")
-for a, b in zip(alpha_draws[0:20], beta_draws[0:20]):
-    plot = plot + pn.geom_abline(intercept = a, slope = b,
-                                 alpha = 0.5, size = 0.2)
-mydraw(
-  plot
-)
-```
-
-Now the *iris versicolor* and *iris virginica* look good, but the
-smaller *iris setosa* is still poorly characterized.  We'll fix this
-problem in the next section.
-
-## Multi-indexing: varying slopes and varying intercepts
-
-We can see from the previous section that a single regression line
-doesn't fit all three species of iris well.  While the lognormal model
-is better, it still fails to capture *iris setosa* well.  On the log
-scale, it does look like it will be possible to capture *iris
-setosa*'s scale, as long we can build separate regresisons for each.
-The varying slopes and varying intercepts are sometimes called _random
-effects_ as opposed to our previous _fixed effects_ that work for all
-items in the data set.
-
-In Stan, all we need to do is ensure that we encode the species
-as an indicator 1, 2, and 3 (which we will order in terms of
-increasing size).  Then we will take that indicator in as an
-array of integers, declare slopes and intercepts equal to the number
-of groups, and then fit as usual.
-
-```{.stan filename='../stan/iris-petals-random-effect.stan'}
 
 
 # References
