@@ -1710,6 +1710,29 @@ Furthermore, our value for $\sigma$ is lower, which indicates lower
 residual error in our predictors.  We will leave evaluating varying
 error scales to the reader.
 
+
+We now have three different regression lines, which we plot on the
+log scale and color to match the data.
+
+```{python}
+df = iris_data_frame()
+df['log_petal_length'] = np.log(df['petal_length'])
+df['log_petal_width'] = np.log(df['petal_width'])
+plot =  pn.ggplot(df, pn.aes(x='log_petal_width',
+                             y='log_petal_length',
+			     color='species'))
+plot = plot +  pn.geom_point()
+plot = plot +  pn.labs(x = "petal width (log cm)",
+                       y = "petal length (log cm)")
+plot = plot + pn.geom_abline(intercept = .49, slope = 0.076, color='red')
+plot = plot + pn.geom_abline(intercept = 1.30, slope = 0.59, color='green')
+plot = plot + pn.geom_abline(intercept = 1.50, slope = 0.23, color='blue')
+mydraw(
+  plot
+)
+```
+
+
 # Appendices
 
 ## Bayesian statistics
