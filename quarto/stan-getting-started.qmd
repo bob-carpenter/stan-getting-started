@@ -1172,6 +1172,214 @@ data is weak and we only have observations in the hundreds.  (Editor:
 Don't listen to Yelp---La Delicias is the best of these restaurants by
 far.)
 
+# Stan's execution model
+
+Stan programs consist of several blocks.  Here is a summary of when
+the blocks are executed and what they do.
+
+| block | executed | behavior |
+|:--|:--|:--|
+| functions | as needed | user-defined function definitions |
+| data | once | read data to construct model |
+| transformed data | once | define transformed data |
+| parameters | once / log density | constrain parameters (w. Jacobian) |
+| transformed parameters | once / log density | define transformed parameters |
+| model | once / log density | evaluate model log density |
+| generated quantities | once / draw | define generated quantities |
+
+## Data and transformed data
+
+The _data_ block contains only variable declarations. The variables declared in the data block are
+read once at data load time and then remain constant throughout
+execution.
+
+The _transformed data_ block contains variable declarations and
+defintions.   is executed once, after the data is read is
+in, to define the transformed data variables.  It defines functions
+of the data, such as standardized predictors, constants to use for
+priors, etc.
+
+All variable declarations at the block level must declare types and
+sizes (which may be data dependent).  Local variables within blocks
+are declared without sizes.
+
+Constraints in the data block are evaluated at the end of the block's
+execution.  Any violations throw exceptions which terminate execution.
+
+## Parameters and transformed parameters
+
+The _parameters_ block declare the variables over which the model is
+deifned. It contains only variabl declarations with sizes. When
+executed, it is supplied with concrete parameter values, which it
+transforms to the unconstrained scale based on the declared
+constraints (if any).
+
+Constraints on parameters are used to define a transform of the
+constrained space to $\mathbb{R}^D$. For example, a variable declared
+with a `<lower=0>` constraint is log-transformed to an unconstrained
+variable, whereas a variable declared as a covariance matrix is
+Cholesky factored and then a log transform is applied to the diagonal
+elements to render an $N \times N$ matrix as a vector in
+$\mathbb{R}^{\binom{N}{2}}$. It is critical that parameters are
+declared with all necessary constraints so that the model has support
+(i.e., non-zero density, finite log density) over the entire
+transformed space.
+
+The _transformed parameters_ block defines functions of parameters and
+data. Any constraints declared on transformed parameters are validated
+at the end of the block's execution.  If the constraints are violated,
+an exception will be thrown, which typically causes the current
+proposal to be rejected.
+
+## Model
+
+The _model_ block defines the log density and is evaluated once per
+log density evaluation. The log density starts with any components
+added by the log Jacobian determinants of the inverse transforms of
+the parameters from the unconstrained to the constrained space. The
+model executes over constrained parameters. The current state of the
+log density is available through the variable `target`, which can be
+updated directly, e.g.,
+
+```stan
+target += -0.5 * x^2;
+```
+
+The current value of the target is available as `target()` and
+printing it can be useful for debugging.
+
+The other statement that affects the eventual target log density
+returned are _sampling statements_, e.g., 
+
+```stan
+x ~ normal(0, 1);
+```
+
+Sampling statements are shorthand for target increment statements, e.g.,
+
+```stan
+target += normal_lupdf(x | 0, 1);
+```
+
+The vertical bar is used to separate outcome variates from the
+parameters.  The notation `lpdf` is used for log density functions,
+`lpmf` for mass functions, and `lupdf` and `lupmf` for their
+forms that drop constants.  Unless the normalizing constants are
+needed, it is more efficient to use the `lupdf` and `lupmf` forms
+either explicitly or implicitly using sampling statements.
+
+## Generated quantities
+
+The _generated quantities_ block is evaluated once per draw rather
+than once per log density evaluation. With algorithms like Hamiltonian
+Monte Carlo, several, dozens, or even hundreds of log density
+evaluations are used for each draw. The further advantage of generated
+quantities is that they do not require differentiation. They may also
+use pseudo-random number generation. Any constraints are evaluated at
+the end, but exceptions do not cause rejections, just potential
+warnings and potentially undefined (not-a-number) values.
+
+Generated quantities are not part of the model and do not affect
+sampling for the parameters at all.  As such, they are typically used
+for posterior predictive inference, as we have done above and will
+continue to do below.
+
+## User-defined functions
+
+Users can define functions in the _functions_ block. These can be
+applied anywhere in a Stan program, just like built-in functions. In
+addition to ordinary mathematical functions, users can define several
+types of special-purpose functions with Stan-specific behavior.
+
+### User-defined density and mass functions
+
+Defining a function with any of the suffixes `lpdf`, `lupdf`, `lpmf`,
+or `lupmf` defines a density or mass function.  The first argument is
+the variate and the remaining arguments are the parameters.  These
+functions may then be used with vertical bar notation and in sampling
+statements. 
+
+```stan
+functions {
+  real foo_lpdf(real y, real theta) {
+    return normal_lpdf(y | 0, exp(-theta))
+  }
+}
+```
+
+and then the model can contain target increment statements using the
+vertical bar,
+
+```stan
+  target += foo_lpdf(z | phi);
+```
+or just directly use sampling statements
+```stan
+  z ~ foo(phi);
+```
+
+Stan validates that the first argument of an `lpdf` or `lupdf` is
+real-valued and that the first argument of an `lpmf` or `lupmf` is
+integer-valued.
+
+### User-defined random number generators
+
+Defining a function with the suffix `_rng` will define a random number
+generator.  Only functions defined with `_rng` suffixes will be able
+to call other functions with `_rng` suffixes and they will only be
+able to be used in Stan programs in the transformed data and generated
+quantities blocks (i.e., the blocks that are not part of the model
+definition and hence do not need to be differentiated).
+
+For example, a simple way to generate chi-squared random variates is
+to literally sum a bunch of squared normal variates (do not do this in
+a real program as there is a built-in chi-square `_rng` function).
+
+```stan
+real simple_chi_sq_rng(int n) {
+  real y = 0;
+  for (i in 1:n) {
+    y += normal_rng(0, 1)^2;
+  }    
+  return y;
+}
+```
+
+### Modifying the target
+
+Functions that use the suffix `_lp` can access and modify the log
+density.  This means they can only be used in transformed parameters
+or model blocks.  For example, the following function implements what
+Stan does implicitly for a variable declared with a `lower=0` constraint.
+
+```stan
+real pos_constrain_lp(real v) {
+  target += v;  // change of variables adjustment
+  return exp(v);  // change of variables
+}
+```
+
+## Automatic differentiation
+
+Stan uses _automatic differentiation_ to define gradients of the log
+density function.  This is done by building up the complete
+_expression graph_ of the log density being defined by the Stan model.
+A concrete value for unconstrained parameters is supplied, these are
+constrained and the log absolute determinant of the Jacobian of
+the unconstraining transformed is added to the expression graph.
+Then each operation involving parameters is added to the expression
+graph.  The root is the final log density value, which is the value
+of `target`.  The leaves are the unconstrained parameters.  A
+reverse pass over this expression graph propagates the partial
+derivatives fromn the log density value down to the unconstrained
+parameters using the chain rule (it applies in the reverse order of
+the expression construction, which is a topological sort of the
+directed graph).
+
+
+
+
+
 # Regression and predicition
 
 In this section, we will go over simple regression models in Stan and
