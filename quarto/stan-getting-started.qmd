@@ -1357,7 +1357,7 @@ integer-valued.
 
 ### User-defined random number generators
 
-Defining a function with the suffix `_rng` will define a random number
+
 generator.  Only functions defined with `_rng` suffixes will be able
 to call other functions with `_rng` suffixes and they will only be
 able to be used in Stan programs in the transformed data and generated
@@ -1445,19 +1445,44 @@ measurements.
 
 ## Linear regression
 
-A simple regression model where petal width is $x$ and petal length is
-$y$ would take
+A linear regression models one measurement as a linear function of
+another measurement.  In this example, we will model an iris flower's
+petal length as a linear function of its petal width.  If we let $x_n$
+be the petal width for flower $n$ and let $y_n$ be the petal length.
+A linear regression says that we expect $y_n$ to be a linear function
+of $x_n$, or roughly, the expected value of $y_n$ will be $\alpha +
+\beta \cdot x_n$ for some intercept $\alpha$ and slope $\beta$.  A
+linear regression allows an inexact relationship where the linear
+relation only holds in expectation.  In real observations, there will
+be _error_ due to either measurement or a failing in the scientific
+model (which is the very simple linear relation).  
+
+We can introduce a variable $\epsilon_n$ for the difference between a
+petal's length and its expected length given the linear relationship, 
 $$
-y \sim \textrm{normal}(\alpha + \beta \cdot x, \sigma),
+y_n = \alpha + \beta \cdot x_n + \epsilon_n.
 $$
-where $\alpha$ is the _intercept_, $\beta$ is the _slope_, and
-$\sigma$ is the _error scale_.  Regressions are sometimes expressed
-equivalently as
+It is traditional to assume the error is normally distributed with a
+zero mean and scale $\sigma > 0$, 
 $$
-y = \alpha + \beta \cdot x + \epsilon,  \qquad \epsilon \sim \textrm{normal}(0, \sigma)
+\epsilon_n \sim \textrm{normal}(0, \sigma).
+$$
+We can rearrange terms and write this in a fashion that will mirror
+how it's coded in Stan, 
+$$
+y_n \sim \textrm{normal}(\alpha + \beta \cdot x_n, \sigma).
+$$
+In this form, it's clear that the linear prediction is the expectation
+for the random variable $Y_n$ and the standard deviation is the scale,
+$$
+\mathbb{E}[Y_n] = \alpha + \beta \cdot X_n
+\qquad
+\mathrm{sd}[Y_n] = \sigma.
 $$
 
-Here is a simple Stan model to regress petal length on petal width.
+
+Here is a simple Stan model to regress petal length on petal width;
+we replace $x$ with `petal_width` and $y$ with `petal_length`.
 
 ```{.stan filename='../stan/iris-petals.stan'}
 data {
@@ -1479,27 +1504,44 @@ model {
 ```
 
 The data block says there are $N$ observations of petal width and
-length. The widths and lengths are declared as vectors, with lower
-bounds of zero because lengths cannot be negative. We write the
-parameters out in the parameter block, making sure to include the
-lower bound for $\sigma$---the program will not work without that.
+length.  The widths and lengths are declared to have type (column)
+`vector`, with a constraint `lower=0` and size (number of rows) `N`.
+We are declaring these types as vectors because we are going to apply
+matrix multiplication and addition to them.
 
-The model has the regression as written in math. But the math referred
-to scalar $x$ and $y$, whereas now we have vectors. The way Stan
-works, the normal distribution is applied to each element of the
-container, and any non-container is repeated. So this is equivalent to
-the less efficient form
+The model parameters are coded in the parameter block.  The lower
+bound for `sigma` is required here as the normal distribution is only
+defined for positive values of `sigma`.  Stan requires every parameter
+value that satisfies the declared constraints to be in the _support_
+of the density, which is the set of values for which the density is
+non-zero (equivalently, the log density is finite).
+
+The model codes the regression following the math, but without the
+subscripts.  What's going on is that the sampling statement for
+`petal_length` is vectorized.  The variables `petal_length` and
+`petal_length` are both vectors of size `N`, whereas `alpha`, `beta`,
+and `sigma` are all scalars.  Working outward, `beta * petal_width` is
+a scalar times a vector, which is defined in the usual way as a vector
+whose `n`th entry is `beta * petal_width[n]`.  We then add `alpha` to
+that result (multipliation binds more tightly than addition and as in
+mathematical writing, we drop all unnecessary parentheses).  This is
+defined by _broadcasting_ so that `alpha` acts like a vector of size
+`N` and addition is defined in the usual way for vectors.  As a
+result, `alpha + beta * petal_width` is a vector of size `N`, whose
+`n`th element is `alpha + beta * petal_width[n]`.  Now we have a
+vector for the location parameter of a normal distribution, a scalar
+scale (`sigma`), and a vector outcome (`petal_length`).  This works by
+broadcasting `sigma` to use for each `n`.  The end result is
+equivalent to the following, but much more compact and efficient.
 ```stan
-  for (n in 1:N) {
-    petal_length[n] ~ normal(alpha + beta * petal_width[n],
-                             sigma);
-  }  
+for (n in 1:N) {
+  petal_length[n] ~ normal(alpha + beta * petal_width[n], sigma);
+}
 ```
-We then have priors for the regression coefficients and error scale.
+The rest of the model is priors for the regression coefficients and error scale.
 The coefficients are unconstrained, but the error scale is constrained
 to be positive, so we use a lognormal distribution (we could have also
 used a half normal and we should if scales near zero are possible).
-
 
 We can then compile and fit the model and display the resulting
 fit for `alpha` and `beta` as a scatterplot.
@@ -1560,11 +1602,27 @@ it won't be uncommon to get errors greater than 1 or less than -1.
 For *iris setosa*, this could easily result in predictions with
 negative lengths!
 
+## Robust regression
+
+Although we won't consider this model in detail, Stan's plug-and-play
+design makes it very simple to convert our linear regression into a
+_robust regression_ by swapping out the normal error model for a
+Student-t error model,
+```stan
+  petal_length ~ student_t(dof, alpha + beta * petal_width, sigma);
+```
+We have just used `dof` for the degrees of freedom variable, but
+setting it at a value like `4` provides wider tails and setting it at
+`1` produces the very wide-tailed Cauchy distribution, which does not
+even have a finite mean or variance.
+
+
 ## Log-linear regression
 
 We'll fix both problems in Stan. First, we'll include a regression per
 species. Second, we'll convert to the log scale so that our predicted
 sizes remain positive.
+
 
 ## Posterior predictive inference
 
@@ -1969,6 +2027,427 @@ mydraw(
 )
 ```
 
+# Containers: arrays, vectors, and matrices
+
+Stan is strongly typed, and each of the types has a distinct purpose.
+Constraints act as error checks in the data, transformed data,
+transformed parameter, and generated quantities blocks.  In the
+parameter block, they are used to transform from unconstrained to
+constrained values (with implicit change of variables adjustment).
+The full set of transforms and their log absolute Jacobian
+determinants are given in the _Stan Reference Manual_.
+
+## Integer and real primitives
+
+The two primitive types are `int` and `real`.  In the compiled C++
+code, these are 32-bit signed integers and 64-bit floating point
+values, respectively.
+
+The third scalar type is `complex`, where a complex value consists of
+a real component and an imaginary component, both of which are real
+numbers.
+
+### Constrained primitive types
+
+Integer and real types may be constrained with lower bounds, upper
+bounds, or both.  For example, `real<lower=0>` is the type for a
+concentration, `real<lower=0, upper=1>` is the type for a probability,
+`real<lower=-1, lower=1> is the type for a correlation, 
+`int<lower=0>` is the type for a count, and `int<lower=1, upper=5>` is
+the type for an ordinal response to a survey.
+
+## Arrays
+
+For any type `T`, we can write `array[N] T` for the type of an array
+of size `N` containing elements of type `T`.  We can also write
+`array[M, N]` for a 2D array and so on for higher dimensionality.
+
+## Matrices
+
+The type `matrix[M, N]` is for an $M \times N$ matrix.  The type
+`complex_matrix[M, N]` is for an $M \times N$ matrix with complex values.
+We can assign real matrices to complex matrices, but not vice-versa.
+
+
+### Constrained matrix types
+
+There are four special matrix types for positive definite and unit
+positive definite matrices and their Cholesky factors, `cov_matrix`,
+`cholesky_factor_cov`, `corr_matrix`, and `cholesky_factor_corr`.  The
+Cholesky factors are lower triangular.
+
+
+## Vectors and row vectors
+
+The type `vector[M]` is for column vectors with `M` rows, whereas
+`row_vector[N]` is for row vectors with `N` columns.  A column vector
+is like an $M \times 1$ matrix and a row vector is like a $1 \times N$
+vector.  There are also `complex_vector` and `complex_row_vector`
+types which work the same way.
+
+### Constrained vector types
+
+There are constrained vector types for (upward) ordered vectors
+(`ordered[M]`), positive (upward) ordered vectors (`pos_ordered[M]`),
+unit vectors where the sum of squared values is one
+(`unit_vector[M]`), and simplexes where the sum of the non-negative
+values is 1 (`simplex[M]`).  All of these produce size `M` vectors
+matching the constraints.
+
+
+# Discrete parameters
+
+Although Stan only allows parameters which are real or complex valued,
+it is able to work with models involving discrete parameters by
+marginalizing them out in the likelihood and working in expectation
+during inference.
+
+There are two reasons Stan doesn't allow discrete parameters.  First,
+because Stan isn't limited to directed graphical models, it's
+technically impossible to pull out efficient conditional distributions
+for the discrete parameters in general (though it can be done in some
+limited cases).  Second, discrete sampling tends not to perform very
+well because the parameters tend to get locked and not mix well.
+
+
+## Normal mixture model
+
+We'll consider a simple two-component normal mixture model
+parameterized with a discrete responsibility parameter.  This model
+assumes that each item $y_n$ is drawn from one of two possible normal
+distributions, $\textrm{normal}(\mu_1, \sigma_1)$ and
+$\textrm{normal}(\mu_2, \sigma_2)$, with a probability $\lambda \in
+[0, 1]$ of being drawn from the frist distribution.  Let's assume we
+have $N$ observations $y_n \in \mathbb{R}$.  We will use $z_n \in \{
+0, 1 \}$ as the discrete parameter representing the distribution from
+which $y_n$ arose.  This gives us the following model
+\begin{align}
+z_n &\sim \textrm{bernoulli}(\lambda)
+\\[6pt]
+y_n &\sim \textrm{normal}(\mu_{z_n}, \sigma_{z_n})
+\end{align}
+In frequentist settings, the parameters $z_n$ are sometimes called
+_missing data_ to finesse a philosophical aversion to probabilty
+distribution over parameters.
+
+## Marginalization to the rescue
+
+The immediate problem is that we cannot code this directly as written
+in Stan because we do not have discrete parameters.  But what we can
+do is _marginalize_ out the discrete parameters.  We know from the
+_law of total probability_ that if $B$ is a discrete random variable,
+then we can derive the marginal probability $p(a)$ from the joint
+probability function $p(a, b)$ by
+$$
+p(a) = \sum_{b \in B} p(a, b).
+$$
+
+We can put our likelihood in this form as
+$$
+p(y, z \mid \lambda, \mu, \sigma)
+= \prod_{m = 1}^M p(y_n, z_n \mid \lambda, \mu, \sigma).
+$$
+Then we can evaluate the likelihood elementwise,
+$$
+p(y_n, z_n \mid \lambda, \mu, \sigma)
+= \textrm{bernoulli}(z_n \mid \lambda)
+  \cdot \textrm{normal}(y_n \mid \mu_{z_n}, \sigma_{z_n}).
+$$
+Now we can marginalize out the $z_n$ by considering values 0 and 1,
+\begin{align}
+p(y_n \mid \lambda, \mu, \sigma)
+&= p(y_n, z_n = 0 \mid \lambda, \mu, \sigma)
+  + p(y_n, z_n = 1 \mid \lambda, \mu, \sigma)
+\\[6pt]
+&= \textrm{bernoulli}(0 \mid \lambda) \cdot \textrm{normal}(y_n \mid \mu_0, \sigma_0)
+\\[2pt]
+& \qquad + \ \textrm{bernoulli}(1 \mid \lambda) \cdot \textrm{normal}(y_n \mid \mu_1, \sigma_1).
+\end{align}
+We can further substitute in the value for the Bernoulli densities,
+which are
+\begin{align}
+\textrm{bernoulli}(0 \mid \lambda) &= 1 - \lambda, \ \textrm{and}
+\\[4pt]
+\textrm{bernoulli}(1 \mid \lambda) &= \lambda,
+\end{align}
+to produce
+$$
+p(y_n \mid \lambda, \mu, \sigma)
+= (1 - \lambda) \cdot \textrm{normal}(y_n \mid \mu_0, \sigma_0)
++ \lambda \cdot \textrm{normal}(y_n \mid \mu_1, \sigma_1).
+$$
+
+
+
+
+## Simulated data: adult height of men and women
+
+Let's consider a specific instance, a collection of height data where
+men and women have not been discriminated.  Let's assume for the sake
+of simulation that men have a mean height of 175cm with standard
+deviation of 7.5cm and women have a mean height of 162cm with a
+standard deviation of 6.3cm.  We'll further assume that women make up
+51% of the adult population (this varies dramatically across ages).
+This will allow us to simulate data for 5000 randomly selected
+heights.
+
+```{python}
+M = 5_000
+female_mean_height_cm = 162
+male_mean_height_cm = 175
+female_sd_height_cm = 6.3
+male_sd_height_cm = 7.5
+prob_female = 0.51
+mu = np.array([female_mean_height_cm, male_mean_height_cm])
+sigma = np.array([female_sd_height_cm, male_sd_height_cm])
+sex = np.array(np.random.binomial(n = 1, p = prob_female, size=M))
+heights = np.random.normal(loc = mu[sex], scale = sigma[sex], size=M)
+```
+
+
+## The log scale and log sum of exponents operation
+
+We have successfully marginalized out the $z$ and derived $p(y \mid
+\lambda, \mu, \sigma)$, but this leaves us with a residual
+problem---Stan works on the log scale and we have done our derivation
+on the linear scale.  Well, all we need to do is take the log and
+we're done.
+\begin{align}
+\log p(y_n \mid \lambda, \mu, \sigma)
+=
+\log\! \big( \, \strut & \textrm{bernoulli}(0 \mid \lambda) \cdot \textrm{normal}(y_n \mid \mu_0, \sigma_0)
+\\[2pt]
+& +  \textrm{bernoulli}(1 \mid \lambda) \cdot \textrm{normal}(y_n \mid
+\mu_1, \sigma_1)\, \big).
+\end{align}
+To reduce this further, we are going to use the _log-sum-exp_ operation,
+which is defined by
+$$
+\textrm{log-sum-exp}(a, b)
+= \log \left( \strut \exp(a) + \exp(b)\right).
+$$
+
+The reason we use log-sum-exp is that it can be made arithmetically
+stable in such a way as to prevent numerical overflow by noting
+$$
+\textrm{log-sum-exp}(a, b)
+= \textrm{max}(a, b)
+  + \textrm{log-sum-exp}(a - \textrm{max}(a, b),
+                         b - \textrm{max}(a, b))
+\\[4pt]
+$$
+This form eliminates numerical overflow because exponentiation is only
+applied to the terms $\left( a - \textrm{max}(a, b)\right)$ and
+$\left(b - \textrm{max}(a, b)\right)$, both of which must be less than
+or equal to zero by construction.  Underflow is mitigated by pulling
+the leading term $\textrm{max}(a, b)$ out of the sum.
+
+Using log-sum-exp, we can now rewrite our marginalized individual item
+likelihood as
+\begin{align}
+\log p(y_n \mid \lambda, \mu, \sigma)
+= \textrm{log-sum-exp}\big( &\log \textrm{bernoulli}(0 \mid \lambda)
++ \log \textrm{normal}(y_n \mid \mu_0, \sigma_0),
+\\[2pt]
+&\log \textrm{bernoulli}(1 \mid \lambda)
++ \log \textrm{normal}(y_n \mid \mu_1, \sigma_1)
+\big).
+\end{align}
+
+## Stan program for mixtures
+
+As in our earlier examples, the Stan code for mixtures just follows
+the mathematical definitions.
+
+```{.stan filename="heights.stan"}
+data {
+  int<lower=0> M;
+  vector<lower=0>[M] heights;
+}
+parameters {
+  real<lower=0, upper=1> lambda;
+  ordered[2] mu;
+  vector<lower=0>[2] sigma;
+}
+model {
+  mu ~ normal(170, 10);
+  sigma ~ lognormal(log(7), 1);
+  for (m in 1:M) {
+    real lp1 = bernoulli_lpmf(0 | lambda)
+        + normal_lpdf(heights[m] | mu[1], sigma[1]);
+    real lp2 = bernoulli_lpmf(1 | lambda)
+        + normal_lpdf(heights[m] | mu[2], sigma[2]);
+    target += log_sum_exp(lp1, lp2);
+  }
+}
+```
+This program uses local variables `lp1` and `lp2`.  These have scope
+just within the for-loop and take on different values with each loop
+ieration.  In general, local variables can be assigned and reassigned
+in Stan.  They are declared with sizes, but cannot have constraints.
+
+Unlike in the original model, we have to index `mu` and `sigma` from 1
+because Stan arrays are indexed from 1.  The biggest departure from
+the mathematical model as written is that we have declared `mu` to be
+of type `ordered`, which is the type of a vector of increasing values.
+The reason we do this is that the indexes are not well
+identified---swapping them preserves the likelihood.
+
+We have included weakly informative priors for `mu` and `sigma` based
+on our prior knowledge of heights.  The likelihood then just follows
+the mathematical definition.  We had to resort to a loop because Stan
+isn't able to vectorize mixtures.
+
+## Fitting the simulated data
+
+Now we can fit our simulated data.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/heights.stan')
+data = {'M': M, 'heights': heights}
+sample = model.sample(data = data, seed = 123,
+                      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)	      
+```
+
+Mixture models are quite challenging to fit when the components have
+similar distributions as the normals with close locations and scales
+do here.  Checking the fit, we find $\widehat{R}$ values as high as
+1.01 (still acceptable) and effective sample sizes of around 1/6 the
+number of iterations.  Nevertheless, we see the Monte Carlo standard
+error is relatively low for all posterior means other than for
+$\lambda$.  Although we recover reasonable estimates for
+all parameters (simulted values were $\lambda = 0.51$, $\mu = [162 \ 175]$
+and $\sigma = [6.3 \ 7.5]$), the posterior intervals are only well constrained for
+`mu`, with `sigma` being much wider and `lambda` being very poorly
+identified.  These intervals grow with less data and shrink with more
+data.
+
+
+## Built-in Stan function for mixtures
+
+
+For simple mixtures of this kind, Stan supplies a built-in function
+```
+log_mix(lambda, lp1, lp2)
+    = log_sum_exp(log(lambda) + lp1,
+                  log1m(lambda) + lp2)
+```
+which is a more efficient drop-in replacement for the explicit
+definition in our example code, the body of the loop in the model of
+which can just be
+```stan
+target += log_mix(lambda, normal_lpdf(heights[m] | mu[1], sigma[1]),
+                          normal_lpdf(heights[m] | mu[2], sigma[2]));
+```
+This may run a bit faster, but it won't mix any better as it defines
+exactly the same target log density as the long form.
+
+## Recovering posterior distributions over discrete parameters
+
+We have marginalized out the discrete parameters, but what if they are
+of interest in the fitted model?  It turns out, we can sample $z$ in
+the generated quantities block.  All we have to do is work out the
+probability that $z_n = 0$ (female) and sample.  Once we have this
+probability, we can calculate many quantities of interest in
+expectation rather than working with the sample (i.e., we will
+_Rao-Blackwellize_).  The calculation for the expected sex given
+values of $\mu$ and $\sigma$ and $y_n$ is
+$$
+\textrm{Pr}[Z_n = 1 \mid y]
+\ = \
+\mathbb{E}[Z_n \mid y]
+\ = \
+\frac{\displastyle p(y_n \mid \mu_0, \sigma_0)}
+       {\displaystyle p(y_n \mid \mu_0, \sigma_0)
+                      + p(y_n \mid \mu_1, \sigma_{z_n})}
+$$
+On the log scale where Stan operates, that's
+$$
+\log \textrm{Pr}[Z_n = 1 \mid y]
+= \log p(y_n \mid \mu_0, \sigma_0)
+  - \textrm{log-sum-exp}(\log p(y_n \mid \mu_0, \sigma_0),
+                         \log p(y_n \mid \mu_1, \sigma_1).
+$$
+
+
+Here's a new generated quantities block we can add to the last
+program, `heights.stan`, in order to generate the probability that the
+first 10 data items are heights for women, and to randomly generate
+the sex for the first ten individuals based on this probability.
+
+```{.stan filename='../stan/heights-post.stan'}
+generated quantities {
+  array[10] int<lower=0, upper=1> sex;
+  vector<lower=0, upper=1>[10] Pr_female;
+  for (m in 1:10) {
+    real lp1 = bernoulli_lpmf(0 | lambda)
+               + normal_lpdf(heights[m] | mu[1], sigma[1]);
+    real lp2 = bernoulli_lpmf(1 | lambda)
+               + normal_lpdf(heights[m] | mu[2], sigma[2]);
+    Pr_female[m] = exp(lp1 - log_sum_exp(lp1, lp2));
+  }
+  array[10] int<lower=0, upper=1> sex = bernoulli_rng(Pr_female);
+}
+```
+
+Now we can compile and fit this model.
+
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/heights-post.stan')
+data = {'M': M, 'heights': heights}
+sample = model.sample(data = data, seed = 123,
+                      show_progress = False, show_console = False)
+sample.summary(sig_figs = 2)	      
+```
+
+The probabilities range from 0 to 1 with some intermediate values.
+The means after sampling are close to the means of the direct
+probability estimate, but much noisier (i.e., higher MCMC standard
+error).  We can compare the probabilities to the simulated values of
+$z$, 
+```{python}
+print(f"{sex[0:10] =}")
+```
+
+# Degugging Stan programs
+
+As usual, we have presented a series of Stan programs that actually
+work as intended.  When developing new programs, one often runs into
+problems.
+
+## Support over constrained parameters
+
+Stan requires programs to assign a finite log density to any
+parameters that satisfy the constraints.  Therefore, we should not be
+writing Stan programs with a mismatch between the parameter
+constraints and the model constraints.  For example, the following
+program puts not constraints on `sigma` in the declaration, but the
+model block requires `sigma` to be greater than zero.
+```stan
+parameters {
+  real sigma;
+}
+model {
+  sigma ~ lognormal(0, 1);
+}  
+```
+The way to fix this is to declare `sigma` to be of type
+`real<lower=0>`.  Often this kind of bug shows up as a failure to
+randomly initialize.  For instance, if we had `vector[10] sigma`, we'd
+only have a $2^{-10}$ or about 1/1000 chance of generating valid
+initializations at random, because Stan initializes parameters
+using a $\textrm{uniform}(-2, 2)$ distribution on the unconstrained scale.
+
+## Debug by print
+
+Stan has a built-in `print()` function that can take string and Stan
+variable arguments, which will be printed when it is executed.  In
+particular, printing the `target()` value can help detect when it
+becomes $-\infty$ (and thus causes rejections).
+
+
+# Constraints and reparameterization
 
 # Appendices
 

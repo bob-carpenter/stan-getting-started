@@ -142,6 +142,14 @@ stan/iris-petals
 stan/markov-autocorrelation
 stan/monte-carlo-pi
 stan/sex-ratio
+stan/heights
+stan/heights-post
+stan/iris-petals-log
+stan/iris-petals-varying
+stan/iris-posterior-predictive-sim
 
 # auto-generated
 quarto/stan-getting-started.html
+quarto/stan-getting-started.pdf
+quarto/.quarto
+quarto/stan-getting-started.ipynb
