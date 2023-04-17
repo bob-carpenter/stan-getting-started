@@ -504,7 +504,7 @@ represented as pairs in $[0, 2]^2$.  Then we are going to generate
 points randomly using a uniform distribution over this square.  For
 each point, we are going to calculate whether it falls inside the
 half-unit circle circumscribed within the square.  The proportion of
-such points gives the proportion of the squares volume taken up by the
+such points gives the proportion of the square's volume taken up by the
 circle.  Because the square is $2 x 2$, it has an area of 4, so the
 circle has an area of 4 times the proportion of points falling in it.
 
@@ -1084,12 +1084,45 @@ and 5-star reviews for these restaurants on the web site Yelp.
 We can estimate a few things.  First, we can estimate the probability
 that each restaurant really is a 5-star restaurant.  We will parameterize
 this directly with a rate of 5-star reviews parameter for each restaurant.
-Then we can rank the restaurants based on their probability of being a 5-star restaurant.
+Then we can rank the restaurants based on their probability of being a
+5-star restaurant.  What does it mean to "be a 5-star restaurant" in
+this sense?  It means getting 5-star reviews from Yelp reviewers.
+Our model is going to treat the reviewers as _exchangeable_ in the
+sense that we don't know anything to distinguish them from one
+another.  Now whether this notion of 5-star restaurant is useful will
+depend on how similar the reader is to the population of reviewers.
+
+We will assume that the number of 5-star reviews for a restaurant
+$k \in 1{:}K$ depends on its underlying quality $\theta_k \in [0, 1]$,
+$$
+n_k \sim \textrm{binomial}(N_k, \theta).
+$$
+Here $N_k \in \mathbb{N}$ is the number of reviews for restaurant $k$
+and $n_k \in 0{:}N_k$ the number of 5-star reviews.  We will further
+the probabilities of 5-star reviews have a beta distribution,
+$$
+\theta_k \sim \textrm{beta}(\alpha, \beta).
+$$
+In a beta distribution, the sum $\alpha + \beta$ determines how much
+to regularize estimates toward $\alpha / (\alpha + \beta)$, with
+$\alpha = \beta = 1$ providing a uniform distribution.
+
+For inference, we will be interested in the posterior distribution
+$p(\theta \mid N, n)$ of 5-star review probabilities. This gives us
+the posterior density of the restaurants' probabiltiy of receiving a
+5-star review. With this posterior, we can rank restaurants based on
+their probability of receiving a 5-star review and calculate the
+probability that each is the best restaurant,
+$$
+\textrm{Pr}[\theta_k = \max(\theta) \mid n, N].
+$$
+
+## Stan model for A/B testing
 
 We will assume there are a total of $K$ items being compared.  In
 traditional A/B testing, $K = 2$, but our example uses $K = 3$ and our
-code works for any $K$.  We will also assume a Dirichlet prior on the
-chances of success $\theta$.
+code works for any $K$.  We define the indicator variable for our
+event probability estimate in the generated quantities block.
 
 ```{.stan filename='stan/ab-test.stan'}
 data {
@@ -1375,10 +1408,6 @@ derivatives fromn the log density value down to the unconstrained
 parameters using the chain rule (it applies in the reverse order of
 the expression construction, which is a topological sort of the
 directed graph).
-
-
-
-
 
 # Regression and predicition
 
@@ -1887,8 +1916,8 @@ that indexing is done by indexing into `idxs`.
 This works the same way for range indexing, such as `foo[1:3]`,
 and for indexing with array literals like `{7, 9, 3}`, e.g.,
 ```{stan}
-foo[3:5] = {foo[3], foo[4], foo[5]}         // true
-foo[{7, 9, 3}] == {foo[7], foo[9], foo[3]}  // true
+foo[3:5] == {foo[3], foo[4], foo[5]}         // true
+foo[{7, 9, 3}] == {foo[7], foo[9], foo[3]}   // true
 ```
 
 ### Fitting our varying effects model
@@ -1906,17 +1935,17 @@ vary_sample = vary_model.sample(data = iris_data(), seed = 123,
 vary_sample.summary(sig_figs = 2)
 ```
 
-There are a few things worth noting in this summary.  First, recall
+There are a few things worth noting in this summary. First, recall
 that the parameter estimates in the fixed effects model were
 $\widehat{\alpha} = 1.3$, $\widehat{\beta} = 0.57$, and
-$\widehat{\sigma} = 0.16$.  In the varying effects model, we see that
+$\widehat{\sigma} = 0.16$. In the varying effects model, we see that
 the estimates for $\alpha_k$ and $\beta_k$ vary considerably by $k$.
 For example, as we see in the data, there is very little effect of
-width on length for *iris setosa* $\widehat{\beta}_1 = 0.075$, where
-there is a large effect for *iris * of $\widehat{\beta}_2 = 0.6$.
-Furthermore, our value for $\sigma$ is lower, which indicates lower
-residual error in our predictors.  We will leave evaluating varying
-error scales to the reader.
+width on length for *iris setosa*, with $\widehat{\beta}_1 = 0.075$,
+wheres there is a large effect for *iris * of $\widehat{\beta}_2 =
+0.6$. Furthermore, our value for $\sigma$ is lower, which indicates
+lower residual error in our predictors. We will leave evaluating
+varying error scales to the reader.
 
 
 We now have three different regression lines, which we plot on the
