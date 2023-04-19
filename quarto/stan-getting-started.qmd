@@ -3,8 +3,6 @@ title: "Getting Started with Stan"
 subtitle: "in Python with cmdstanpy and plotnine"
 author: "Bob Carpenter"
 date: "March 27, 2023"
-execute:
-  cache: false
 format:
   html:
     highlight-style: arrow
@@ -59,7 +57,7 @@ observing past events.
 There are many ways to go about applied statistics.  These notes focus
 on Bayesian statistics, a form of statistical modeling and inference
 that is grounded in probability theory.  In the Bayesian
-apporach to statistics, we characterize our knowledge of the world in
+approach to statistics, we characterize our knowledge of the world in
 terms of probabilities (e.g., there is a 24.3% chance of rain after
 lunch today, the probability that the next baby born in the United
 states is male is 51\%).
@@ -393,7 +391,7 @@ $\mathcal{O}(1 / \sqrt{N})$.
 
 In the previous section, we generated a sample of draws by taking each
 value to be an independent coin flip.  The estimates for the true
-probabilty of heads based on the sample frequency of positive outcomes
+probability of heads based on the sample frequency of positive outcomes
 concentrates around the true value as the number of draws increased.
 
 For our applied Bayesian modeling problems, we will not be able to
@@ -486,7 +484,7 @@ exhibits strong anti-correlation in its draws, which tend to bounce
 back and forth between 0 and 1 almost every iteration.  In contrast,
 the 0.95 probability of staying in the same state means the draws have
 long sequences of 0s and 1s.  The 0.5 probability produces independent
-draws from the Markov chain.  It is clear that the anticorrelated
+draws from the Markov chain.  It is clear that the anti-correlated
 chain converges much more quickly and more stably than the independent
 chain, which in turn converges to the correct estimate of 0.5 much more
 quickly than the correlated chain.
@@ -522,7 +520,7 @@ The program declares variables `x` and `y` and constrains them to fall
 in the interval $[-1, 1]$ and assigns them uniform random values.  The
 indicator variable `inside` is set to 1 if the Euclidean length of the
 vector $\begin{bmatrix}x & y\end{bmatrix}$ is less than 1 (i.e., it
-falls within an inscribed unit cirlce) and is set to 0 otherwise.  The
+falls within an inscribed unit circle) and is set to 0 otherwise.  The
 Euclidean distance is derived directly using the Pythagorean theorem.
 
 First, we compile and then sample from the model, taking `M = 10_000` draws.
@@ -571,10 +569,108 @@ problem because statistical uncertainty still dominates our numerical
 imprecision in most applications.
 
 
+# Gotchas for Python programmers
+
+Python uses general-purpose programming language idioms, including
+indexing containers from 0 and treating upper bounds in ranges as
+exclusive.  This is in contrast to Stan, which follows mathematical
+notation for matrix algebra and indexes from 1 (like the
+mathematically oriented languages MATLAB and R).
+
+## Indexing from 1
+
+Unlike Python, Stan uses the standard mathematical indexing for
+matrices, which is from 1.  If I declare a `vector[3]`, then the valid
+indexes are 1, 2, and 3.  If `v` is a vector variable, then `v[0]` is
+an indexing error and will throw an exception and log a warning as it
+is caught and the resulting MCMC proposal is rejected.
+
+## Inclusive ranges
+
+Unlike Python, Stan uses inclusive ranges, so that `1:3` represents
+the sequence 1, 2, 3.  The main disadvantage of inclusive notation is
+that it makes disadvantage is now that for `L:U`, the length is `U - L
++ 1`.
+
+Stan's design, which is based around matrix and vector types, derives
+more from the mathematical notation for these types, which indexes
+from 1, than from the convention in programming languages
+
+## Strong typing
+
+Stan variables are strongly typed.  This means every variable is
+assigned a type when it is declared and that type never changes.  Only
+values of expressions of the same type of the variable may be assigned
+to it.
+
+There are three one dimensional real-valued container types (1D array,
+column vectors, and row vectors) and four 2D containers (2D array, 1D
+array of vectors, 1D array of column vectors, matrix).  There are
+functions to interconvert, but sometimes this must be done manually.
+
+## Block scope
+
+Stan follows the C/C++ convention whereby variables declared within a
+block are local to that block.  For example, in this Stan program,
+`logit_theta` is only a valid variable within the conditional block;
+once control has left the conditional block, `logit_theta` falls out
+of scope.
+
+```stan
+if (theta < 0.5) {
+  real logit_theta = logit(theta);
+  ...
+}
+logit_theta = 1.9; // ILLEGAL: OUT OF SCOPE
+```
+The solution is to move up the declaration.
+```stan
+real logit_theta;
+if (theta < 0.5) {
+  logit_theta = logit(theta);
+  ...
+}
+logit_theta = 1.9;  // OK
+```
+
+## Loops are not slow
+
+Unlike in R and Python, loops are fast in Stan because Stan is a
+compiled language.  For operations that only involve indexing and
+assignment, loops can be faster in Stan than their vectorized
+counterparts, because they avoid intermediate allocations.  
+
+However, this is only half of the story.  Whenever functions are
+applied to parameters, the operation, its result, and its operands are
+recorded in an expression graph.  For operations that involve
+functions other than indexing or reshaping operations applied to
+parameters, vectorized versions of functions will almost always reduce
+peak memory usage and increase speed.
+
+## Whitespace and semicolons
+
+Stan follows C/C++ conventions on whitespace in which any sequence of
+whitespace characters (space, tab, new line) are interchangeable
+semantically.  Python and R are both space-sensitive in different
+ways---Python uses it as a block delimiter and R has an eager
+line-based parser.  In Stan, it is OK to continue expressions on
+the following line without any special syntactic marker like the
+backslash(`\\`) in Python, e.g.,
+```stan
+real lp = bernoulli_lpmf(1 | theta)
+          + normal_lpdf(y[n] | mu[1], sigma[1]);
+```
+Both R and Python here would try to terminate the assignment to `lp`
+after the first line and leave a dangling expression for the second
+line.  We recommend following mathematical conventions and breaking
+a line before an operator, ideally a term in a chain of additions or
+a factor in a chain of multiplications.
+
+
 # Laplace's problem: Male birth ratio
 
 Bayes formulated a mathematical solution to the _inverse problem_ of
-determining a posterior distributon with density $p(\theta \mid y)$
+determining a posterior distribution with density $p(\theta \mid y)$
 from a prior with density $p(\theta)$, a sampling distribution with
 density $p(y \mid \theta)$, and observed data $y$.  But he was not able to
 solve the integral presented in the denominator of his theorem and
@@ -660,12 +756,12 @@ autocorrelation does not introduce bias into the Monte Carlo
 estimates.
 
 Stan uses a dynamically adaptive form of Hamiltonian Monte Carlo (HMC)
-known as the no-U-turn sampler (NUTS).  NUTS can be hyperefficient in
-the sense of generating anticorrelated draws that can lead to more
+known as the no-U-turn sampler (NUTS).  NUTS can be hyper-efficient in
+the sense of generating anti-correlated draws that can lead to more
 efficient Monte Carlo estimates than independent draws in some
 cases.
 
-We fit Laplace's model by compling the model, constructing a
+We fit Laplace's model by compiling the model, constructing a
 dictionary for the data, and then calling the `sample` method on the
 compiled model with the dictionary. We call the sample method with
 1,000 warmup iterations and 10,000 sampling iterations; we are taking
@@ -848,7 +944,7 @@ Bayes and Stan.
 
 The Markov chain we use to sample is itself a random variable.
 Re-running the sampler will produce slightly different results due to
-Monte Carlo error (the error introduced by usingly only a finite
+Monte Carlo error (the error introduced by using only a finite
 sample of $M$ draws).  
 
 Stan reports Markov chain Monte Carlo _standard error_ along with
@@ -897,7 +993,7 @@ theory. Given a probability measure, the probability of the event $A$,
 that the rate of boy births is higher than girl births, will be well defined.
 Because we can convert conditions to events, we will be
 sloppy and treat the conditions as if they were events. This allows us
-to write $\Pr[\Theta > \frac{1}{2} \mid N, y]$ for the probabilty of
+to write $\Pr[\Theta > \frac{1}{2} \mid N, y]$ for the probability of
 the event $\Theta > \frac{1}{2}$.
 
 Technically, we will need to use the _indicator function_ $\textrm{I}$,
@@ -997,16 +1093,16 @@ enough that our draws are approximately from the posterior.  A
 standard way to monitor convergence is to start multiple Markov chains
 at different initializations (ideally chosen from a diffuse
 initialization like a draw from the prior) and measure whether they
-are producing draws from the same distirbution.
+are producing draws from the same distribution.
 
 ## Warmup
 
 Stan performs a number of _warmup iterations_ during which time it
 tries to find the region in which it should be sampling and then adapt
 a good step size and estimate the posterior covariance (just the
-diagonal with the variances by defaul).  The step size is used in the
+diagonal with the variances by default).  The step size is used in the
 Hamiltonian dynamics simulator and the (co)variance is used as a
-preconditioner.
+preconditioned.
 
 Warmup converges when the step size and posterior covariance estimates
 no longer change.  With multiple chains, it's possible to test that
@@ -1051,7 +1147,7 @@ doesn't, it's a sign that the first ESS estimate is unreliable.
 You can set the number of chains to run using the `chains` argument of
 the `sampling()` method and you can set the maximum number of chains
 to execute concurrently using `parallel_cores` (which defaults to 1,
-seqeuntial execution).  If you set the maximum number of parallel
+sequential execution).  If you set the maximum number of parallel
 chains to be too low, CPU resources are potentially unused.  If you
 set the number too high, then either CPU or memory can bottleneck
 performance and cause it to be slower than running with fewer chains
@@ -1071,7 +1167,7 @@ presentations in getting users to click through.  This is usually called
 _A/B testing_ in a nod to comparing a hypothetical option A and option B.
 
 Let's consider some Mexican restaurants in New York City, Downtown
-Bakery II in the East Village, Taqueria Gramercry in Gramercy, and
+Bakery II in the East Village, Taqueria Gramercy in Gramercy, and
 La Delicias Mexianas in Spanish Harlem.  Here's the number of reviews
 and 5-star reviews for these restaurants on the web site Yelp.
 
@@ -1109,7 +1205,7 @@ $\alpha = \beta = 1$ providing a uniform distribution.
 
 For inference, we will be interested in the posterior distribution
 $p(\theta \mid N, n)$ of 5-star review probabilities. This gives us
-the posterior density of the restaurants' probabiltiy of receiving a
+the posterior density of the restaurants' probability of receiving a
 5-star review. With this posterior, we can rank restaurants based on
 their probability of receiving a 5-star review and calculate the
 probability that each is the best restaurant,
@@ -1227,7 +1323,7 @@ read once at data load time and then remain constant throughout
 execution.
 
 The _transformed data_ block contains variable declarations and
-defintions.   is executed once, after the data is read is
+definitions.   is executed once, after the data is read is
 in, to define the transformed data variables.  It defines functions
 of the data, such as standardized predictors, constants to use for
 priors, etc.
@@ -1242,7 +1338,7 @@ execution.  Any violations throw exceptions which terminate execution.
 ## Parameters and transformed parameters
 
 The _parameters_ block declare the variables over which the model is
-deifned. It contains only variabl declarations with sizes. When
+defined. It contains only variable declarations with sizes. When
 executed, it is supplied with concrete parameter values, which it
 transforms to the unconstrained scale based on the declared
 constraints (if any).
@@ -1404,12 +1500,12 @@ Then each operation involving parameters is added to the expression
 graph.  The root is the final log density value, which is the value
 of `target`.  The leaves are the unconstrained parameters.  A
 reverse pass over this expression graph propagates the partial
-derivatives fromn the log density value down to the unconstrained
+derivatives from the log density value down to the unconstrained
 parameters using the chain rule (it applies in the reverse order of
 the expression construction, which is a topological sort of the
 directed graph).
 
-# Regression and predicition
+# Regression and prediction
 
 In this section, we will go over simple regression models in Stan and
 see how to generate predictions for new items based on fitted
@@ -1523,7 +1619,7 @@ subscripts.  What's going on is that the sampling statement for
 and `sigma` are all scalars.  Working outward, `beta * petal_width` is
 a scalar times a vector, which is defined in the usual way as a vector
 whose `n`th entry is `beta * petal_width[n]`.  We then add `alpha` to
-that result (multipliation binds more tightly than addition and as in
+that result (multiplication binds more tightly than addition and as in
 mathematical writing, we drop all unnecessary parentheses).  This is
 defined by _broadcasting_ so that `alpha` acts like a vector of size
 `N` and addition is defined in the usual way for vectors.  As a
@@ -1628,7 +1724,7 @@ sizes remain positive.
 
 Now let's say we have a new observation where we know the petal width
 and want to predict its length.  Mathematically, to make a prediction
-for a new item, we use _posteiror predictive inference_.
+for a new item, we use _posterior predictive inference_.
 
 First, let's consider evaluating the log density of a new petal's
 length ($\tilde{y}$) given its observed width ($\tilde{x}$), having
@@ -1876,7 +1972,7 @@ We can see from the previous section that a single regression line
 doesn't fit all three species of iris well.  While the lognormal model
 is better, it still fails to capture *iris setosa* well.  On the log
 scale, it does look like it will be possible to capture *iris
-setosa*'s scale, as long we can build separate regresisons for each.
+setosa*'s scale, as long we can build separate regressions for each.
 The varying slopes and varying intercepts are both types of varying
 effects which are sometimes called _random effects_, in contrast to
 the previous models' _fixed effects_, which do not vary by group.
@@ -1968,7 +2064,7 @@ size from `idxs`), with values given by indexing into `idxs`, e.g., for
 cols(foo[idxs]) == N          // true
 foo[idxs][n] == foo[idxs[n]]  // true
 ```
-which tells the number of columsn of `foo[idxs]` is `N` and
+which tells the number of columns of `foo[idxs]` is `N` and
 that indexing is done by indexing into `idxs`.
 
 This works the same way for range indexing, such as `foo[1:3]`,
@@ -2127,7 +2223,7 @@ z_n &\sim \textrm{bernoulli}(\lambda)
 y_n &\sim \textrm{normal}(\mu_{z_n}, \sigma_{z_n})
 \end{align}
 In frequentist settings, the parameters $z_n$ are sometimes called
-_missing data_ to finesse a philosophical aversion to probabilty
+_missing data_ to finesse a philosophical aversion to probability
 distribution over parameters.
 
 ## Marginalization to the rescue
@@ -2283,7 +2379,7 @@ model {
 ```
 This program uses local variables `lp1` and `lp2`.  These have scope
 just within the for-loop and take on different values with each loop
-ieration.  In general, local variables can be assigned and reassigned
+iteration.  In general, local variables can be assigned and reassigned
 in Stan.  They are declared with sizes, but cannot have constraints.
 
 Unlike in the original model, we have to index `mu` and `sigma` from 1
@@ -2317,7 +2413,7 @@ do here.  Checking the fit, we find $\widehat{R}$ values as high as
 number of iterations.  Nevertheless, we see the Monte Carlo standard
 error is relatively low for all posterior means other than for
 $\lambda$.  Although we recover reasonable estimates for
-all parameters (simulted values were $\lambda = 0.51$, $\mu = [162 \ 175]$
+all parameters (simulated values were $\lambda = 0.51$, $\mu = [162 \ 175]$
 and $\sigma = [6.3 \ 7.5]$), the posterior intervals are only well constrained for
 `mu`, with `sigma` being much wider and `lambda` being very poorly
 identified.  These intervals grow with less data and shrink with more
@@ -2410,19 +2506,17 @@ $z$,
 print(f"{sex[0:10] =}")
 ```
 
-# Degugging Stan programs
+# Debugging Stan programs
 
 As usual, we have presented a series of Stan programs that actually
 work as intended.  When developing new programs, one often runs into
 problems.
 
-## Support over constrained parameters
+## Failure to provide support over constrained parameters
 
 Stan requires programs to assign a finite log density to any
-parameters that satisfy the constraints.  Therefore, we should not be
-writing Stan programs with a mismatch between the parameter
-constraints and the model constraints.  For example, the following
-program puts not constraints on `sigma` in the declaration, but the
+parameters that satisfy the constraints.  For example, the following
+program puts no constraints on `sigma` in the declaration, but the
 model block requires `sigma` to be greater than zero.
 ```stan
 parameters {
@@ -2432,22 +2526,234 @@ model {
   sigma ~ lognormal(0, 1);
 }  
 ```
-The way to fix this is to declare `sigma` to be of type
-`real<lower=0>`.  Often this kind of bug shows up as a failure to
-randomly initialize.  For instance, if we had `vector[10] sigma`, we'd
-only have a $2^{-10}$ or about 1/1000 chance of generating valid
-initializations at random, because Stan initializes parameters
-using a $\textrm{uniform}(-2, 2)$ distribution on the unconstrained scale.
+This violates Stan's requirements because the declared constraints
+allow a negative value for `sigma`, but the model block does not.  The
+way to fix this is to declare `sigma` to be of type `real<lower=0>`.
+Often this kind of bug shows up as a failure to randomly initialize.
+For instance, if we had `vector[10] sigma`, we'd only have a $2^{-10}$
+or about 1/1000 chance of generating valid initializations at random,
+because Stan initializes parameters using a $\textrm{uniform}(-2, 2)$
+distribution on the unconstrained scale.
 
 ## Debug by print
 
 Stan has a built-in `print()` function that can take string and Stan
 variable arguments, which will be printed when it is executed.  In
 particular, printing the `target()` value can help detect when it
-becomes $-\infty$ (and thus causes rejections).
+becomes $-\infty$ (and thus causes rejections).  This can be done line
+by line, for example,
+```stan
+model {
+  y ~ normal(alpha + beta * x, sigma);
+  print("step 17, target() = ", target());
+  sigma ~ lognormal(0, 1);
+  print("step 18. target() = ", target());
+}
+```
+Then if one of the statements throws an exception, you will see the
+print statement just before it was called. If one of the statements
+leads to a not-a-number or negative infinity value, you will see the
+first place this affects `target()`. You can also print the results of
+intermediate calculations.  Be careful printing long structures; you
+might want to try printing a slice, e.g.,
+```stan
+matrix[256, 256] a = b * c;
+print("a[1:3, 5:6] = ", a[1, 1]);
+```
 
 
-# Constraints and reparameterization
+
+# Making Stan programs go faster
+
+For MCMC, there are two components to efficiency, the _statistical
+efficiency_ of the sampler, which is measured by effective sample size
+per iteration, and _program efficiency_, which is how fast the log
+density function evaluates.
+
+## Compuational efficiency
+
+The main bottleneck for Stan's computation is the evaluation of the
+log density and its gradient, which it does once per leapfrog step,
+which means multiple times per draw (how many depends on how poorly
+conditioned the model is).
+
+
+
+## Statistical efficiency
+
+By far the best solution for making Stan programs go faster is to
+improve the statistical efficiency of the model.
+
+### Identifiability
+
+The first thing to consider is _identifiability_.  A likelihood $p(y
+\mid \theta)$ is _identifiable_ if distinct parameters lead to
+distinct likelihoods, or in symbols, if $\theta \neq \theta'$ implies
+$p(y \mid \theta) \neq p(y \mid \theta')$.  The other way around, a
+likelihood is not identifiable if there are $\theta \neq \theta'$ such
+that $p(y \mid \theta) = p(y \mid \theta')$.
+
+The classic _Bradley-Terry model_ for inferring quality based on
+pairwise comparisons has a non-identifiable likelihood.  Let's
+consider an application to sports team ranking (it was originally
+applied to consumer products).  Each team $j$ has an ability ranking
+$\alpha_j$.  The log odds of team $j$ defeating team $k$ is modeled as
+$\alpha_j - \alpha_k$.  The observations are of the results of games
+$n$ between team $A_n$ and $B_n$ (the notation is meant to be
+suggestive of the original application to A/B testing).  This defines
+the likelihood
+$$
+p(y_n \mid \alpha) = \textrm{bernoulli}(\textrm{logit}^{-1}(\alpha_{A_n} - \alpha_{B_n}).
+$$
+In Stan, this likelihood can be coded as
+```stan
+model {
+  y ~ bernoulli_logit(alpha[A] - alpha[B]);
+}
+```
+where the vectorized sampling statement unfolds to the following
+equivalent, but less efficient, form.
+```stan
+  for (n in 1:N) {
+    y[n] ~ bernoulli_logit(alpha[A[n]] - alpha[B[n]]);
+  }    
+```
+The model is clearly non-identifiable because
+$$
+p(y_n \mid \alpha) = p(y_n \mid \alpha + c).
+$$
+
+To get around this problem, we can do three things.  The first two
+involve reducing the number of free parameters and the third involves
+soft identification through a prior.  First, we can pin one of the
+values $\alpha$, traditionally by setting $\alpha_1 = 0$. 
+This reduces the number of free parameters by one, as is reflected in
+the Stan parameterization.  
+```stan
+parameters {
+  vector[J - 1] alpha_rest;
+}
+transformed parameters {
+  vector[J] alpha = append_row(0, alpha_rest);
+}
+```
+We can then work with `alpha` directly.  In the second approach, we
+can enforce the constraint $\textrm{sum}(\alpha) = 0$.  This also
+reduces the number of free parameters by one and is coded in a similar
+way, only with a different transform.
+```stan
+transformed parameters {
+  vector[J] alpha = append_row(-sum(alpha_rest), alpha_rest);
+}  
+```
+On the plus side, this approach is symmetric. On the downside, it is
+not generative in that it is not clear how to add a new player $J +
+1$.
+
+The third way to make a Bayesian model identifiable is to add a prior.
+For example, we can do this,
+```stan
+model {
+  alpha ~ normal(0, 3);
+}
+```
+This provides a kind of _soft identification_ in the posterior, where
+values of `alpha` near 0 have higher posterior density.  The third
+approach is overparameterized but has a pleasing symmetry and
+generalizability to new players.
+
+
+### Adaptation and preconditioning
+
+The _condition number_ of a positive-definite matrix is the ratio of
+its largest eigenvalue to its smallest.  For a density, we can
+consider the negative inverse Hessian of its log density at a point.
+For a multivariate normal distribution, the negative inverse Hessian
+is its covariance at every point.  That is, a normal distribution has
+_constant curvature_.  
+
+The larger the condition number, the harder it is to sample from a
+model, because multiple steps at the scale of the smallest eigenvalue
+are required to take a step in the direction of the largest
+eigenvalue.  The first-order gradient-based approximation that
+Hamiltonian Monte Carlo uses can also fail due to high curvature; when
+the step is too large, the result will be _divergent_ Hamiltonian
+trajectories (i.e., ones that do not preserve the Hamiltonian).
+
+When the inverse Hessian is not positive definite, the density is not
+convex, which can present an even greater challenge to sampling than
+poor conditioning. If the inverse Hessian is positive definite and
+relatively constant over the posterior, we can correct for non-unit
+conditioning by _preconditioning_, which can rotate and scale a
+density until it looks more like a standard normal.  In fact, given
+a multivariate normal it does just that---rotates and scales back to a
+standard normal.
+
+Stan begins adaptation in a state that assumes the posterior is
+standard normal, which is (a) centered at the origin, (b) independent
+in dimension, and (c) unit scale.  The closer a posterior is to
+standard normal, the easier it will be for Stan to adapt and to
+sample.
+
+During adaptation, Stan estimates the posterior (co)variance to use
+for preconditioning.  If the posterior Hessian is constant, the
+covariance will be equal to the negative inverse Hessian everywhere.
+
+With its default settings, Stan preconditions by scaling each of the
+parameters as close to unit scale as it can manage.  Under this
+scheme, the adapted metric requires $\mathcal{O}(D)$ storage and
+each leapfrog step (the most inner loop in Stan) requires
+$\mathcal{O}(D)$ time.  By selecting a dense metric, Stan will also
+adapt to a fixed curvature (i.e., one that does not vary over the
+posterior). This requires $\mathcal{O}(D^2)$ storage, a one-time
+$\mathcal{O}(D^3)$ cost to Cholesky factor, and then requires
+$\mathcal{O}(D^2)$ time per leapfrog step to evaluate.
+
+### Reparameterization
+
+We can often reparameterize models to make them easier to sample.
+The standard example is reparameterizing a varying effect to use a
+_non-centered parameterization_.  The centered parameterization is
+```stan
+parameters {
+  real<lower=0> sigma;
+  vector[N] alpha;
+}
+model {
+  sigma ~ lognormal(0, 1.5);
+  alpha ~ normal(0, sigma);
+}
+```
+This model induces a strong dependence between `sigma` and `alpha`.
+When `sigma` is small`, `alpha` must be small, and when `sigma` is
+large, `alpha` will vary over a wide range.  This varying curvature
+(high curvature for low `sigma`, very flat expanses for high `sigma`)
+is very challenging for MCMC sampling.
+
+We can overcome the difficulty in this parameterization by
+non-centering, which we can code explicitly as follows.
+```stan
+parameters {
+  real<lower=0> sigma;
+  vector[N] alpha_std;
+}
+transformed parameters {
+  alpha = sigma * alpha_std;
+}
+model {
+  sigma ~ lognormal(0, 1.5);
+  alpha_std ~ normal(0, 1);
+}
+```
+We now have an independent standard normal distribution on
+`alpha_std`, not on `alpha`.  It induces the correct distribution on
+the transofrmed parameter `alpha`, so that `alpha` has a `normal(0,
+sigma)` distribution.  While this correction is only in the prior,
+if there is not a lot of data for each `n`, the posterior will be similar.
+
+
+
+
 
 # Appendices
 
@@ -2596,7 +2902,7 @@ $$
 \overline{\theta} = \textrm{quantile}(Z, 0.5).
 $$
 The median estimator has the property of minimizing expected absolute
-<error (in contrast to the posteiror mean estimate, which minimizes
+<error (in contrast to the posterior mean estimate, which minimizes
 expected squared error), again assuming the model represents the true
 data generating process.
 
@@ -2727,7 +3033,7 @@ $\theta^{(0)}$, which can be random, user provided, or a mixture of
 both, and then generates a sequence of values
 $\theta^{(1)}, \theta^{(2)}, \ldots, \theta^{(m)}, \ldots$ forming a _Markov chain_.  
 A sequence forms a Markov chain if each value is generated conditioned on
-only hte previous value, so that
+only the previous value, so that
 
 $$
 \theta^{(m + 1)} \sim q(\theta \mid \theta^{(m)}.
@@ -2766,7 +3072,7 @@ progresses, it will converge to the right distribution in the sense
 that in the limit as $m \rightarrow \infty$, the draws approach the
 corect distribution $\theta^{(m)} \sim p(\theta \mid y)$. 
 
-Now suppose we have a psoterior sample of draws $\theta^{(1)}, \ldots,
+Now suppose we have a posterior sample of draws $\theta^{(1)}, \ldots,
 \theta^{(M)}$. We can estimate expectations by simply plugging in
 values of $\theta^{(m)}$ and averaging.  If our chain satisfies the
 mild conditions above, we know that we get the right answer asymptotically,
@@ -2811,8 +3117,8 @@ where $\sigma$ is the standard deviation of the variable $\theta$.
 Pre-asymptotically, this result holds approximately and will be used
 to estimate the distribution of estimation errors.
 
-Because draws in MCMC can be correlated (or even anticorrelated), we
-need the MCMC CLT to genralize the central limit theorem to the case
+Because draws in MCMC can be correlated (or even anti-correlated), we
+need the MCMC CLT to generalize the central limit theorem to the case
 of correlated variables. Here, we can estimate an _effective sample
 size_ (ESS), which is the number of independent draws that provide the same
 error distribution.  If $M^{\textrm{eff}}$ is the effective sample size of the
@@ -2823,6 +3129,8 @@ $$
 \widehat{\theta} - \theta
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
+
+
 
 
 # References
