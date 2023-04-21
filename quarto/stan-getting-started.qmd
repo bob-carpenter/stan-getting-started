@@ -2565,17 +2565,175 @@ print("a[1:3, 5:6] = ", a[1, 1]);
 
 # Making Stan programs go faster
 
-For MCMC, there are two components to efficiency, the _statistical
-efficiency_ of the sampler, which is measured by effective sample size
-per iteration, and _program efficiency_, which is how fast the log
-density function evaluates.
+For MCMC, there are two independent components to efficiency, (1) the
+_statistical efficiency_ of the sampler, which is measured by
+effective sample size per iteration, and (2) _program efficiency_,
+which is measured by how long the program takes to compute the log
+density and gradients.
 
-## Compuational efficiency
+## Computational efficiency
 
-The main bottleneck for Stan's computation is the evaluation of the
-log density and its gradient, which it does once per leapfrog step,
-which means multiple times per draw (how many depends on how poorly
-conditioned the model is).
+There are many ways to write a Stan program to compute the log density
+and gradients of a model with respect to a fixed parameter vector.
+Some of them are faster than others.  For speeding up Stan programs,
+most of the usual considerations apply.  Specifically, we want to
+optimize memory locality and we want to reduce branch points; together
+these are the main efficiency bottlenecks for modern code.
+
+### Working first, then optimize
+
+As Donald Knuth is reputed to have said, "Premature optimization is
+the root of all evil."  It's pretty much always a good idea to get a
+simple version of your code working on a small slice of data first.
+Then only worry about optimization if you need it and if you do need
+it, don't try it without an unoptimized form that works as backup.
+Every developer has learned through hard experience that it's often a
+whole lot easier to optimize working code than it is to debug
+optimized code.
+
+### Do not repeat yourself
+
+The main rule for making Stan programs go fast is *don't repeat
+yourself*.  If there is a computation, don't do that computation
+again, save the result in a local variable and reuse.  For example,
+don't do this:
+```stan
+for (n in 1:N) {
+  y[n] ~ normal(alpha + beta * x[n], exp(log_sigma));
+}
+```
+
+The problem here is that `exp(log_sigma)` gets computed `N` times.
+This uses more memory, as Stan records every operation with links to
+its operands during.  It is also slow, with `N - 1` redundant
+applications of the chain rule (a multiply/add).  Instead, the code should be refactored to
+
+```stan
+real sigma = exp(log_sigma);
+for (n in 1:N) {
+  y[n] ~ normal(alpha + beta * x[n], sigma);
+}
+```
+
+### Avoid autodiff if possible
+
+If you have a constant that's being defined, define it in the
+transformed data block.  That way it only gets evaluated once.  For example, rather than doing this,
+```stan
+data {
+  real<lower=0> alpha;
+}
+model {
+  theta ~ dirichlet(rep_vector(alpha, K));
+}  
+```
+then it's much better to do this,
+```stan
+transformed data {
+  vector<lower=0>[K] alphas = rep_vector(alpha, K);
+}
+model {
+  theta ~ dirichlet(alphas);
+}
+```
+
+The other case to do this is for generated quantities. If it's
+possible to move a variable to the generated quantities block, it
+should be moved.  For example, we might be tempted do posterior
+predictive simulation as follows.
+```stan
+parameters {
+  real alpha, beta;
+  real<lower=0> sigma;
+  vector[M_tilde] y_tilde;
+}
+model {
+  y ~ normal(alpha + beta * x, sigma);
+  y_tilde ~ normal(alpha + beta * x_tilde, sigma);
+}
+```
+In situations like this, we can move `y_tilde` down to generated
+quantities because it's conditionally independent given `mu` and `sigma`.
+```stan
+parameters {
+  real alpha, beta;
+  real<lower=0> sigma;
+}
+model {
+  y ~ normal(alpha + beta * x, sigma);
+}
+generated quantities {
+  array[M_tilde] y_tilde = normal_rng(alpha + beta * x_tilde, sigma);
+}  
+```
+If we really need a vector for `y_tilde` for some reason, we can
+convert with `to_vector()`.
+
+
+### Do not use diagonal multivariate normal
+
+Instead of
+```
+y ~ multi_normal(mu, diag_matrix(sigma));
+```
+which creates a matrix then factors to compute its inverse and determinant, we can use the univariate normal,
+```
+y ~ normal(mu, sigma);
+```
+The result is the same up to a constant.
+
+
+### Memory locality, copying, and storage order
+
+Accessing a row or column of a matrix requires allocating memory and
+copying.  Memory pressure is one of the biggest constraints in modern
+code and relieving it is one of the best things to do to make code go
+faster.
+
+Matrices are organized in column-major order in memory, whereas arrays
+are row major.  That means that the columns of a matrix are stored
+together in memory, and therefore `Sigma[1:M, n]` is efficient, but
+`Sigma[m, 1:N]` is not if `M` is large.
+
+If you need to access vectors one by one but you do not need matrix
+operations, use an array of vectors in either order:
+```stan
+matrix[M, N] alpha;
+array[M] row_vector[N] alpha_arr;
+array[N] vector[M] alpha_t_arr;  // transposed
+```
+Accessing elements of an array does not require any copying.
+
+Overall, copying and rearranging data structures is not very expensive
+in Stan.  Loops are very fast, and rearranging doesn't add any
+overhead to the automatic differentiation.
+
+
+### Vectorize non-linear operations over parameters
+
+Even though loops are very fast in Stan, every expression involving
+parameters leads to nodes and edges being added to the expression
+graph.  The usual suspect is sampling in a loop, as follows.
+```stan
+for (n in 1:N) {
+  y[n] ~ normal(alpha + beta * x[n], sigma);
+}
+```
+Written this way, Stan isn't smart enough to realize it can compute
+`log(sigma)` once and re-use.  It will also build a huge number of
+edges from the log density to `alpha` and `beta`, one for each `y[n]`.  On the other hand, it's much faster written as follows.
+```stan
+y ~ normal(alpha + beta * x, sigma);
+```
+
+The speed from vectorization is not because loops are slow, it's
+because doing autodiff in a loop leads to a much larger expression
+graph and hence much more work when updating the chain rule.  The
+vectorized form has a single output variable for the log density with
+three edges leading to `alpha`, `beta`, and `sigma`.  It will also be
+clever enough to calculate `log(sigma)` once and reuse it.  This
+advantage is even bigger for distributions like multivariate normal
+that require expensive internal determinant calculations.
 
 
 
@@ -2747,12 +2905,22 @@ model {
 ```
 We now have an independent standard normal distribution on
 `alpha_std`, not on `alpha`.  It induces the correct distribution on
-the transofrmed parameter `alpha`, so that `alpha` has a `normal(0,
+the transformed parameter `alpha`, so that `alpha` has a `normal(0,
 sigma)` distribution.  While this correction is only in the prior,
 if there is not a lot of data for each `n`, the posterior will be similar.
 
+### Priors for speed and knowledge
 
-
+Often we are tempted to use vague or overdispersed priors.  When this
+gets too extreme, it can cause computational difficulties navigating
+flat expanses of probability space.  If you have used vague priors to
+avoid thinking too hard and computation is going awry, you might
+consider adding priors with a bit more information.  It's often
+possible to impose _weakly informative priors_ that only determine the
+scale of a variable, which is often known.  Priors are particularly
+important when there is not much data.  Also, it's nice to actually
+use real prior knowledge in inference because not doing so is just
+leaving useful information on the table.
 
 
 # Appendices
