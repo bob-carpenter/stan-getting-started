@@ -1,8 +1,11 @@
 ---
 title: "Getting Started with Stan"
-subtitle: "in Python with cmdstanpy and plotnine"
+subtitle: "in Python with `cmdstanpy` and `plotnine`"
 author: "Bob Carpenter"
 date: "March 27, 2023"
+theme:
+  - cosmo
+  - custom.scss
 format:
   html:
     highlight-style: arrow
@@ -74,7 +77,29 @@ inference, including Markov chain Monte Carlo as used by Stan.  This
 establishes both the notation and what we are trying to compute with
 Stan.
 
+## Markov chain Monte Carlo methods
 
+Bayesian inference for parameter estimation, prediction, or event
+probability estimation is based on posterior expectations.  A
+posterior expectation is a high dimensional integral.  The standard
+approach to solving high-dimensional integrals is the Monte Carlo
+method.  For statistical models, where the expectation is over an
+unnormalized density from which we cannot easily take random samples,
+we have to resort to Markov chain Monte Carlo (MCMC) methods.
+
+## Stan
+
+Stan is an expressive probabilistic programming language that allows a
+wide range of statistical models to be coded.  At its heart, a
+Stan program declares data variables, parameters, and defines a
+posterior log density up to a constant (typically by defining the
+joint log density over parameters and data).
+
+Stan programs are translated to C++ and fit with either MCMC or
+approximate methods.  Users provide Stan data and access Stan output
+through analytics languages like Python, R, or Julia.  This note
+focuses on MCMC-based inference and Python.
+  
 ## Pre-requisites
 
 I will assume the reader is familiar with the basic notions of
@@ -127,9 +152,9 @@ read the results in through the file system.
 * [Stan.jl](https://mc-stan.org/users/interfaces/julia-stan): Julia
 
 The out-of-process architecture makes these interfaces relatively easy
-to install because there are no C++ compatibility issues to work out
-between the analysis languages and Stan.  This case study uses
-CmdStanPy.
+to install and keep up to date with Stan because there are no C++
+compatibility issues to work out between the analysis languages and
+Stan.  This case study uses CmdStanPy.
 
 ### In process interfaces
 
@@ -138,15 +163,16 @@ The following interfaces were the first two developed for Stan.
 * [RStan](http://mc-stan.org/rstan/): R
 * [PyStan](https://pystan.readthedocs.io/en/latest/index.html): Python
 
-The Python in-memory interface replaced with the following web service.
+The Python in-memory interface was later replaced with the following
+HTTP-based web service.
 
 * [HttpStan](https://github.com/stan-dev/httpstan): HTTP
 
 Both RStan and HttpStan (and hence PyStan) rely on high-level foreign
 function interfaces (FFI) to Stan (specifically Cython and Rcpp),
 which means they invoke Stan in memory in the same process running R
-or HttpStan.  This induces compatibility requirements between the C++
-used for Python and R and the C++ used for compiling a Stan program.
+or HttpStan.  This requires compatibility between the C++ compiler
+used for Python and R and the the one used for compiling a Stan program.
 This in turn complicates installation, particularly on Windows.
 
 ### Model interface
@@ -172,11 +198,12 @@ import cmdstanpy as csp
 
 import numpy as np
 
+# stop plotnine griping
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-warnings.filterwarnings( "ignore", module
-= "plotnine\..*" )
+warnings.filterwarnings( "ignore", module = "plotnine\..*" )
 
+# stop stan informational updates and warnings
 import logging
 csp.utils.get_logger().setLevel(logging.ERROR)
 
@@ -185,6 +212,7 @@ import plotnine as pn
 import itertools
 
 def mydraw(x):
+    """draw plot in the quarto doc"""
     x.draw()
 ```
 
@@ -207,10 +235,11 @@ $$
 Y \sim \textrm{binomial}(N, \theta)
 $$
 to indicate that the random variable $Y$ has a binomial distribution
-with $N \in \mathbb{N}$ trials, each with a $\theta \in [0, 1]$ chance
+with $N \in \mathbb{N}$ trials, each with probability $\theta \in [0, 1]$
 of success. The value of the variable $Y$ will be the number of
-successes in $N$ trials with a probability $\theta$ of success. The
+successes in $N$ independent trials with a probability $\theta$ of success. The
 probability mass function function for $Y$, written $p_Y$, is defined
+for $y \in 0{:}N$ by
 by
 \begin{align}
 p_Y(y \mid N, \theta)
@@ -381,7 +410,7 @@ of those outcomes. Here, $y = 3$ is the most prevalent result, with
 corresponding estimate for $\theta$ of $y / 10 = 0.3$. The trial size
 of 100 looks roughly normal, as it should as a binomial with trials $N
 = 100$. By the time we get to $N = 1,000$ trials, the
-draws for $y$ concentrate near 300, or near the estimated value of
+draws for $y$ concentrate near 300, or near the value of
 $0.3$ for $\theta$. As $N$ grows, the central limit theorem tells us
 to expect that the width of these histograms to shrink at a rate of
 $\mathcal{O}(1 / \sqrt{N})$.
@@ -392,7 +421,7 @@ $\mathcal{O}(1 / \sqrt{N})$.
 In the previous section, we generated a sample of draws by taking each
 value to be an independent coin flip.  The estimates for the true
 probability of heads based on the sample frequency of positive outcomes
-concentrates around the true value as the number of draws increased.
+concentrated around the true value as the number of draws increased.
 
 For our applied Bayesian modeling problems, we will not be able to
 take independent draws from the densities of interest.  Instead, we
@@ -405,14 +434,15 @@ $Y_1, Y_2, \ldots$ makes up a Markov chain if
 $$
 p_{Y_{n+1} | Y_{1}, \ldots Y_N}(y_{n + 1} | y_1, \ldots, y_n)
 =
-p_{Y_{n+1} \mid Y_n}(y_{n+1}, y_n)
+p_{Y_{n+1} \mid Y_n}(y_{n+1} \mid y_n)
 $$
 
 We can illustrate with a simple example of three Markov chains, all of
-which have elements that are marginally distributed as
+which have a stationary distribution of
 $\textrm{bernoulli}(0.5)$ and thus the long-term average of all chains
-should be 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
-take the probabilities to be
+should approach 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
+take the probabilities of element $Y_{n+1}$ depending on the previous
+element $Y_{n}$ to be
 \begin{align}
 \Pr[Y_{n + 1} &= 1 \mid Y_n = 1] = \theta
 \\
@@ -421,7 +451,9 @@ take the probabilities to be
 The first line says that if the last number we generated is 1, the
 probability of the next element being 1 is $\theta$.  The second line
 says that if the last number we generated is 0, the probability of the
-next element being 0 is $\theta$.
+next element being 1 is $1 - \theta$, and thus the probabilty of the
+next element being 0 is $\theta$.  That is, there's a probability of
+$\theta$ of generating the same element as the last element.
 
 Here is a Stan program that generates the first $M$ entries of
 a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
@@ -471,6 +503,12 @@ for rho in [0.05, 0.5, 0.95]:
     rhos.extend(itertools.repeat(str(rho), M))
 df = pd.DataFrame({'draw': draws, 'iteration': iterations,
                    'estimate': estimates, 'rho': rhos})
+print(f"rho = 0.05: {df['rho' == 0.05]['draws'].iloc[0:10]}")
+print(f"rho = 0.5: {df['rho' == 0.5]['draws'].iloc[0:10]}")
+print(f"rho = 0.95: {df['rho' == 0.95]['draws'].iloc[0:10]}")
+```
+
+```{python}
 mydraw(
     pn.ggplot(df, pn.aes(x='iteration', y='estimate',
                   group='rho', color='rho'))
@@ -488,6 +526,15 @@ draws from the Markov chain.  It is clear that the anti-correlated
 chain converges much more quickly and more stably than the independent
 chain, which in turn converges to the correct estimate of 0.5 much more
 quickly than the correlated chain.
+
+We can replace the conditional in the body of the loop to make the
+code more concise with a nested user of the _ternary operator_ as follows.
+```stan
+    y[m] = bernoulli_rng(y[m - 1] ? rho : 1 - rho);
+```
+The value of `cond ? e1 : e2` is the value of expression `e1`
+if the conition `cond` is rue and `e2` otherwise.
+
 
 ## Monte Carlo integration
 
@@ -527,7 +574,7 @@ First, we compile and then sample from the model, taking `M = 10_000` draws.
 Then we plot the draws.
 
 ```{python}
-M = 10_000
+M = 100 # 10_000
 model = csp.CmdStanModel(stan_file = '../stan/monte-carlo-pi.stan')
 sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
                       show_progress = False, show_console = False,
@@ -772,7 +819,7 @@ model = csp.CmdStanModel(stan_file = '../stan/sex-ratio.stan')
 boys = 110312
 girls = 105287
 data = {'N': boys + girls, 'y': boys}
-M = 10_000
+M = 100 # 10_000
 sample = model.sample(data = data, seed = 123,
                       iter_sampling = M, iter_warmup = 1000,
                       show_progress = False, show_console = False)
@@ -2288,7 +2335,7 @@ This will allow us to simulate data for 5000 randomly selected
 heights.
 
 ```{python}
-M = 5_000
+M = 50 # 5_000
 female_mean_height_cm = 162
 male_mean_height_cm = 175
 female_sd_height_cm = 6.3
@@ -2673,11 +2720,11 @@ convert with `to_vector()`.
 ### Do not use diagonal multivariate normal
 
 Instead of
-```
+```stan
 y ~ multi_normal(mu, diag_matrix(sigma));
 ```
 which creates a matrix then factors to compute its inverse and determinant, we can use the univariate normal,
-```
+```stan
 y ~ normal(mu, sigma);
 ```
 The result is the same up to a constant.
