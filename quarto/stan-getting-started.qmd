@@ -1,8 +1,11 @@
 ---
 title: "Getting Started with Stan"
-subtitle: "in Python with cmdstanpy and plotnine"
+subtitle: "in Python with `cmdstanpy` and `plotnine`"
 author: "Bob Carpenter"
 date: "March 27, 2023"
+theme:
+  - cosmo
+  - custom.scss
 format:
   html:
     highlight-style: arrow
@@ -74,10 +77,33 @@ inference, including Markov chain Monte Carlo as used by Stan.  This
 establishes both the notation and what we are trying to compute with
 Stan.
 
+
 If you're looking for a gentle introduction to Bayesian statistics,
 I can highly recommend \textit{Statistical Rethinking} @mcelreath2023.
 
+## Markov chain Monte Carlo methods
 
+Bayesian inference for parameter estimation, prediction, or event
+probability estimation is based on posterior expectations.  A
+posterior expectation is a high dimensional integral.  The standard
+approach to solving high-dimensional integrals is the Monte Carlo
+method.  For statistical models, where the expectation is over an
+unnormalized density from which we cannot easily take random samples,
+we have to resort to Markov chain Monte Carlo (MCMC) methods.
+
+## Stan
+
+Stan is an expressive probabilistic programming language that allows a
+wide range of statistical models to be coded.  At its heart, a
+Stan program declares data variables, parameters, and defines a
+posterior log density up to a constant (typically by defining the
+joint log density over parameters and data).
+
+Stan programs are translated to C++ and fit with either MCMC or
+approximate methods.  Users provide Stan data and access Stan output
+through analytics languages like Python, R, or Julia.  This note
+focuses on MCMC-based inference and Python.
+  
 ## Pre-requisites
 
 I will assume the reader is familiar with the basic notions of
@@ -130,9 +156,9 @@ read the results in through the file system.
 * [Stan.jl](https://mc-stan.org/users/interfaces/julia-stan): Julia
 
 The out-of-process architecture makes these interfaces relatively easy
-to install because there are no C++ compatibility issues to work out
-between the analysis languages and Stan.  This case study uses
-CmdStanPy.
+to install and keep up to date with Stan because there are no C++
+compatibility issues to work out between the analysis languages and
+Stan.  This case study uses CmdStanPy.
 
 ### In process interfaces
 
@@ -141,15 +167,16 @@ The following interfaces were the first two developed for Stan.
 * [RStan](http://mc-stan.org/rstan/): R
 * [PyStan](https://pystan.readthedocs.io/en/latest/index.html): Python
 
-The Python in-memory interface replaced with the following web service.
+The Python in-memory interface was later replaced with the following
+HTTP-based web service.
 
 * [HttpStan](https://github.com/stan-dev/httpstan): HTTP
 
 Both RStan and HttpStan (and hence PyStan) rely on high-level foreign
 function interfaces (FFI) to Stan (specifically Cython and Rcpp),
 which means they invoke Stan in memory in the same process running R
-or HttpStan.  This induces compatibility requirements between the C++
-used for Python and R and the C++ used for compiling a Stan program.
+or HttpStan.  This requires compatibility between the C++ compiler
+used for Python and R and the the one used for compiling a Stan program.
 This in turn complicates installation, particularly on Windows.
 
 ### Model interface
@@ -175,11 +202,12 @@ import cmdstanpy as csp
 
 import numpy as np
 
+# stop plotnine griping
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-warnings.filterwarnings( "ignore", module
-= "plotnine\..*" )
+warnings.filterwarnings( "ignore", module = "plotnine\..*" )
 
+# stop stan informational updates and warnings
 import logging
 csp.utils.get_logger().setLevel(logging.ERROR)
 
@@ -188,6 +216,7 @@ import plotnine as pn
 import itertools
 
 def mydraw(x):
+    """draw plot in the quarto doc"""
     x.draw()
 ```
 
@@ -210,10 +239,11 @@ $$
 Y \sim \textrm{binomial}(N, \theta)
 $$
 to indicate that the random variable $Y$ has a binomial distribution
-with $N \in \mathbb{N}$ trials, each with a $\theta \in [0, 1]$ chance
+with $N \in \mathbb{N}$ trials, each with probability $\theta \in [0, 1]$
 of success. The value of the variable $Y$ will be the number of
-successes in $N$ trials with a probability $\theta$ of success. The
+successes in $N$ independent trials with a probability $\theta$ of success. The
 probability mass function function for $Y$, written $p_Y$, is defined
+for $y \in 0{:}N$ by
 by
 \begin{align}
 p_Y(y \mid N, \theta)
@@ -384,7 +414,7 @@ of those outcomes. Here, $y = 3$ is the most prevalent result, with
 corresponding estimate for $\theta$ of $y / 10 = 0.3$. The trial size
 of 100 looks roughly normal, as it should as a binomial with trials $N
 = 100$. By the time we get to $N = 1,000$ trials, the
-draws for $y$ concentrate near 300, or near the estimated value of
+draws for $y$ concentrate near 300, or near the value of
 $0.3$ for $\theta$. As $N$ grows, the central limit theorem tells us
 to expect that the width of these histograms to shrink at a rate of
 $\mathcal{O}(1 / \sqrt{N})$.
@@ -395,7 +425,7 @@ $\mathcal{O}(1 / \sqrt{N})$.
 In the previous section, we generated a sample of draws by taking each
 value to be an independent coin flip.  The estimates for the true
 probability of heads based on the sample frequency of positive outcomes
-concentrates around the true value as the number of draws increased.
+concentrated around the true value as the number of draws increased.
 
 For our applied Bayesian modeling problems, we will not be able to
 take independent draws from the densities of interest.  Instead, we
@@ -408,14 +438,15 @@ $Y_1, Y_2, \ldots$ makes up a Markov chain if
 $$
 p_{Y_{n+1} | Y_{1}, \ldots Y_N}(y_{n + 1} | y_1, \ldots, y_n)
 =
-p_{Y_{n+1} \mid Y_n}(y_{n+1}, y_n)
+p_{Y_{n+1} \mid Y_n}(y_{n+1} \mid y_n)
 $$
 
 We can illustrate with a simple example of three Markov chains, all of
-which have elements that are marginally distributed as
+which have a stationary distribution of
 $\textrm{bernoulli}(0.5)$ and thus the long-term average of all chains
-should be 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
-take the probabilities to be
+should approach 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
+take the probabilities of element $Y_{n+1}$ depending on the previous
+element $Y_{n}$ to be
 \begin{align}
 \Pr[Y_{n + 1} &= 1 \mid Y_n = 1] = \theta
 \\
@@ -424,7 +455,9 @@ take the probabilities to be
 The first line says that if the last number we generated is 1, the
 probability of the next element being 1 is $\theta$.  The second line
 says that if the last number we generated is 0, the probability of the
-next element being 0 is $\theta$.
+next element being 1 is $1 - \theta$, and thus the probabilty of the
+next element being 0 is $\theta$.  That is, there's a probability of
+$\theta$ of generating the same element as the last element.
 
 Here is a Stan program that generates the first $M$ entries of
 a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
@@ -448,8 +481,7 @@ generated quantities {
 }
 ```
 
-We can fit the model in Python as we did before and extract the simulated
-Markov chain $y$.
+We can fit the model in Python as we did before and print the first 100 values simulated for the Markov chain $y$.
 
 ```{python}
 model = csp.CmdStanModel(
@@ -474,6 +506,24 @@ for rho in [0.05, 0.5, 0.95]:
     rhos.extend(itertools.repeat(str(rho), M))
 df = pd.DataFrame({'draw': draws, 'iteration': iterations,
                    'estimate': estimates, 'rho': rhos})
+rho05 = np.array(df.query('rho == "0.05"').head(100)['draw'], dtype = 'int')
+rho50 = np.array(df.query('rho == "0.5"').head(100)['draw'], dtype = 'int')
+rho95 = np.array(df.query('rho == "0.95"').head(100)['draw'], dtype = 'int')
+print("rho = 0.05:", rho05, "\n")
+print("rho = 0.50:", rho50, "\n")
+print("rho = 0.95:", rho95, "\n")
+```
+
+With a 0.05 probability of staying in the same state, the Markov chain
+exhibits strong anti-correlation in its draws, which tend to bounce
+back and forth between 0 and 1 almost every iteration.  In contrast,
+the 0.95 probability of staying in the same state means the draws have
+long sequences of 0s and 1s.  The 0.5 probability produces independent
+draws from the Markov chain and we see short runs of 0s and 1s.
+
+Next, we will show a running average of the 0 and 1 draws for the three chains.  
+
+```{python}
 mydraw(
     pn.ggplot(df, pn.aes(x='iteration', y='estimate',
                   group='rho', color='rho'))
@@ -482,15 +532,18 @@ mydraw(
 )
 ```
 
-With a 0.05 probability of staying in the same state, the Markov chain
-exhibits strong anti-correlation in its draws, which tend to bounce
-back and forth between 0 and 1 almost every iteration.  In contrast,
-the 0.95 probability of staying in the same state means the draws have
-long sequences of 0s and 1s.  The 0.5 probability produces independent
-draws from the Markov chain.  It is clear that the anti-correlated
-chain converges much more quickly and more stably than the independent
-chain, which in turn converges to the correct estimate of 0.5 much more
-quickly than the correlated chain.
+The anti-correlated chain converges much more quickly and more stably
+than the independent chain, which in turn converges much more quickly
+than the correlated chain.
+
+We can replace the conditional in the body of the loop to make the
+code more concise with a nested user of the _ternary operator_ as follows.
+```stan
+    y[m] = bernoulli_rng(y[m - 1] ? rho : 1 - rho);
+```
+The value of `cond ? e1 : e2` is the value of expression `e1`
+if the condition `cond` is rue and `e2` otherwise.
+
 
 ## Monte Carlo integration
 
@@ -500,14 +553,14 @@ for calculating integrals with a simple, textbook example of throwing
 darts at a board randomly and using the random locations to estimate the
 mathematical constant $\pi$.
 
-The idea is that we are going to take a unit square, with values
-represented as pairs in $[0, 2]^2$.  Then we are going to generate
-points randomly using a uniform distribution over this square.  For
-each point, we are going to calculate whether it falls inside the
-half-unit circle circumscribed within the square.  The proportion of
-such points gives the proportion of the square's volume taken up by the
-circle.  Because the square is $2 x 2$, it has an area of 4, so the
-circle has an area of 4 times the proportion of points falling in it.
+We start with two-unit square centered at the origin, with values
+represented as pairs in $[-1, 1]^2$.  Then we will generate points
+uniformly at random in this square.  For each point, we will
+calculate whether it falls inside the unit circle circumscribed
+within the square.  The proportion of such points gives the proportion
+of the square's volume taken up by the circle.  Because the square is
+$2 x 2$, it has an area of 4, so the circle has an area of 4 times the
+proportion of points falling in it.
 
 Here's the Stan code.
 
@@ -516,6 +569,7 @@ generated quantities {
   real<lower=-1, upper=1> x = uniform_rng(-1, 1);
   real<lower=-1, upper=1> y = uniform_rng(-1, 1);
   int<lower=0, upper=1> inside = sqrt(x^2 + y^2) < 1;
+  real<lower=0, upper=4> pi = 4 * inside;
 }
 ```
 
@@ -525,12 +579,14 @@ indicator variable `inside` is set to 1 if the Euclidean length of the
 vector $\begin{bmatrix}x & y\end{bmatrix}$ is less than 1 (i.e., it
 falls within an inscribed unit circle) and is set to 0 otherwise.  The
 Euclidean distance is derived directly using the Pythagorean theorem.
+We then set a variabler `pi` equal to 4 times the indicator value.
+The mean of the draws for `pi` will be our estimate of $\pi$.
 
 First, we compile and then sample from the model, taking `M = 10_000` draws.
 Then we plot the draws.
 
 ```{python}
-M = 10_000
+M = 100 # 10_000
 model = csp.CmdStanModel(stan_file = '../stan/monte-carlo-pi.stan')
 sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
                       show_progress = False, show_console = False,
@@ -538,6 +594,7 @@ sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
 x_draws = sample.stan_variable('x')
 y_draws = sample.stan_variable('y')
 inside_draws = [int(i) for i in sample.stan_variable('inside')]
+pi_draws = sample.stan_variable('pi')
 inside_named_draws = np.array(["out", "in"])[inside_draws]
 df = pd.DataFrame({'x': x_draws, 'y': y_draws,
                    'inside': inside_named_draws})
@@ -552,12 +609,11 @@ mydraw(
 
 Next, we take the sample mean of the indicators for being inside the
 circle, which produces an estimate of the probability of a point being
-inside the circle.  Then, we just have to multiply by the square's
-area (4) to get our estimate for $\pi$.
+inside the circle.  We could have just multiplied ths on the outside by 4, but instead we can just take the mean of the draws for `pi` to get our estimate for $\pi$.
 
 ```{python}
 Pr_is_inside = np.mean(inside_draws)
-pi_hat = 4 * Pr_is_inside
+pi_hat = np.mean(pi_draws)
 print(f"Pr[Y is inside circle] = {Pr_is_inside:.3f};")
 print(f"estimate for pi = {pi_hat:.3f}")
 ```
@@ -574,11 +630,9 @@ imprecision in most applications.
 
 # Gotchas for Python programmers
 
-Python uses general-purpose programming language idioms, including
-indexing containers from 0 and treating upper bounds in ranges as
-exclusive.  This is in contrast to Stan, which follows mathematical
-notation for matrix algebra and indexes from 1 (like the
-mathematically oriented languages MATLAB and R).
+Python follows general programming language idioms like in C++ and
+Java, whereas Stan follows linear algebra idioms like in R and MATLAB.
+
 
 ## Indexing from 1
 
@@ -592,24 +646,41 @@ is caught and the resulting MCMC proposal is rejected.
 
 Unlike Python, Stan uses inclusive ranges, so that `1:3` represents
 the sequence 1, 2, 3.  The main disadvantage of inclusive notation is
-that it makes disadvantage is now that for `L:U`, the length is `U - L
-+ 1`.
+that the length of `L:U` is `U - L + 1`.
 
-Stan's design, which is based around matrix and vector types, derives
-more from the mathematical notation for these types, which indexes
-from 1, than from the convention in programming languages
+Putting these together, Python loops over a container with `N`
+elements look as follows.
+```python
+v = np.random.rand(N)
+for n in range(0, N):
+    ... process v[n] ...
+```
+The Python version visits elements `v[0]`, `v[1]`, ..., `v[N - 1]`.
+
+Loops in Stan are as follows.
+```stan
+vector[N] v;
+for (n in 1:N) {
+   ... process v[n] ...
+}
+```
+The Stan version visits elements `v[1]`, `v[2]`, ..., `v[N]`.
+
 
 ## Strong typing
 
 Stan variables are strongly typed.  This means every variable is
 assigned a type when it is declared and that type never changes.  Only
 values of expressions of the same type of the variable may be assigned
-to it.
+to it.  Block variables are also sized and the size never changes
+after the declaration is executed.
 
 There are three one dimensional real-valued container types (1D array,
 column vectors, and row vectors) and four 2D containers (2D array, 1D
 array of vectors, 1D array of column vectors, matrix).  There are
-functions to interconvert, but sometimes this must be done manually.
+functions to convert back and forth for common cases, but complicated
+cases must be handled manually (but remember, loops that just reassign
+are fast in Stan).
 
 ## Block scope
 
@@ -655,10 +726,10 @@ peak memory usage and increase speed.
 Stan follows C/C++ conventions on whitespace in which any sequence of
 whitespace characters (space, tab, new line) are interchangeable
 semantically.  Python and R are both space-sensitive in different
-ways---Python uses it as a block delimiter and R has an eager
+ways---Python uses space as a block delimiter and R has an eager
 line-based parser.  In Stan, it is OK to continue expressions on
 the following line without any special syntactic marker like the
-backslash(`\\`) in Python, e.g.,
+backslash (`\`) in Python, e.g.,
 ```stan
 real lp = bernoulli_lpmf(1 | theta)
           + normal_lpdf(y[n] | mu[1], sigma[1]);
@@ -666,18 +737,18 @@ real lp = bernoulli_lpmf(1 | theta)
 Both R and Python here would try to terminate the assignment to `lp`
 after the first line and leave a dangling expression for the second
 line.  We recommend following mathematical conventions and breaking
-a line before an operator, ideally a term in a chain of additions or
-a factor in a chain of multiplications.
+a line before an operator, ideally right before a term in a chain of
+additions or a factor in a chain of multiplications.
 
 
 # Laplace's problem: Male birth ratio
 
-Bayes formulated a mathematical solution to the _inverse problem_ of
-determining a posterior distribution with density $p(\theta \mid y)$
-from a prior with density $p(\theta)$, a sampling distribution with
-density $p(y \mid \theta)$, and observed data $y$.  But he was not able to
-solve the integral presented in the denominator of his theorem and
-actually determine the form of the posterior.
+Bayes formulated the _inverse problem_ of determining a posterior
+distribution with density $p(\theta \mid y)$ from a prior with density
+$p(\theta)$, a sampling distribution with density $p(y \mid \theta)$,
+and observed data $y$.  But he was not able to solve the integral
+presented in the denominator of his theorem and actually determine the
+form of the posterior.
 
 ## Laplace's data on live births
 
@@ -691,6 +762,8 @@ sex | live births
 female | 105,287
 male | 110,312
 : Live births in Paris between 1745 and 1770.
+
+It sure looks like there were more boys than girls born.
 
 
 ## A Stan program for Laplace's problem
@@ -744,7 +817,7 @@ When we run a Stan program, what Stan returns is a sequence of $M$
 random draws, which are approximately identically distributed
 according to the posterior,
 $$
-\theta^{(1)}, \ldots, \theta^{(M)} \sim p(\theta \mid y)
+\theta^{(1)}, \ldots, \theta^{(M)} \sim p(\theta \mid y).
 $$
 If we were to take $M \rightarrow \infty$, the draws will converge to
 being identically drawn from the posterior. With a large enough finite
@@ -775,7 +848,7 @@ model = csp.CmdStanModel(stan_file = '../stan/sex-ratio.stan')
 boys = 110312
 girls = 105287
 data = {'N': boys + girls, 'y': boys}
-M = 10_000
+M = 100 # 10_000
 sample = model.sample(data = data, seed = 123,
                       iter_sampling = M, iter_warmup = 1000,
                       show_progress = False, show_console = False)
@@ -816,12 +889,14 @@ the probability that $\theta > 0.5$ or $\theta > 0.51$.
 In Bayesian terms, a _point estimate_ for a parameter $\Theta$
 conditioned on some observed data $Y = y$ is a single value
 $\hat{\theta} \in \mathbb{R}^D$ that in some way summarizes the
-posterior $p(\theta \mid y)$.
+posterior $p(\theta \mid y)$.  Formally, Bayesian estimators are
+defined in such a way as to minimize a _loss function_.
 
 ### Posterior mean estimator
 
 The most common Bayesian point estimate for a parameter is the
 posterior mean,
+
 \begin{align}
 \widehat{\theta}
 &= \mathbb{E}[\theta \mid y]
@@ -844,6 +919,9 @@ theta_hat = np.mean(theta_draws)
 print(f"estimated theta = {theta_hat:.3f}")
 ```
 
+The posterior mean is not an arbitrary choice.  It can be shown that
+the posterior mean minimizes expected squared error, which is the loss
+defined as the squared difference between the estimate and the true value.
 
 
 ### Posterior median estimator, quantiles, and intervals
@@ -856,13 +934,17 @@ $$
 $$
 
 The posterior median can be calculated by taking the posterior
-median of the draws,
+median of the draws, as follows.
 ```{python}
 theta_plus = np.median(theta_draws)
 print(f"estimated (median) theta = {theta_plus:.3f}")
 ```
 Because our posterior distribution is nearly symmetric with Laplace's
-data, the posterior median is very close to posterior median.
+data, the posterior mean and posterior median are very close.
+
+Posterior medians can be shown to minimize expected absolute error
+(the loss being the absolute difference between the estimate and the
+true value).
 
 #### Quantiles
 
@@ -875,7 +957,7 @@ calculated with empirical quantiles.
 quantile_05 = np.quantile(theta_draws, 0.025)
 quantile_95 = np.quantile(theta_draws, 0.975)
 print(f"""0.05 quantile = {quantile_05:.3f};
-  0.95 quantile = {quantile_95:.3f}""")
+0.95 quantile = {quantile_95:.3f}""")
 ```
 
 #### Posterior intervals
@@ -2291,7 +2373,7 @@ This will allow us to simulate data for 5000 randomly selected
 heights.
 
 ```{python}
-M = 5_000
+M = 50 # 5_000
 female_mean_height_cm = 162
 male_mean_height_cm = 175
 female_sd_height_cm = 6.3
@@ -2676,11 +2758,11 @@ convert with `to_vector()`.
 ### Do not use diagonal multivariate normal
 
 Instead of
-```
+```stan
 y ~ multi_normal(mu, diag_matrix(sigma));
 ```
 which creates a matrix then factors to compute its inverse and determinant, we can use the univariate normal,
-```
+```stan
 y ~ normal(mu, sigma);
 ```
 The result is the same up to a constant.
