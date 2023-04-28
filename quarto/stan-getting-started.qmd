@@ -74,6 +74,9 @@ inference, including Markov chain Monte Carlo as used by Stan.  This
 establishes both the notation and what we are trying to compute with
 Stan.
 
+If you're looking for a gentle introduction to Bayesian statistics,
+I can highly recommend \textit{Statistical Rethinking} @mcelreath2023.
+
 
 ## Pre-requisites
 
