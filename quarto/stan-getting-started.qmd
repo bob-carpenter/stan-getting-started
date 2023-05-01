@@ -463,7 +463,7 @@ Here is a Stan program that generates the first $M$ entries of
 a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
 the same output again.
 
-```{.stan filename="stan/markov_autocorelation.stan"}
+```{.stan filename="stan/markov-autocorelation.stan"}
 data {
   int<lower=0> M;
   real<lower=0, upper=1> rho;  // prob of staying in same state
@@ -472,16 +472,32 @@ generated quantities {
   array[M] int<lower=0, upper=1> y;  // Markov chain
   y[1] = bernoulli_rng(0.5);
   for (m in 2:M) {
+    y[m] = bernoulli_rng(y[m - 1] ? rho : 1 - rho);
+  }    
+}
+```
+The assignment to `y[m]` in this program is equivalent to this longer
+form.
+```stan
     if (y[m - 1] == 1) {
       y[m] = bernoulli_rng(rho);
     } else {
       y[m] = bernoulli_rng(1 - rho);
     }
-  } 
-}
 ```
+The more concise form exploits two features of Stan.  First, boolean
+expressions are coded as 1 (true) or 0 (false) in Stan, like in C++.
+Because `y[m - 1]` is constrained to take on values 0 or 1, we know
+that `y[m - 1] == 1` is equivalent to `y[m - 1]`.  Second, it uses the
+_ternary operator_, also like in C++.  The expression `cond ? e1 : e2`
+involves three arguments, separated by a question mark (`?`) and a
+colon (`:`); it's value is the value of `e1` if `cond` is true and the
+value of `e2` otherwise.  Unlike an ordinary function, the ternary
+operator only evaluates `e1` if the condition is true and only
+evaluates `e2` if the condition is false.
 
-We can fit the model in Python as we did before and print the first 100 values simulated for the Markov chain $y$.
+We can fit the model in Python as we did before and print the first
+100 values simulated for the Markov chain $y$.
 
 ```{python}
 model = csp.CmdStanModel(
@@ -509,6 +525,7 @@ df = pd.DataFrame({'draw': draws, 'iteration': iterations,
 rho05 = np.array(df.query('rho == "0.05"').head(100)['draw'], dtype = 'int')
 rho50 = np.array(df.query('rho == "0.5"').head(100)['draw'], dtype = 'int')
 rho95 = np.array(df.query('rho == "0.95"').head(100)['draw'], dtype = 'int')
+print("Markov chain draw with probability rho of repeating last value:\n")
 print("rho = 0.05:", rho05, "\n")
 print("rho = 0.50:", rho50, "\n")
 print("rho = 0.95:", rho95, "\n")
@@ -521,7 +538,8 @@ the 0.95 probability of staying in the same state means the draws have
 long sequences of 0s and 1s.  The 0.5 probability produces independent
 draws from the Markov chain and we see short runs of 0s and 1s.
 
-Next, we will show a running average of the 0 and 1 draws for the three chains.  
+Next, we will show a running average of the 0 and 1 draws for 1000
+iterations for the three chains.
 
 ```{python}
 mydraw(
@@ -536,13 +554,7 @@ The anti-correlated chain converges much more quickly and more stably
 than the independent chain, which in turn converges much more quickly
 than the correlated chain.
 
-We can replace the conditional in the body of the loop to make the
-code more concise with a nested user of the _ternary operator_ as follows.
-```stan
-    y[m] = bernoulli_rng(y[m - 1] ? rho : 1 - rho);
-```
-The value of `cond ? e1 : e2` is the value of expression `e1`
-if the condition `cond` is rue and `e2` otherwise.
+
 
 
 ## Monte Carlo integration
@@ -675,12 +687,13 @@ values of expressions of the same type of the variable may be assigned
 to it.  Block variables are also sized and the size never changes
 after the declaration is executed.
 
-There are three one dimensional real-valued container types (1D array,
-column vectors, and row vectors) and four 2D containers (2D array, 1D
-array of vectors, 1D array of column vectors, matrix).  There are
-functions to convert back and forth for common cases, but complicated
-cases must be handled manually (but remember, loops that just reassign
-are fast in Stan).
+There are three one dimensional (1D) real-valued container types (1D
+array, column vector, and row vector) and four two dimensional (2D)
+containers (2D array, 1D array of vectors, 1D array of column
+vectors, and matrix).  There are functions to convert back and forth
+for common cases, but complicated cases must be handled manually.
+Loops that just do reassignment are fast in Stan as there is no
+autodiff overhead.
 
 ## Block scope
 
@@ -741,21 +754,66 @@ a line before an operator, ideally right before a term in a chain of
 additions or a factor in a chain of multiplications.
 
 
-# Laplace's problem: Male birth ratio
+# Stan for solving inverse problems
 
-Bayes formulated the _inverse problem_ of determining a posterior
+Given a forward model that generates data from parameters, the
+_inverse problem_ is that of _inferring_ parameter values from
+observed data.
+
+## Bayesian solutions to inverse problems
+
+@bayes1763 formulated the inverse problem of determining a posterior
 distribution with density $p(\theta \mid y)$ from a prior with density
-$p(\theta)$, a sampling distribution with density $p(y \mid \theta)$,
-and observed data $y$.  But he was not able to solve the integral
-presented in the denominator of his theorem and actually determine the
-form of the posterior.
+$p(\theta)$ and a sampling distribution with density $p(y \mid \theta)$.
+Bayes provided the following derivation, which has come to be known as
+_Bayes's rule_.
+$$
+\begin{align}
+p(\theta \mid y)
+&=  \frac{p(y, \theta)}
+         {p(y)}
+& \textrm{[definition of conditional probability]}       
+\\[6pt]
+&= \frac{p(y \mid \theta) \cdot p(\theta)}
+        {p(y)}
+& \textrm{[chain rule]} 
+\\[6pt]
+&= \frac{p(y \mid \theta) \cdot p(\theta)}
+        {\int_{\Theta} \, p(y, \theta) \, \textrm{d}\theta}
+& \textrm{[law of total probability]}
+\\[6pt]
+&= \frac{p(y \mid \theta) \cdot p(\theta)}
+        {\int_{\Theta} \, p(y \mid \theta) \cdot p(\theta) \,
+        \textrm{d}\theta}.
+& \textrm{[chain rule]} 
+\end{align}
+$$
 
-## Laplace's data on live births
+Bayes's rule presents an integral in the denominator that is often
+intractable in applications.  The good news is that most applications
+do not require us to solve this integral.  The bad news is that they
+require estimating expectations, which are the solution to a different
+intractable integral over the posterior.  The good news that makes
+modern Bayesian statistics possible is that we can solve these
+intractable integrals using Markov chain Monte Carlo methods.
 
-A decade later, @laplace1774 solved the integral that vexed Bayes and
-applied Bayes's ideas to the applied problem of estimating whether a
-boy is more likely to be born than a girl. Laplace gathered data on
-the sexes of babies in live births in Paris between 1745 and 1770.  
+
+## The rule of succession
+
+A decade after Bayes published his rule, @laplace1774 used Euler's
+_beta function_ to derive the conjugate prior for binomially
+distributed data.  A _conjugate prior_ for a sampling distribution is
+a family of distributions such that if the prior is drawn from that
+family, the posterior will be, too.  Laplace's so-called _rule of
+succession_ is a special case of this relationship, with a conjugate
+beta prior for binomial data.  We will work through Laplace's analysis
+in what has become the standard textbook introduction to Bayesian
+inference. 
+
+## Live birth data
+
+Laplace gathered data on the sexes of babies in live births in Paris
+between 1745 and 1770.
 
 sex | live births
 ---:|:---
@@ -765,15 +823,72 @@ male | 110,312
 
 It sure looks like there were more boys than girls born.
 
+## Laplace's model
 
-## A Stan program for Laplace's problem
+With $y$ male births out of $N$ total births, Laplace adopted the
+sampling distribution
+$$
+y \sim \textrm{binomial}(N, \theta),
+$$
+which requires a number of trials $N \in \mathbb{N}$, chance of
+success $\theta \in (0, 1)$, and number of successes $y \in 0{:}N$.
+
+Laplace used the prior
+$$
+\theta \sim \textrm{beta}(1, 1),
+$$
+where
+$$
+\textrm{beta}(\theta \mid \alpha, \beta)
+\propto \theta^{\alpha - 1} \cdot (1 - \theta)^{\beta - 1}.
+$$
+for $\alpha, \beta \in (0, \infty)$, and $\theta \in (0, 1)$.
+The distribution $\textrm{beta}(1, 1)$ is uniform over probabilities
+$\theta \in (0, 1)$ because the density is proportional to a constant,
+\begin{align}
+\textrm{beta}(\theta \mid 1, 1)
+&\propto \theta^{1 - 1} \cdot (1 - \theta)^{1 - 1}
+\\[4pt]
+&= 1.
+\end{align}
+
+
+### Analytic posterior
+
+As an aside, Laplace's model here is simple enough to solve
+for the posterior analytically.  
+\begin{align}
+p(\theta \mid y, N)
+&\propto p(y \mid N, \theta) \cdot p(\theta)
+\\[4pt]
+&= \textrm{binomial}(y \mid N, \theta)
+    \cdot \textrm{beta}(\theta \mid 1, 1)
+\\[4pt]
+&\propto \theta^y \cdot (1 - \theta)^{N - y} \cdot \theta^{1 - 1} \cdot (1
+- \theta)^{1 - 1}
+\\[4pt]
+&= \theta^{y + 1} \cdot (1 - \theta)^{N - y + 1}
+\\[4pt]
+&\propto \textrm{beta}(\theta \mid y + 1, N - y + 1).
+\end{align}
+Despite the intermediate proportional-to steps, the normalizing
+constant
+is unique, so we can conclude that
+$$
+p(\theta \mid y, N) = \textrm{beta}(\theta \mid y + 1, N - y + 1).
+$$
+This entire derivation went through without ever worrying about the
+normalizing constant for the beta distribution or the binomial distribution.
+
+## Stan program for birth data
 
 Unlike the first Stan model we saw, which only generates data, the
-following Stan program is going to allow us to observe the number of
-male births ($y$) and the total number of births ($N$) and estimate
-the probability of a male birth ($\theta$) as well as the probability
-that boys are more likely to be born than girls ($\theta > 0.5$). The
-Stan program to do this is as follows.
+following Stan program requires data to be provided, specifically the
+the number of male births ($y$) and the total number of births ($N$).
+The model will then allow us to estimate the probability of a male
+birth ($\theta$) as well as the probability that boys are more likely
+to be born than girls ($\theta > 0.5$). The Stan program for Laplace's
+model is as follows.
 
 ```{.stan filename="stan/sex-ratio.stan"}
 data {
@@ -784,7 +899,7 @@ parameters {
   real<lower=0, upper=1> theta;  // chance of boy
 }
 model {
-  theta ~ uniform(0, 1);  // uniform prior
+  theta ~ beta(1, 1);  // prior
   y ~ binomial(N, theta);  // binomial sampling
 }
 generated quantities {
@@ -797,32 +912,37 @@ generated quantities {
 In this Stan program, we see that both the number of total births $N$
 and the number of male births $y$ are given as data. Then there are
 two additional blocks we did not see in our earlier program, a
-_parameters block_, which is used to declare unknown values (here the
-male birth rate $\theta$), and a _model block_, which is where we
-define our target density, typically factored as a prior and sampling
-distribution. The parameters block declares the type of `theta`, which
-is a real value constrained to fall in the interval $[0, 1]$. The
-model block defines the prior, which we take to be uniform over the
-possible values for `theta`. The model block also defines the sampling
-distribution, which codes the fact that the observed data `y` was generated
-from a binomial distribution with `N` trials and `theta` probability
-of a male birth. Finally, we have a generated quantities block that
-defines a single binary indicator variable, `boys_gt_girls`. This
-variable will take the value 1 if the probability of a boy is greater
-than the probability of a girl.
+_parameters block_, which is used to declare unknown values (here,
+just the male birth rate $\theta$), and a _model block_, which is
+where we define our target log density up to an additive constant.
+The target log density is typically a Bayesian posterior expressed as
+a log prior and log sampling distribution.  The parameters block
+declares the type of `theta`, which is a real value constrained to
+fall in the interval $[0, 1]$. The model block defines the prior,
+which we take to be uniform over the possible values for `theta`. The
+model block also defines the sampling distribution, which codes the
+fact that the observed data `y` was generated from a binomial
+distribution with `N` trials and `theta` probability of a male
+birth. Finally, we have a generated quantities block that defines a
+single binary indicator variable, `boys_gt_girls`. This variable will
+take the value 1 if the probability of a boy is greater than the
+probability of a girl.
 
 ## Sampling from the posterior
 
-When we run a Stan program, what Stan returns is a sequence of $M$
+When we run a Stan program, Stan generates a sequence of $M$
 random draws, which are approximately identically distributed
 according to the posterior,
 $$
 \theta^{(1)}, \ldots, \theta^{(M)} \sim p(\theta \mid y).
 $$
 If we were to take $M \rightarrow \infty$, the draws will converge to
-being identically drawn from the posterior. With a large enough finite
-$M$, the draws will become numerically indistinguishable from true
-draws from the posterior.
+being identically drawn from the posterior. In well behaved models,
+with a modestly large $M$ (hundreds or thousands), the draws will
+become numerically indistinguishable from true draws from the
+posterior.
+
+### Stan's sampler
 
 Stan uses a _Markov chain Monte Carlo_ (MCMC) algorithm, which can
 lead to autocorrelation in the random draws from the posterior.  That
@@ -831,11 +951,20 @@ correlated (or anti-correlated) with the previous draw.  This
 autocorrelation does not introduce bias into the Monte Carlo
 estimates.
 
-Stan uses a dynamically adaptive form of Hamiltonian Monte Carlo (HMC)
-known as the no-U-turn sampler (NUTS).  NUTS can be hyper-efficient in
-the sense of generating anti-correlated draws that can lead to more
-efficient Monte Carlo estimates than independent draws in some
-cases.
+In order to scale to high dimensional problems, we need to exploit
+gradients and/or Hessians.  @duane1987 introduced the gradient-based
+Hamiltonian Monte Carlo (HMC) algorithm; the overview by @neal2011
+discusses theoretical and practical scaling results and
+@livingstone2019 provide geometric ergodicity results.
+
+For Stan, @hoffman2014 developed an adaptive form of Hamiltonian Monte
+Carlo (HMC) known as the no-U-turn sampler (NUTS), and @betancourt2017
+improved it with an adaptive preconditioner and multinomial sampling
+over trajectories.  NUTS can be hyper-efficient in the sense of
+generating anti-correlated draws that can lead to more efficient Monte
+Carlo estimates than independent draws.
+
+### Fitting in Stan
 
 We fit Laplace's model by compiling the model, constructing a
 dictionary for the data, and then calling the `sample` method on the
@@ -863,7 +992,7 @@ boys_gt_girls_draws = sample.stan_variable('boys_gt_girls')
 ```
 
 We can plot a histogram of approximate draws $\theta^{(m)} \sim
-p(\theta \mid y)$ from the posterior to give us a sense of the
+p(\theta \mid N, y)$ from the posterior to give us a sense of the
 value of $\theta$ and its uncertainty given our observed data $y$.
 
 ```{python}
@@ -899,7 +1028,7 @@ posterior mean,
 
 \begin{align}
 \widehat{\theta}
-&= \mathbb{E}[\theta \mid y]
+&= \mathbb{E}[\Theta \mid Y = y]
 \\[6pt]
 &= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta
 \\[6pt]
@@ -908,7 +1037,28 @@ posterior mean,
 &\approx \frac{1}{M} \sum_{m=1}^M \theta^{(m)},
 \end{align}
 where in the last two lines, each draw is distributed approximately
-according to the posterior, $\theta^{(m)} \sim p(\theta \mid y)$.
+according to the posterior,
+$$
+\theta^{(m)} \sim p(\theta \mid y).
+$$
+
+
+We have snuck in conditional _expectation_ notation in the first line
+of this definition.  Expectations are just weighted averages, with
+weights given by a probability density.  Bayesian inference invariably
+comes down to estimating expectations over the posterior density of a
+Bayesian model.  The concise notation for this is conditional
+expectation notation,
+$$
+\mathbb{E}\!
+\left[ f(\Theta) \mid Y = y \right]
+\ = \
+\int_{\Theta} f(\theta) \cdot p_{\Theta \mid Y}(\theta \mid y) \, \textrm d\theta,
+$$
+where $\Theta$ and $Y$ are random variables with realizations
+$\theta \in \Theta$ and $y \in Y$ (we write $y \in Y$ for a random
+variable $Y$ if $y$ is in support of $Y$'s density, i.e., $p_Y(y) >
+0$).  
 
 For Laplace's model, the estimate for the male birth rate $\theta$
 conditioned on the birth data $y$ is calculated as the sample mean
@@ -918,10 +1068,6 @@ for the extracted draws for `theta`.
 theta_hat = np.mean(theta_draws)
 print(f"estimated theta = {theta_hat:.3f}")
 ```
-
-The posterior mean is not an arbitrary choice.  It can be shown that
-the posterior mean minimizes expected squared error, which is the loss
-defined as the squared difference between the estimate and the true value.
 
 
 ### Posterior median estimator, quantiles, and intervals
@@ -942,10 +1088,6 @@ print(f"estimated (median) theta = {theta_plus:.3f}")
 Because our posterior distribution is nearly symmetric with Laplace's
 data, the posterior mean and posterior median are very close.
 
-Posterior medians can be shown to minimize expected absolute error
-(the loss being the absolute difference between the estimate and the
-true value).
-
 #### Quantiles
 
 Other posterior quantiles are estimated the same way.  For example,
@@ -963,10 +1105,9 @@ print(f"""0.05 quantile = {quantile_05:.3f};
 #### Posterior intervals
 
 Together, the 5% quantile and 95% quantile give us the bounds of
-our 90% _central probability interval_.  That is, it's the interval
-containing 90% of the posterior probability mass, with half of the
-remaining mass (5%) taking on higher values and the other half of the
-remaining mass (5%) taking on lower values.
+our 90% _central probability interval_, which is defined as the interval
+containing 90% of the posterior probability mass such that half of the
+remaining mass (5%) is below the interval and half (5%) is above.
 ```{python}
 print(f"central 90% posterior interval for theta")
 print(f"    = ({quantile_05:.3f}, {quantile_95:.3f})")
@@ -980,10 +1121,8 @@ $\theta^*$, defined as the point with the highest posterior density,
 $$
 \theta^* = \textrm{arg max}_\theta \ p(\theta \mid y).
 $$
-Although the posterior mode can be calculated in Stan using 
-optimization rather than sampling, we do not consider it here.
 The posterior mode is sometimes called the _maximum a posteriori_
-(MAP) estimator.
+(MAP) estimator. Posterior modes can be calculated with Stan using optimization.
 
 ### Estimation error and bias
 
@@ -997,7 +1136,8 @@ $$
 \textrm{err}(y) = \hat{\theta}(y) - \theta.
 $$
 
-The _bias_ of an estimator is defined as its expected error,
+The _bias_ of an estimator is defined as its expected error (as
+averaged over the data distribution for the random variable $Y$),
 \begin{align}
 \textrm{bias}
 &= \mathbb{E}[\textrm{err}(Y)]
@@ -1007,23 +1147,35 @@ The _bias_ of an estimator is defined as its expected error,
 &= \int_Y \hat{\theta}(y) - \theta \ \textrm{d}y.
 \end{align}
 
+## Properties of estimators
+
 The posterior mean is a popular Bayesian estimator for two reasons.
 First, it is an _unbiased_ estimator in the sense of having zero
 bias.  Second, it has the minimum expected square error among
 unbiased estimators, where the _squared error_ of an estimate is
 defined by
 $$
-\textrm{err}^2(y) = (\hat{\theta}(y) - \theta)^2.
+\textrm{err}^2(y) = \left(\hat{\theta}(y) - \theta\right)^2.
 $$
+Posterior means might not exist if the posterior has very wide tails,
+like the standard Cauchy distribution, $\textrm{cauchy}(x \mid 0, 1)
+\propto \frac{1}{1 + x^2}$.
 
-The posterior median has the pleasant property of being robust to
-outliers. The posterior mode, or maximum a posteriori estimate, is at
-least consistent in the sense of converging to the true value as the
-data size grows.
+The posterior median has three plasant properties. First, it is always
+well defined, even for densities with poles or very wide tails.
+Second, it is more robust to outliers than squared error because
+errors are not amplified by squaring.  Third, the posterior median
+estimator minimizes expected absolute error.
+
+The posterior mode may not exist.  For example, there is no posterior
+mode in standard hierarchical models.  There is not even a mode for a
+simple density with a pole, such as $\textrm{exponential}(x \mid 1) =
+\exp(-x)$ for $x > 0$.  The posterior mode is at least consistent in
+the sense of converging to the true value as the data size grows in
+cases where it exists.
 
 We will concentrate on posterior means in this quick introduction to
 Bayes and Stan.
-
 
 ### (Markov chain) Monte Carlo error and effective sample size
 
@@ -1034,22 +1186,35 @@ sample of $M$ draws).
 
 Stan reports Markov chain Monte Carlo _standard error_ along with
 its estimates of the mean.  The MCMC standard error is for a scalar
-parameter $\theta_d$ is defined to be
+parameter $\theta_d$ and is defined as
 $$
 \textrm{mcmc-se}
-= \frac{\textrm{sd}[\theta_d \mid y]}{N^{\textrm{eff}}},
+= \frac{\textrm{sd}[\Theta_d \mid Y = y]}{N^{\textrm{eff}}},
 $$
 where the numerator is the standard deviation of the parameter
 $\theta_d$ in the posterior and $N^{\textrm{eff}}$ is the _effective
-sample size_.  In the usual central limit theorem, the number of
-samples appers here.  The effective sample size for a sample of size
-$M$ is defined to be
+sample size_.  The posterior _variance_ and _standard deviation_ are
+defined as follows.
+
+\begin{align}
+\textrm{var}\left[\Theta_d \mid Y = y\right]
+&= \mathbb{E}\left[\left(\Theta_d - \mathbb{E}\left[\Theta_d \mid Y = y\right]\right)^2
+              \ \big| \ Y = y\right]
+\\[6pt]
+\textrm{sd}\left[\Theta_d \mid Y = y\right]
+&= \sqrt{\textrm{var}[\Theta_d \mid Y = y]}.
+\end{align}
+
+In the usual central limit theorem, the sample size (number of
+independent draws) appers in place of $N^{\textrm{eff}}$.
+The effective sample size for a sample of size $M$ is defined to be
 $$
 N^{\textrm{eff}}
 = \frac{M}{\textrm{IAT}},
 $$
 where $\textrm{IAT}$ is the _integrated autocorrelation time_.
-The IAT can be thought of as the interval between effectively
+We are not going to define it formally, but it may be thought
+as the interval between effectively
 independent draws in our Markov chain.  If we have low
 autocorrelation, $\textrm{IAT}$ will be close to 1 and if the
 autocorrelation is higher, it can be much higher.  If the
@@ -1078,20 +1243,21 @@ theory. Given a probability measure, the probability of the event $A$,
 that the rate of boy births is higher than girl births, will be well defined.
 Because we can convert conditions to events, we will be
 sloppy and treat the conditions as if they were events. This allows us
-to write $\Pr[\Theta > \frac{1}{2} \mid N, y]$ for the probability of
+to write $\Pr\!\left[\Theta > \frac{1}{2} \, \big| \, N, y\right]$ for the probability of
 the event $\Theta > \frac{1}{2}$.
-
-Technically, we will need to use the _indicator function_ $\textrm{I}$,
-which maps propositions like $\theta > \frac{1}{2}$ into the value 1
-if they are true and 0 if they are false.  
 
 ### Event probabilities via indicators
 
-Event probabilities are defined as posterior conditional expectations
-of indicator functions for events.
+The _indicator function_ $\textrm{I}$ maps propositions into the value
+1 if they are true and 0 if they are false.  For example,
+$\textrm{I}(\theta > \frac{1}{2}) = 1$ if the proposition $\theta >
+\frac{1}{2}$ is true, i.e., when $\theta$ is greater than one half.
+
+_Event probabilities_ are defined as posterior conditional
+expectations of indicator functions for events.
 \begin{align}
 \Pr[\Theta > 0.5 \mid N, y]
-&= \mathbb{E}\!\left[\textrm{I}[\Theta > 0.5] \mid N, y\right]
+&= \mathbb{E}\!\left[\textrm{I}[\Theta > 0.5] \,\big|\, N, y\right]
 \\[8pt]
 &= \int_{\Theta} \textrm{I}(\theta > 0.5) \cdot p(\theta \mid N, y) \, \textrm{d}\theta
 \\[8pt]
@@ -1134,13 +1300,25 @@ all of our sampled values for $\theta$ are greater than $\frac{1}{2}$.
 
 Laplace calculated the result analytically, which is
 $$
-\Pr\!\left[\theta > \frac{1}{2}\right] \approx 1 - 10^{-27}.
+\Pr\!\left[\Theta > \frac{1}{2} \ \bigg| \ N, y\right] \approx 1 - 10^{-27}.
 $$
 Thus we would need an astronomical number of posterior draws
 before we would generate a value of $\theta$ less than $\frac{1}{2}$.
 As given, the answer of 1.0 is very close to the true answer and well
-within our expected Monte Carlo error.
-
+within our expected Monte Carlo error.  As an aside, using the
+standard double-precision (8 byte, 64 bit) floating point
+representation for real numbers, the number $1 - 10^{-27}$ will round
+to $1$ because _machine precision_, which is defined as the largest
+$\epsilon$ such that $1 - \epsilon \neq 1$, is about $10^{-16}$.
+Let's try it in Python, which, like Stan, uses double-precision
+arithmetic by default.
+```{python}
+print(f"{(1.0 == (1.0 - 1e-27)) = }")
+```
+which one would expect given $10^{-27}$ is below the machine precision,
+```{python}
+print(f"Machine precision: {np.finfo(float).eps}")
+```
 
 ### MCMC summary statistics from Stan
 
@@ -1182,19 +1360,22 @@ are producing draws from the same distribution.
 
 ## Warmup
 
-Stan performs a number of _warmup iterations_ during which time it
+Stan performs a number of _warmup iterations_, during which it
 tries to find the region in which it should be sampling and then adapt
 a good step size and estimate the posterior covariance (just the
-diagonal with the variances by default).  The step size is used in the
-Hamiltonian dynamics simulator and the (co)variance is used as a
-preconditioned.
+diagonal, i.e., the variances, by default).  The step size is used in
+the Hamiltonian dynamics simulator and the (co)variance is used as a
+_preconditioner_.  A preconditioner warps the sample space, in our
+case, with a fixed _Euclidean metric_, which Stan estimates using the
+covariance of roughly the last half of the warmup iterations.
 
 Warmup converges when the step size and posterior covariance estimates
 no longer change.  With multiple chains, it's possible to test that
-they have all converged to the same step size and covariance estimate.
-Typically, we don't bother doing this and just measure our end goal
-directly, which is whether we are getting reasonable posterior draws
-after warmup.
+they have all converged to roughly the same step size and covariance
+estimate.  Unless things are going wrong, we typically don't bother
+measuring whether adaptation has converged and instead measure our end
+goal directly, which is whether we are getting reasonable posterior
+draws after warmup.
 
 Warmup doesn't form a single coherent Markov chain because it uses
 memory to adapt.  Once Stan starts sampling, the result is a Markov
@@ -1206,55 +1387,69 @@ draws to investigate the behavior of warmup.
 
 Stan uses the _potential scale reduction_ statistic $\widehat{R}$
 (pronounced ``R hat'').  Given a sequence of Markov chains, Stan
-splits them in half to make sure the first halfs and second halfs of
+splits each of them in half to make sure the first half and second half of
 the chain agree, then calculates variances within each chain and
 across all chains and compares.  The statistic $\widehat{R}$ converges
 to 1 as the Markov chains converge to the same distributions.
 
 ## Practical guidelines
 
-A simple rule of thumb is to run four chains as long as necessary with
-equal numbers of warmup and sampling iterations until the sample has
-$\hat{R} < 1.01$.  Running more warmup iterations is important because
-sampling will not be efficient if warmup has not converged and it at
-most uses a few more iterations compared to simply extending the
-number of sampling iterations.
+A simple rule of thumb is to run four chains until $\hat{R} \leq
+1.01$ and effective sample size (ESS) is greater than 100.  The reason we
+recommend an effective sample size of "only" 100 is that it means the
+standard error will be $\frac{1}{10}$ the size of the standard
+deviation.  Given that posterior standard deviation represents
+residual uncertainty, calculating means to higher precision is rarely
+worthwhile.  
 
-We also want to make sure that our effective sample size is at least
-25 per chain.  It is not that we need so many draws for inference, but
-that we do not trust our effective sample size estimator if it is much
-lower.   One way to check that the ESS estimator is OK is to double
-the number of draws and make sure that the ESS also doubles.  If it
-doesn't, it's a sign that the first ESS estimate is unreliable.
+The easiest way to achieve $\widehat{R} \leq 1.01$ and
+$N^{\textrm{eff}} > 100$ is to start with 100 warmup iterations and
+100 sampling iterations.  If there are $\widehat{R}$ values that are
+too large or there are effective sample size values that are too low, then
+double the number of sampling and warmup iterations, and try
+again. Running more warmup iterations is important because sampling
+will not be efficient if warmup has not converged.  At most, using the
+same number of warmup and sampling iterations costs a factor of two
+over the optimal settings, which are not known in advance.
+
+Even if we use more than four chains, we need to make sure that our
+effective sample size is at least 25 per chain.  It is not that we
+need so many draws for inference, but that we do not trust our
+effective sample size estimator if it is much lower.  One way to check
+that the ESS estimator is OK is to double the number of draws and make
+sure that the ESS also doubles.  If it doesn't, it's a sign that the
+first ESS estimate is unreliable.
 
 ## Running chains concurrently
 
-You can set the number of chains to run using the `chains` argument of
-the `sampling()` method and you can set the maximum number of chains
-to execute concurrently using `parallel_cores` (which defaults to 1,
-sequential execution).  If you set the maximum number of parallel
-chains to be too low, CPU resources are potentially unused.  If you
-set the number too high, then either CPU or memory can bottleneck
-performance and cause it to be slower than running with fewer chains
-in parallel.  The only advice I can give here is to experiment.  In
-personal projects on our own hardware, the goal is usually the largest
-effective sample size in the minimum amount of time.  Perhaps we want
-to leave enough CPU power left over to continue to work on other
-things, or maybe not.  In a server setting, memory usage, latency,
-throughput, and I/O need to be balanced more carefully.
+You can set the number of chains that are run using the `chains`
+argument of the `sampling()` method and you can set the maximum number
+of chains to execute concurrently using `parallel_cores` (which
+defaults to 1, sequential execution).  If you set the maximum number
+of parallel chains to be too low, CPU resources are potentially
+unused.  If you set the number too high, then either CPU or memory can
+bottleneck performance and cause it to be slower overall than running
+with fewer chains.  The only advice I can give here is to experiment.
+In personal projects on our own hardware, the goal is usually the
+largest effective sample size in the minimum amount of time.  On the
+other hand, I sometimes find I need to leave enough processing power
+left over to continue to work on documents, email, etc.  In a server
+setting, memory usage, latency, throughput, and I/O need to be
+balanced even more carefully between throughput and resource usage.
 
 # A/B testing
 
 A common application of statistics is to compare two things, such as
 the effectiveness of a new drug versus the current drug used to treat
-a condition on the one hand, or the effectiveness of two different ad
-presentations in getting users to click through.  This is usually called
-_A/B testing_ in a nod to comparing a hypothetical option A and option B.
+a condition.  Another application might compare the effectiveness of
+two different advertisement presentations in getting users to click
+through.  This is usually called _A/B testing_ in a nod to comparing a
+hypothetical option A and option B.
 
-Let's consider some Mexican restaurants in New York City, Downtown
-Bakery II in the East Village, Taqueria Gramercy in Gramercy, and
-La Delicias Mexianas in Spanish Harlem.  Here's the number of reviews
-and 5-star reviews for these restaurants on the web site Yelp.
+Let's consider three good Mexican restaurants in New York City,
+Downtown Bakery II in the East Village, Taqueria Gramercy in Gramercy,
+and La Delicias Mexianas in Spanish Harlem.  Here's the number of
+reviews and 5-star reviews for these restaurants on the web site Yelp.
 
 | name | 5-star reviews | total reviews |
 |:--|--:|--:|
@@ -1279,7 +1474,7 @@ $$
 n_k \sim \textrm{binomial}(N_k, \theta).
 $$
 Here $N_k \in \mathbb{N}$ is the number of reviews for restaurant $k$
-and $n_k \in 0{:}N_k$ the number of 5-star reviews.  We will further
+and $n_k \in 0{:}N_k$ the number of 5-star reviews.  We further assume
 the probabilities of 5-star reviews have a beta distribution,
 $$
 \theta_k \sim \textrm{beta}(\alpha, \beta).
@@ -1295,15 +1490,15 @@ the posterior density of the restaurants' probability of receiving a
 their probability of receiving a 5-star review and calculate the
 probability that each is the best restaurant,
 $$
-\textrm{Pr}[\theta_k = \max(\theta) \mid n, N].
+\Pr[\Theta_k = \max(\Theta) \mid n, N].
 $$
 
 ## Stan model for A/B testing
 
 We will assume there are a total of $K$ items being compared.  In
 traditional A/B testing, $K = 2$, but our example uses $K = 3$ and our
-code works for any $K$.  We define the indicator variable for our
-event probability estimate in the generated quantities block.
+code works for any $K$.  We define the indicator array for our
+event probability estimates in the generated quantities block.
 
 ```{.stan filename='stan/ab-test.stan'}
 data {
@@ -1388,24 +1583,25 @@ far.)
 
 # Stan's execution model
 
-Stan programs consist of several blocks.  Here is a summary of when
-the blocks are executed and what they do.
+Stan programs consist of several blocks.  Here is a summary of the
+blocks, when they are executed, and what they do.  None of the blocks
+are required, but the blocks that do appear must be in the order
+listed here.
 
-| block | executed | behavior |
+| *block* | *executed* | *behavior* |
 |:--|:--|:--|
-| functions | as needed | user-defined function definitions |
-| data | once | read data to construct model |
-| transformed data | once | define transformed data |
-| parameters | once / log density | constrain parameters (w. Jacobian) |
-| transformed parameters | once / log density | define transformed parameters |
-| model | once / log density | evaluate model log density |
-| generated quantities | once / draw | define generated quantities |
+| `functions` | as needed | user-defined function definitions |
+| `data` | once | read data to construct model |
+| `transformed data` | once | define transformed data |
+| `parameters` | once / log density | constrain parameters (w. Jacobian) |
+| `transformed parameters` | once / log density | define transformed parameters |
+| `model` | once / log density | evaluate model log density |
+| `generated quantities` | once / draw | define generated quantities |
 
 ## Data and transformed data
 
-The _data_ block contains only variable declarations. The variables declared in the data block are
-read once at data load time and then remain constant throughout
-execution.
+The _data_ block contains only variable declarations. The variables
+declared in the data block are read once at data load time.
 
 The _transformed data_ block contains variable declarations and
 definitions.   is executed once, after the data is read is
@@ -1420,6 +1616,11 @@ are declared without sizes.
 Constraints in the data block are evaluated at the end of the block's
 execution.  Any violations throw exceptions which terminate execution.
 
+Transformed data variables may be assigned in the transformed data
+block, but after these blocks have executed, the variables may not be
+reassigned.  
+
+
 ## Parameters and transformed parameters
 
 The _parameters_ block declare the variables over which the model is
@@ -1430,7 +1631,7 @@ constraints (if any).
 
 Constraints on parameters are used to define a transform of the
 constrained space to $\mathbb{R}^D$. For example, a variable declared
-with a `<lower=0>` constraint is log-transformed to an unconstrained
+with a `lower=0` constraint is log-transformed to an unconstrained
 variable, whereas a variable declared as a covariance matrix is
 Cholesky factored and then a log transform is applied to the diagonal
 elements to render an $N \times N$ matrix as a vector in
@@ -1445,58 +1646,69 @@ at the end of the block's execution.  If the constraints are violated,
 an exception will be thrown, which typically causes the current
 proposal to be rejected.
 
+Variables declared in the parameters block may never be set---they are
+provided externally by the inference algorithm (or the user in the
+case of BridgeStan).  After the transformed parameters block has
+executed, variables declared in it may not be reassigned.
+
+The only difference between variables declared as local variables in
+the model block and those declared in the transformed parameters block
+is that the transformed parameters are printed and also available in
+the generated quantities block.
+
 ## Model
 
 The _model_ block defines the log density and is evaluated once per
 log density evaluation. The log density starts with any components
 added by the log Jacobian determinants of the inverse transforms of
 the parameters from the unconstrained to the constrained space. The
-model executes over constrained parameters. The current state of the
-log density is available through the variable `target`, which can be
-updated directly, e.g.,
+model is defined using constants or modeled data from the data or
+transformed data block, and parameters or transformed parameters.
 
+The target log density that will be returned may be incremented
+directly, e.g., 
 ```stan
 target += -0.5 * x^2;
 ```
-
-The current value of the target is available as `target()` and
+The current value of the target is available as `target()`;
 printing it can be useful for debugging.
 
-The other statement that affects the eventual target log density
-returned are _sampling statements_, e.g., 
-
+Sampling statements are just syntactic sugar for incrementing the
+target log density.  For example, the sampling statement
 ```stan
 x ~ normal(0, 1);
 ```
-
-Sampling statements are shorthand for target increment statements, e.g.,
-
+is equivalent to the target increment statement
 ```stan
 target += normal_lupdf(x | 0, 1);
 ```
-
 The vertical bar is used to separate outcome variates from the
-parameters.  The notation `lpdf` is used for log density functions,
-`lpmf` for mass functions, and `lupdf` and `lupmf` for their
-forms that drop constants.  Unless the normalizing constants are
-needed, it is more efficient to use the `lupdf` and `lupmf` forms
-either explicitly or implicitly using sampling statements.
+parameters.  The notation `lpdf` is used for log probability density functions,
+`lpmf` for log probability mass functions. The variants `lupdf` and
+`lupmf` are
+for their unnormalized counterparts that may drop normalizing constants.
+Unless the normalizing constants are needed, for example in a mixture
+model component, it is more efficient to use the `lupdf` and `lupmf`
+forms  either explicitly or implicitly using sampling statements.
 
 ## Generated quantities
 
 The _generated quantities_ block is evaluated once per draw rather
 than once per log density evaluation. With algorithms like Hamiltonian
-Monte Carlo, several, dozens, or even hundreds of log density
-evaluations are used for each draw. The further advantage of generated
-quantities is that they do not require differentiation. They may also
-use pseudo-random number generation. Any constraints are evaluated at
-the end, but exceptions do not cause rejections, just potential
-warnings and potentially undefined (not-a-number) values.
+Monte Carlo, each draw may require a few, dozens, or even hundreds of
+log density evaluations.  The further advantage of generated
+quantities is that they are evaluated with double-precision floating
+point values because they do not require differentiation, which is a
+factor of four or more faster than autodiff.  The generated quantities
+block may also use pseudo-random number generation. Any constraints
+are evaluated at the end, but exceptions do not cause rejections, just
+potential warnings and potentially undefined (not-a-number) values.
 
-Generated quantities are not part of the model and do not affect
-sampling for the parameters at all.  As such, they are typically used
-for posterior predictive inference, as we have done above and will
-continue to do below.
+Generated quantities do not contribute to the definition of the log
+density being sampled, but they are nevertheless part of the
+statistical model.  The typical role of generated quantities is for
+posterior predictive inference, which is conditionally independent of
+the observed data given the model parameters.
 
 ## User-defined functions
 
@@ -1510,9 +1722,10 @@ types of special-purpose functions with Stan-specific behavior.
 Defining a function with any of the suffixes `lpdf`, `lupdf`, `lpmf`,
 or `lupmf` defines a density or mass function.  The first argument is
 the variate and the remaining arguments are the parameters.  These
-functions may then be used with vertical bar notation and in sampling
-statements. 
-
+functions are called using standard vertical bar notation to separate
+the variate and its parameters and they may also be used in sampling
+statements.  For example, consider the following custom log probability
+density function.
 ```stan
 functions {
   real foo_lpdf(real y, real theta) {
@@ -1520,14 +1733,14 @@ functions {
   }
 }
 ```
-
-and then the model can contain target increment statements using the
-vertical bar,
-
+With this definition, the model block may use the function to
+increment thetarget log density, 
 ```stan
   target += foo_lpdf(z | phi);
 ```
-or just directly use sampling statements
+
+They may also be used directly in sampling statments after removing
+the suffix.
 ```stan
   z ~ foo(phi);
 ```
@@ -1538,16 +1751,15 @@ integer-valued.
 
 ### User-defined random number generators
 
-
-generator.  Only functions defined with `_rng` suffixes will be able
+Only functions defined with `_rng` suffixes will be able
 to call other functions with `_rng` suffixes and they will only be
 able to be used in Stan programs in the transformed data and generated
 quantities blocks (i.e., the blocks that are not part of the model
 definition and hence do not need to be differentiated).
 
 For example, a simple way to generate chi-squared random variates is
-to literally sum a bunch of squared normal variates (do not do this in
-a real program as there is a built-in chi-square `_rng` function).
+to literally sum a sequence of squared normal variates (in a real
+program, one would use the the built-in chi-square `_rng` function).
 
 ```stan
 real simple_chi_sq_rng(int n) {
@@ -1568,7 +1780,7 @@ Stan does implicitly for a variable declared with a `lower=0` constraint.
 
 ```stan
 real pos_constrain_lp(real v) {
-  target += v;  // change of variables adjustment
+  target += v;  // change of variables adjust: log abs(d/dv exp(v))
   return exp(v);  // change of variables
 }
 ```
@@ -1588,7 +1800,10 @@ reverse pass over this expression graph propagates the partial
 derivatives from the log density value down to the unconstrained
 parameters using the chain rule (it applies in the reverse order of
 the expression construction, which is a topological sort of the
-directed graph).
+directed graph).  See @carpenter2015 for details of Stan's C++
+architecture for automatic differentiation; current details are only
+in the [developer documentation](https://mc-stan.org/math/index.html)
+and [code repository](https://github.com/stan-dev/math).
 
 # Regression and prediction
 
@@ -1614,29 +1829,28 @@ mydraw(
 ```
 
 The three species are of very different sizes, but there is a roughly
-linear relation between petal width and petal length that fits the
-entire
-data.
+linear relation between petal width and petal length across the
+different species.
 
 The width values all have exactly one decimal place of accuracy, which
 means they were recorded to the nearest millimeter. There are models
 that deal with this kind of measurement quantization, but we will not
-consider it now and proceed as if there were no rounding of our
-measurements.
+consider them now and will instead proceed as if there were no
+rounding of our measurements.
 
 ## Linear regression
 
-A linear regression models one measurement as a linear function of
-another measurement.  In this example, we will model an iris flower's
-petal length as a linear function of its petal width.  If we let $x_n$
-be the petal width for flower $n$ and let $y_n$ be the petal length.
-A linear regression says that we expect $y_n$ to be a linear function
-of $x_n$, or roughly, the expected value of $y_n$ will be $\alpha +
-\beta \cdot x_n$ for some intercept $\alpha$ and slope $\beta$.  A
-linear regression allows an inexact relationship where the linear
-relation only holds in expectation.  In real observations, there will
-be _error_ due to either measurement or a failing in the scientific
-model (which is the very simple linear relation).  
+A simple univariate linear regression models one measurement as a
+linear function of another measurement.  In this example, we will
+model an iris flower's petal length as a linear function of its petal
+width.  If we let $x_n$ be the petal width for flower $n$ and let
+$y_n$ be the petal length.  A linear regression says that we expect
+$y_n$ to be a linear function of $x_n$, or roughly, the expected value
+of $y_n$ will be $\alpha + \beta \cdot x_n$ for some intercept
+$\alpha$ and slope $\beta$.  A linear regression allows an inexact
+relationship where the linear relation only holds in expectation.  In
+real observations, there will be _error_ due to either measurement or
+a failure of the linear relationship.  
 
 We can introduce a variable $\epsilon_n$ for the difference between a
 petal's length and its expected length given the linear relationship, 
@@ -1688,7 +1902,7 @@ The data block says there are $N$ observations of petal width and
 length.  The widths and lengths are declared to have type (column)
 `vector`, with a constraint `lower=0` and size (number of rows) `N`.
 We are declaring these types as vectors because we are going to apply
-matrix multiplication and addition to them.
+vector arithmetic to them.
 
 The model parameters are coded in the parameter block.  The lower
 bound for `sigma` is required here as the normal distribution is only
@@ -1750,9 +1964,6 @@ sample = model.sample(data = iris_data(), seed = 123,
                       show_progress = False, show_console = False)
 sample.summary(sig_figs = 2)
 ```
-We have added both the species as a string and the species as an
-index (using pandas's notion of a factor).
-
 
 This summary doesn't give us a good feeling for the uncertainty in the
 linear relationship.  To do that, we will plot multiple draws from the
@@ -1798,13 +2009,6 @@ setting it at a value like `4` provides wider tails and setting it at
 even have a finite mean or variance.
 
 
-## Log-linear regression
-
-We'll fix both problems in Stan. First, we'll include a regression per
-species. Second, we'll convert to the log scale so that our predicted
-sizes remain positive.
-
-
 ## Posterior predictive inference
 
 Now let's say we have a new observation where we know the petal width
@@ -1825,7 +2029,13 @@ p(\tilde{y} \mid \tilde{x}, x, y)
 &\approx \frac{1}{M} \sum_{m=1}^M \, p(\tilde{y} \mid \tilde{x}, \theta^{(m)}),
 \end{align}
 where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$ are draws from the posterior.
-This is just marginalizing out the parameters.  It can help to break the
+The parameters are marginalized out.  It's perhaps easiest to
+understand by considering the Monte Carlo approximation, which just
+averages the sampling log density over draws of parameters from the posterior.
+
+### Sampling uncertainty and estimation uncertainty
+
+It can help to break the
 integral down into the two components of uncertainty, sampling uncertainty
 due to our sampling distribution and posterior uncertainty in the values of our parameters,
 $$
@@ -1861,17 +2071,21 @@ $$
 $$
 where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
 \sigma \mid x, y)$ are posterior draws.  In general, if we then want to estimate
-$\tilde{y}$, we can take posterior means of these values.  In the case here,
-where our sampling distribution is symmetric, we can directly compute
-expected values of $\tilde{y}$ as $\alpha + \beta \cdot \tilde{x}$, so we
-can get by plugging in those values rather than sampling for an estimate of $\hat{y}$.
+$\tilde{y}$, we can take posterior means of these values.  In the case
+here, our sampling distribution is symmetric, so we do not need to add
+sampling uncertainty if our only goal is to estimate an expectation.
+In general, using expectations in place of draws is more efficient,
+as shown by the Rao-Blackwell theorem; replacing draws with
+expectations is sometimes called *Rao-Blackwellization*.
+
+### Standalone generated quantities
 
 Let's put all this together into a Stan program.  First, let's make
-posterior predictions for some new $\tilde{y}$.  We can do this with a
-Stan program that just includes the parameters and the new data and a
-generated quantities block.  We can run the program with the old
-sample for our parameters to generate our predictions.  We could've also
-just included the generated quantities block in the original program.
+posterior predictions for some new $\tilde{y}$.  We can do this using
+Stan's \textit{standalone generated quantities} feature that lets us
+run the generated quantities block of a new model given draws from
+another model.  We could've also just included the generated
+quantities block in the original program.
 
 ```{.stan filename="iris-predict.stan"}
 data {
@@ -1895,10 +2109,11 @@ This program declares two new data variables, `N_tilde` for the
 number of predicted items, and `petal_width_tilde`, a vector of
 petal widths of size `N_tilde`.  
 
-It is important that this program use _exactly the same parameters_ as
-the original program.   After our original fit, we read that sample
-back in for the parameters, then run generated quantities (and the
-transformed parameter block if there is one).
+It is important that the program used for standalone generated
+quantities use _exactly the same parameters_ as the original program.
+After our original fit, we read that sample back in for the
+parameters, then run generated quantities (and the transformed
+parameter block if there is one).
 
 The generated quantities block first calculates the expected petal
 length given the petal width and assigns it to the variable
@@ -1918,17 +2133,17 @@ model = csp.CmdStanModel(
 pps_sample = model.generate_quantities(data = data, seed = 123,
                                        previous_fit = sample,
                                        show_console = False)
+print('Estimated petal lengths given petal widths')
 for i in range(3):
   length_draws = \
       pps_sample.stan_variable('petal_length_tilde')[0:100, i]
   E_length_draws = \
       pps_sample.stan_variable('E_petal_length_tilde')[0:100, i]
-  print(f"""{i=}:  mean(E_petal_length_tilde[{i}])
- = {np.mean(E_length_draws):.2f};
-  sd(E_petal_length_tilde[{i}]) = {np.std(E_length_draws):.2f}""")
-  print(f"""      mean(petal_length_tilde[{i}])
- = {np.mean(length_draws):.2f};
-  sd(petal_length[{i}]) = {np.std(length_draws):.2f}\n""")
+  print(f"petal_width_tilde[{i}] = {data['petal_width_tilde'][i]}")
+  print(f"  mean(E_petal_length_tilde[{i}]) = {np.mean(E_length_draws):.2f}")
+  print(f"  sd(E_petal_length_tilde[{i}]) = {np.std(E_length_draws):.2f}")
+  print(f"  mean(petal_length_tilde[{i}]) = {np.mean(length_draws):.2f}")
+  print(f"  sd(petal_length[{i}]) = {np.std(length_draws):.2f}\n")
 ```
 
 For each of our input petal widths (0.5, 1.75, 3.8), we see the
