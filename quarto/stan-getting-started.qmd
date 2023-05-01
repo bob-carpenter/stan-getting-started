@@ -2124,7 +2124,6 @@ using the `normal_rng` function.  This function is also vectorized,
 but it returns an array, so we convert it to a vector just to keep
 all the types the same.
 
-
 ```{python}
 data = {'N_tilde': 3,
         'petal_width_tilde': [0.4, 1.75, 3.8]}
@@ -2146,7 +2145,7 @@ for i in range(3):
   print(f"  sd(petal_length[{i}]) = {np.std(length_draws):.2f}\n")
 ```
 
-For each of our input petal widths (0.5, 1.75, 3.8), we see the
+For each of our input petal widths $[0.4 \quad 1.75 \quad 3.8]$, we see the
 posterior mean prediction for petal width and its standard deviation
 calculated two ways. First, we take the posterior draws for the
 expected petal length, `E_petal_length_tilde`, which is just the
@@ -2162,10 +2161,9 @@ uncertainty from the sampling distribution.
 ## Lognormal and transformed data
 
 In this section, we will convert our iris model to the log scale using
-the transformed data block.  The only difference to our original model
-is that we now use the logs of the petal width and petal length and we
-use a lognormal distribution for the regression of the length on the
-width.
+the transformed data block. The difference is that we now use a
+lognormal regression on log petal width instead of a linear regression
+of length on width.
 
 The _lognormal distribution_ is a simple transform of a normal
 distribution with support over positive values.  If $u \sim
