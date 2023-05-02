@@ -1,3 +1,7 @@
 a {
     color: midnightblue; # rgb(0, 0, 128)
 }
+
+code, pre {
+  font-size: 0.825em; /* Adjust this value to your preference */
+}

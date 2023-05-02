@@ -2,15 +2,18 @@
 title: "Getting Started with Stan"
 subtitle: "in Python with `cmdstanpy` and `plotnine`"
 author: "Bob Carpenter"
-date: "March 27, 2023"
+date: "May 2023"
 theme:
   - cosmo
   - custom.scss
 format:
   html:
+    embed-resources: true
     highlight-style: arrow
     mainfont: Palatino
-    monofont: "Menlo, Lucida Console"
+    fontcolor: black
+    monobackgroundcolor: white
+    monofont: "Menlo, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace"
     fontsize: 14pt
     linestretch: 1.5
     number-sections: true
@@ -20,6 +23,9 @@ format:
     code-fold: true
     code-copy: true
     css: style.css
+    cap-location: bottom
+    appendix-style: none
+    format-links: false
   pdf:
     include-in-header:
       - file: header.tex
@@ -218,6 +224,8 @@ import itertools
 def mydraw(x):
     """draw plot in the quarto doc"""
     x.draw()
+
+DRAFT = False
 ```
 
 # Stan for forward simulation
@@ -293,12 +301,12 @@ the vagaries of numerical floating point calculations.
 
 In addition to its basic type, a type may also have constraints.
 Because `N` is a count, it must be greater than or equal to zero,
-which we indicate with the bound `lower=0`. Similarly, the variable
+which we indicate with the bound `lower=0.` Similarly, the variable
 `y` is the number of successes out of `N` trials, so it must take on a
 value between 0 and `N` (inclusive); that is represented with the
-constraint `lower=0, upper=N`. Finally, the variable `theta` is real
+constraint `lower=0, upper=N.` Finally, the variable `theta` is real
 and declared to fall in the interval $[0, 1]$ with the constraint
-`lower=0, upper=1`. Technically, our bounds are open for real values,
+`lower=0, upper=1.` Technically, our bounds are open for real values,
 but in practice, we might wind up with 0 or 1 values due to underflow
 or rounding errors in floating point arithmetic.
 
@@ -308,7 +316,7 @@ and `theta`, at which point, each iteration it will sample a value of
 first define a dictionary for our data (variables `N` and `theta`),
 then construct an instance of `CmdStanModel` for our model from the
 path to its program, and finally sample from the model using the
-`sample` method of `CmdStanModel`.
+`sample` method of `CmdStanModel.`
 
 ```{python}
 N = 100
@@ -335,8 +343,7 @@ number of draws (10 here). We can extract the draws for the variable
 
 ```{python}
 y = sample.stan_variable('y')
-print("N = ", N, ";  theta = ", theta,
-      ";  y(0:10) =", *y.astype(int))
+print("N = ", N, ";  theta = ", theta, ";  y(0:10) =", *y.astype(int))
 ```
 
 Let's put that in a loop and see what it looks like for 10, 100, 1000,
@@ -372,7 +379,7 @@ np.random.seed(123)
 ts = []
 ps = []
 theta = 0.3
-M = 100_000
+M = 100 if DRAFT else 100_000
 for N in [10, 100, 1_000]:
     data = {'N': N, 'theta': theta}
     sample = model.sample(data = data, seed = 123, chains = 1,
@@ -455,7 +462,7 @@ element $Y_{n}$ to be
 The first line says that if the last number we generated is 1, the
 probability of the next element being 1 is $\theta$.  The second line
 says that if the last number we generated is 0, the probability of the
-next element being 1 is $1 - \theta$, and thus the probabilty of the
+next element being 1 is $1 - \theta$, and thus the probability of the
 next element being 0 is $\theta$.  That is, there's a probability of
 $\theta$ of generating the same element as the last element.
 
@@ -502,7 +509,7 @@ We can fit the model in Python as we did before and print the first
 ```{python}
 model = csp.CmdStanModel(
                stan_file = '../stan/markov-autocorrelation.stan')
-M = 1000
+M = 100 if DRAFT else 1000
 rhos = []
 iterations = []
 draws = []
@@ -566,12 +573,12 @@ darts at a board randomly and using the random locations to estimate the
 mathematical constant $\pi$.
 
 We start with two-unit square centered at the origin, with values
-represented as pairs in $[-1, 1]^2$.  Then we will generate points
+represented as pairs in $[-1, 1]^2.$  Then we will generate points
 uniformly at random in this square.  For each point, we will
 calculate whether it falls inside the unit circle circumscribed
 within the square.  The proportion of such points gives the proportion
 of the square's volume taken up by the circle.  Because the square is
-$2 x 2$, it has an area of 4, so the circle has an area of 4 times the
+$2 \times 2$, it has an area of 4, so the circle has an area of 4 times the
 proportion of points falling in it.
 
 Here's the Stan code.
@@ -598,7 +605,7 @@ First, we compile and then sample from the model, taking `M = 10_000` draws.
 Then we plot the draws.
 
 ```{python}
-M = 100 # 10_000
+M = 100 if DRAFT else 10_000
 model = csp.CmdStanModel(stan_file = '../stan/monte-carlo-pi.stan')
 sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
                       show_progress = False, show_console = False,
@@ -621,7 +628,7 @@ mydraw(
 
 Next, we take the sample mean of the indicators for being inside the
 circle, which produces an estimate of the probability of a point being
-inside the circle.  We could have just multiplied ths on the outside by 4, but instead we can just take the mean of the draws for `pi` to get our estimate for $\pi$.
+inside the circle.  We could have just multiplied this on the outside by 4, but instead we can just take the mean of the draws for `pi` to get our estimate for $\pi$.
 
 ```{python}
 Pr_is_inside = np.mean(inside_draws)
@@ -658,7 +665,7 @@ is caught and the resulting MCMC proposal is rejected.
 
 Unlike Python, Stan uses inclusive ranges, so that `1:3` represents
 the sequence 1, 2, 3.  The main disadvantage of inclusive notation is
-that the length of `L:U` is `U - L + 1`.
+that the length of `L:U` is `U - L + 1.`
 
 Putting these together, Python loops over a container with `N`
 elements look as follows.
@@ -667,7 +674,7 @@ v = np.random.rand(N)
 for n in range(0, N):
     ... process v[n] ...
 ```
-The Python version visits elements `v[0]`, `v[1]`, ..., `v[N - 1]`.
+The Python version visits elements `v[0]`, `v[1]`, ..., `v[N - 1].`
 
 Loops in Stan are as follows.
 ```stan
@@ -676,7 +683,7 @@ for (n in 1:N) {
    ... process v[n] ...
 }
 ```
-The Stan version visits elements `v[1]`, `v[2]`, ..., `v[N]`.
+The Stan version visits elements `v[1]`, `v[2]`, ..., `v[N].`
 
 
 ## Strong typing
@@ -919,12 +926,12 @@ The target log density is typically a Bayesian posterior expressed as
 a log prior and log sampling distribution.  The parameters block
 declares the type of `theta`, which is a real value constrained to
 fall in the interval $[0, 1]$. The model block defines the prior,
-which we take to be uniform over the possible values for `theta`. The
+which we take to be uniform over the possible values for `theta.` The
 model block also defines the sampling distribution, which codes the
 fact that the observed data `y` was generated from a binomial
 distribution with `N` trials and `theta` probability of a male
 birth. Finally, we have a generated quantities block that defines a
-single binary indicator variable, `boys_gt_girls`. This variable will
+single binary indicator variable, `boys_gt_girls.` This variable will
 take the value 1 if the probability of a boy is greater than the
 probability of a girl.
 
@@ -977,14 +984,14 @@ model = csp.CmdStanModel(stan_file = '../stan/sex-ratio.stan')
 boys = 110312
 girls = 105287
 data = {'N': boys + girls, 'y': boys}
-M = 100 # 10_000
+M = 100 if DRAFT else 10_000
 sample = model.sample(data = data, seed = 123,
                       iter_sampling = M, iter_warmup = 1000,
                       show_progress = False, show_console = False)
 ```
 
 As before, we proceed by first extracting the draws for the variables
-`theta` and `boys_gt_girls`.
+`theta` and `boys_gt_girls.`
 
 ```{python}
 theta_draws = sample.stan_variable('theta')
@@ -1062,7 +1069,7 @@ variable $Y$ if $y$ is in support of $Y$'s density, i.e., $p_Y(y) >
 
 For Laplace's model, the estimate for the male birth rate $\theta$
 conditioned on the birth data $y$ is calculated as the sample mean
-for the extracted draws for `theta`.
+for the extracted draws for `theta.`
 
 ```{python}
 theta_hat = np.mean(theta_draws)
@@ -1161,7 +1168,7 @@ Posterior means might not exist if the posterior has very wide tails,
 like the standard Cauchy distribution, $\textrm{cauchy}(x \mid 0, 1)
 \propto \frac{1}{1 + x^2}$.
 
-The posterior median has three plasant properties. First, it is always
+The posterior median has three pleasant properties. First, it is always
 well defined, even for densities with poles or very wide tails.
 Second, it is more robust to outliers than squared error because
 errors are not amplified by squaring.  Third, the posterior median
@@ -1334,7 +1341,7 @@ The rows are for our random variables, with `lp__` indicating the
 unnormalized log density defined by the Stan program (which includes
 change of variable adjustments for constrained parameters).  The
 other two rows are for variables defined in the Stan program, `theta`,
-and `boys_gt_girls`.  The number of significant figures used in the
+and `boys_gt_girls.`  The number of significant figures used in the
 results can be controlled in the summary function, as can the
 quantiles being reported.
 
@@ -1525,7 +1532,7 @@ generated quantities {
 
 We have coded the data for $K$ items directly in terms of number of
 trials and number of successes.  We have also supplied the prior for
-the probabilities of success as data as `alpha` and `beta`.  The model
+the probabilities of success as data as `alpha` and `beta.`  The model
 is the same binomial as we had before, except now the likelihood and
 priors are vectorized.  In general, Stan is able to take something
 like the binomial distribution, which has an integer number of trials,
@@ -1551,7 +1558,7 @@ array, whereas `alpha` and `beta` are scalars.  The sampling statement for
 
 Because `alpha` and `beta` are scalars, they are not indexed.  Rather,
 they are _broadcast_, meaning that the same `alpha` and `beta` is
-reused for each dimension of `theta`.
+reused for each dimension of `theta.`
 
 So now let's call and fit this model and print the summary.  We
 are setting $\alpha = \beta = 2$, which is equivalent to setting
@@ -1559,11 +1566,13 @@ them equal to 1 and adding 2 trials and 1 success to the data for
 each restaurant.
 
 ```{python}
+M = 100 if DRAFT else 1000
 model = csp.CmdStanModel(stan_file = '../stan/ab-test.stan')
 data = {'K': 3, 'trials': [276, 143, 87],
         'successes': [141, 84, 41],
         'alpha': 2, 'beta': 2}
 sample = model.sample(data = data, seed = 123,
+                      iter_warmup = M, iter_sampling = M,
                       show_progress = False, show_console = False)
 sample.summary(sig_figs = 2)
 ```
@@ -1734,12 +1743,12 @@ functions {
 }
 ```
 With this definition, the model block may use the function to
-increment thetarget log density, 
+increment the target log density, 
 ```stan
   target += foo_lpdf(z | phi);
 ```
 
-They may also be used directly in sampling statments after removing
+They may also be used directly in sampling statements after removing
 the suffix.
 ```stan
   z ~ foo(phi);
@@ -1795,7 +1804,7 @@ constrained and the log absolute determinant of the Jacobian of
 the unconstraining transformed is added to the expression graph.
 Then each operation involving parameters is added to the expression
 graph.  The root is the final log density value, which is the value
-of `target`.  The leaves are the unconstrained parameters.  A
+of `target.`  The leaves are the unconstrained parameters.  A
 reverse pass over this expression graph propagates the partial
 derivatives from the log density value down to the unconstrained
 parameters using the chain rule (it applies in the reverse order of
@@ -1877,7 +1886,7 @@ $$
 
 
 Here is a simple Stan model to regress petal length on petal width;
-we replace $x$ with `petal_width` and $y$ with `petal_length`.
+we replace $x$ with `petal_width` and $y$ with `petal_length.`
 
 ```{.stan filename='../stan/iris-petals.stan'}
 data {
@@ -1900,13 +1909,13 @@ model {
 
 The data block says there are $N$ observations of petal width and
 length.  The widths and lengths are declared to have type (column)
-`vector`, with a constraint `lower=0` and size (number of rows) `N`.
+`vector`, with a constraint `lower=0` and size (number of rows) `N.`
 We are declaring these types as vectors because we are going to apply
 vector arithmetic to them.
 
 The model parameters are coded in the parameter block.  The lower
 bound for `sigma` is required here as the normal distribution is only
-defined for positive values of `sigma`.  Stan requires every parameter
+defined for positive values of `sigma.`  Stan requires every parameter
 value that satisfies the declared constraints to be in the _support_
 of the density, which is the set of values for which the density is
 non-zero (equivalently, the log density is finite).
@@ -1917,26 +1926,27 @@ subscripts.  What's going on is that the sampling statement for
 `petal_length` are both vectors of size `N`, whereas `alpha`, `beta`,
 and `sigma` are all scalars.  Working outward, `beta * petal_width` is
 a scalar times a vector, which is defined in the usual way as a vector
-whose `n`th entry is `beta * petal_width[n]`.  We then add `alpha` to
+whose `n`th entry is `beta * petal_width[n].`  We then add `alpha` to
 that result (multiplication binds more tightly than addition and as in
 mathematical writing, we drop all unnecessary parentheses).  This is
 defined by _broadcasting_ so that `alpha` acts like a vector of size
 `N` and addition is defined in the usual way for vectors.  As a
 result, `alpha + beta * petal_width` is a vector of size `N`, whose
-`n`th element is `alpha + beta * petal_width[n]`.  Now we have a
+`n`th element is `alpha + beta * petal_width[n].`  Now we have a
 vector for the location parameter of a normal distribution, a scalar
 scale (`sigma`), and a vector outcome (`petal_length`).  This works by
-broadcasting `sigma` to use for each `n`.  The end result is
+broadcasting `sigma` to use for each `n.`  The end result is
 equivalent to the following, but much more compact and efficient.
 ```stan
 for (n in 1:N) {
   petal_length[n] ~ normal(alpha + beta * petal_width[n], sigma);
 }
 ```
-The rest of the model is priors for the regression coefficients and error scale.
-The coefficients are unconstrained, but the error scale is constrained
-to be positive, so we use a lognormal distribution (we could have also
-used a half normal and we should if scales near zero are possible).
+The rest of the model is priors for the regression coefficients and
+error scale.  The coefficients are unconstrained, but the error scale
+is constrained to be positive, so we use a lognormal distribution (we
+could have also used a half normal and we should if scales near zero
+are possible).
 
 We can then compile and fit the model and display the resulting
 fit for `alpha` and `beta` as a scatterplot.
@@ -1958,9 +1968,11 @@ def iris_data():
             'petal_width': petal_width,
             'petal_length': petal_length,}
     return data
-  
+
+M = 100 if DRAFT else 1000
 model = csp.CmdStanModel(stan_file = '../stan/iris-petals.stan')
 sample = model.sample(data = iris_data(), seed = 123,
+                      iter_warmup = M, iter_sampling = M,       
                       show_progress = False, show_console = False)
 sample.summary(sig_figs = 2)
 ```
@@ -2028,16 +2040,17 @@ p(\tilde{y} \mid \tilde{x}, x, y)
 \\[6pt]
 &\approx \frac{1}{M} \sum_{m=1}^M \, p(\tilde{y} \mid \tilde{x}, \theta^{(m)}),
 \end{align}
-where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$ are draws from the posterior.
-The parameters are marginalized out.  It's perhaps easiest to
-understand by considering the Monte Carlo approximation, which just
-averages the sampling log density over draws of parameters from the posterior.
+where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$
+are draws from the posterior.  The parameters are marginalized out.
+It's perhaps easiest to understand by considering the Monte Carlo
+approximation, which just averages the sampling log density over draws
+of parameters from the posterior.
 
 ### Sampling uncertainty and estimation uncertainty
 
-It can help to break the
-integral down into the two components of uncertainty, sampling uncertainty
-due to our sampling distribution and posterior uncertainty in the values of our parameters,
+It can help to break the integral down into the two components of
+uncertainty, sampling uncertainty due to our sampling distribution and
+posterior uncertainty in the values of our parameters,
 $$
 \int_{\Theta}
 \underbrace{p(\tilde{y} \mid \tilde{x}, \theta)}_{\textrm{sampling uncertainty}} 
@@ -2045,17 +2058,19 @@ $$
 \underbrace{p(\theta \mid x, y)}_{\textrm{estimation uncertainty}}
 \, \textrm{d}\theta
 $$
-In our case, $\theta = \begin{bmatrix}\alpha & \beta & \sigma\end{bmatrix}$ and the sampling
-distribution is
+In our case, $\theta = \begin{bmatrix}\alpha & \beta &
+\sigma\end{bmatrix}$ and the sampling distribution is
 $$
 p(\tilde{y} \mid \tilde{x}, \alpha, \beta, \sigma)
 =
 \textrm{normal}(\tilde{y} \mid \alpha + \beta \cdot \tilde{x}, \sigma).
 $$
-Even if we know the parameter values $\alpha$, $\beta$, and $\sigma$ exactly, we can
-only predict $\tilde{y}$ to within $\epsilon$, where $\epsilon \sim \textrm{normal}(0, \sigma)$.
-If we plug in a point estimate $\widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}$ for our parameters,
-we might get approximate inference that takes into account sampling uncertainty, but not estimation uncertainty, e.g., 
+Even if we know the parameter values $\alpha$, $\beta$, and $\sigma$
+exactly, we can only predict $\tilde{y}$ to within $\epsilon$, where
+$\epsilon \sim \textrm{normal}(0, \sigma)$.  If we plug in a point
+estimate $\widehat{\alpha}, \widehat{\beta}, \widehat{\sigma}$ for our
+parameters, we might get approximate inference that takes into account
+sampling uncertainty, but not estimation uncertainty, e.g.,
 $$
 p(\tilde{y} \mid \tilde{x}, x, y)
 \approx
@@ -2107,7 +2122,7 @@ generated quantities {
 
 This program declares two new data variables, `N_tilde` for the
 number of predicted items, and `petal_width_tilde`, a vector of
-petal widths of size `N_tilde`.  
+petal widths of size `N_tilde.`  
 
 It is important that the program used for standalone generated
 quantities use _exactly the same parameters_ as the original program.
@@ -2117,7 +2132,7 @@ parameter block if there is one).
 
 The generated quantities block first calculates the expected petal
 length given the petal width and assigns it to the variable
-`E_petal_length_tilde`. This code is vectorized so that it calculates
+`E_petal_length_tilde.` This code is vectorized so that it calculates
 all of the input petal widths at once.  The second variable is
 then set by sampling according to the sampling distribution
 using the `normal_rng` function.  This function is also vectorized,
@@ -2161,19 +2176,22 @@ uncertainty from the sampling distribution.
 ## Lognormal and transformed data
 
 In this section, we will convert our iris model to the log scale using
-the transformed data block. The difference is that we now use a
-lognormal regression on log petal width instead of a linear regression
-of length on width.
+the transformed data block to convert the petal width to a log scale
+and use a lognormal regression on the width to predict the length.
 
 The _lognormal distribution_ is a simple transform of a normal
-distribution with support over positive values.  If $u \sim
-\textrm{normal}(\mu, \sigma)$, then $\exp(u) \sim
-\textrm{lognormal}(\mu, \sigma)$.  The exponential (inverse) transform
-ensures the result is positive.
-
-The other way around, if $v \sim \textrm{lognormal}(\mu, \sigma)$,
-then $\log v \sim \textrm{normal}(\mu, \sigma)$.  This will allow us
-to transform our Stan program.
+distribution with support over positive values.  If
+$$
+U \sim \textrm{lognormal}(\mu, \sigma),
+$$
+then
+$$
+log U \sim \textrm{normal}(\mu, \sigma).
+$$
+This will allow us to transform our Stan program.  We first translate
+the petal width to the log scale in the transformed data block, then
+model length as a lognormal regression on log width in the model
+block.
 
 ```{.stan filename='../stan/iris-petals-log.stan'}
 data {
@@ -2197,11 +2215,11 @@ model {
 }
 ```
 
-We have introduced a new block for transformed data, in which we have defined
-a vector of log petal widths to use as a predictor.  The petal lengths
-are already positive, so those stay the same.  The effect is that we
-are regressing log petal length on log petal width and the sampling statement
-could have been replaced with
+We have introduced a new block for transformed data, in which we have
+defined a vector of log petal widths to use as a predictor.  The petal
+lengths are already positive and we do not modify those.  The effect
+is that we are regressing log petal length on log petal width and the
+sampling statement could have been replaced with
 ```stan
   log(petal_length) ~ normal(alpha + beta * log_petal_width, sigma);
 ```
@@ -2212,33 +2230,38 @@ involving petal length (which is constant) in the lognormal density.
 Let's run the model and summarize the results.
 
 ```{python}
+M = 100 if DRAFT else 1000
 log_model = csp.CmdStanModel(stan_file =
                                '../stan/iris-petals-log.stan')
 log_sample = log_model.sample(data = iris_data(), seed = 123,
+                              iter_warmup = M, iter_sampling = M,	   
                               show_progress = False,
 			      show_console = False)
 log_sample.summary(sig_figs = 2)
 ```
 
-One advantage of the log scale is that the regression makes more sense
-because $\exp(\alpha + \beta \cdot \log w) = \exp(\alpha) \cdot
-w^{\beta}$.  By taking exponents, the intercept becomes a multiplier
-and the slope becomes an exponent.  The error also moves to the multiplicative scale, which makes a lot more sense here
-as we wouldn't expect the same error on the 0.5cm and 5cm scales.
-Now consider our estimated values $\widehat{\alpha} = 1.3$ and $\widehat{\beta} = 0.57$
-and $\sigma = 0.16$, which introduce the relationship, with the plus or minus ($\pm$) covering roughly
-the central 95% interval of probability mass.
+The estimated values ae $\widehat{\alpha} = 1.3$ and $\widehat{\beta}
+= 0.57$ and $\sigma = 0.16$.  One advantage of the log scale is that
+the regression makes more sense because $\exp(\alpha + \beta \cdot
+\log w) = \exp(\alpha) \cdot w^{\beta}$.  By taking exponents, the
+intercept $\alpha$ becomes a multiplicative factor $\exp(\alpha)$ and
+the slope $\beta$ becomes an exponent.  The error also moves to the
+multiplicative scale, which makes it relative.  Multiplicative error
+makes sense here as we wouldn't expect the same error scale for petals
+of width 0.5cm as for petals of width 5cm.  The final relationship
+derived through this model is as follows.
 \begin{align}
 \textrm{length}
 &= \exp(\alpha + \beta * \log(\textrm{width}) \ \pm \ 2 \cdot \sigma)
 \\[6pt]
 &= 3.67 \cdot \textrm{width}^{0.56} \cdot 1.38^{\pm 1}.
 \end{align}
-The plus or minus 1 on the exponent turns into either multiplication or division by 1.38. 
+The plus or minus 1 on the exponent turns into either multiplication
+or division by 1.38.  
 
 The posterior intervals are tighter for the lognormal model, which
 generally indicates a better fit to data.  Let's see what the data and
-some posterior draws of the regression look like on the log scale.
+twenty posterior draws of the regression look like on the log scale.
 
 ```{python}
 df = iris_data_frame()
@@ -2255,9 +2278,7 @@ plot = plot +  pn.labs(x = "petal width (log cm)",
 for a, b in zip(alpha_draws[0:20], beta_draws[0:20]):
     plot = plot + pn.geom_abline(intercept = a, slope = b,
                                  alpha = 0.5, size = 0.2)
-mydraw(
-  plot
-)
+mydraw(plot)
 ```
 
 Now the *iris versicolor* and *iris virginica* look good, but the
@@ -2268,17 +2289,19 @@ problem in the next section.
 
 We can see from the previous section that a single regression line
 doesn't fit all three species of iris well.  While the lognormal model
-is better, it still fails to capture *iris setosa* well.  On the log
-scale, it does look like it will be possible to capture *iris
-setosa*'s scale, as long we can build separate regressions for each.
-The varying slopes and varying intercepts are both types of varying
-effects which are sometimes called _random effects_, in contrast to
-the previous models' _fixed effects_, which do not vary by group.
+is better than the linear model, it still fails to capture the
+characteristics of the smaller *iris setosa*.
 
-Mathematically, we now have three intercepts (and slopes), one for
+On the log scale, it does look like it will be possible to capture
+*iris setosa*'s scale, as long we can build separate regressions for
+each species.  The varying slopes and varying intercepts are sometimes
+called _random effects_, in contrast to the previous models' _fixed
+effects_, which do not vary by data grouping.
+
+Mathematically, we now have three intercepts  three slopes, one pair for
 each species of iris.  We will represent these as 3-vectors, $\alpha,
 \beta \in \mathbb{R}^3$.  Given our $N$ data items, we will introduce
-a series of indexes $\textrm{species} \in \{ 1, 2, 3 \}^N$, where
+an indexing data item $\textrm{species} \in \{ 1, 2, 3 \}^N$, where
 $\textrm{species}_n$ is the species of the $n$-th data item.  Sticking
 to the log scale, our regression now looks like this,
 $$
@@ -2289,8 +2312,8 @@ $$
 $$
 The value $\alpha_{\textrm{species}_n}$ is the intercept for
 $\textrm{species}_n \in \{1, 2, 3\}$.  We have kept the same
-error term $\sigma$, though we could have split that out on
-a per-species basis like the slope and intercept, too.
+error term $\sigma$, though we could have also split that out on
+a per-species basis like the slope and intercept.
 
 The Stan code follows the statistical notation.  
 
@@ -2311,8 +2334,7 @@ parameters {
   real<lower=0> sigma;
 }
 model {
-  petal_length ~ lognormal(alpha[species]
-                             + beta[species] .* log_petal_width,
+  petal_length ~ lognormal(alpha[species] + beta[species] .* log_petal_width,
                            sigma);
   alpha ~ normal(0, 3);
   beta ~ normal(0, 3);
@@ -2323,14 +2345,15 @@ model {
 Here, we take $K$ to be the number of species and the species
 indicator thus takes on values between $1$ and $K$ (inclusive).  Where
 before we had `alpha` and `beta` for the intercept and slope, we now
-have `alpha[species]` and `beta[species]`.  Further, the product of
-the slope and width is now an elementwise product (`.*`).  The
-sampling statement above is equivalent to
-```{stan}
+have `alpha[species]` and `beta[species].` These will pick our vectors
+of size $N$ (number of data items), as explained below.  Further, the
+product of the slope and width is now an elementwise product (`.*`),
+which we also consider below.  The sampling statement above is
+equivalent to
+```stan
 for (n in 1:N) {
   petal_length[n]
-    ~ lognormal(alpha[species[n]]
-                  + beta[species[n]] * log_petal_width[n],
+    ~ lognormal(alpha[species[n]] + beta[species[n]] * log_petal_width[n],
                 sigma);
 }
 ```
@@ -2349,25 +2372,26 @@ defined as regular vector addition and subtraction.
 
 This model uses a technique we call multi-indexing and it works the
 similarly to the way indexing works in R.  Suppose we have a vector
-of size `J` and an array of indexes of size `N`.  
+of size `J` and an array of indexes of size `N.`  
 ```stan
 array[N] int idxs;
 vector[J] foo;
 ```
-We can use the multiple indexes in `idxs` to index `foo` as `foo[idxs]`.
-the result is a size `N` vector (the type is taken from `foo` and the
-size from `idxs`), with values given by indexing into `idxs`, e.g., for
-`n` in `1:N`, we have
+We can use the multiple indexes in `idxs` to index `foo` as `foo[idxs].`
+The result is a size `N` vector (the type is taken from `foo` and the
+size from `idxs`), with values given by indexing into `idxs`.
+Indexing is defined as follows.
 ```stan
 cols(foo[idxs]) == N          // true
 foo[idxs][n] == foo[idxs[n]]  // true
 ```
-which tells the number of columns of `foo[idxs]` is `N` and
-that indexing is done by indexing into `idxs`.
+This tells us the number of columns of `foo[idxs]` is `N` and
+that indexing is done by first indexing into `idxs` and then using the
+result. 
 
 This works the same way for range indexing, such as `foo[1:3]`,
 and for indexing with array literals like `{7, 9, 3}`, e.g.,
-```{stan}
+```stan
 foo[3:5] == {foo[3], foo[4], foo[5]}         // true
 foo[{7, 9, 3}] == {foo[7], foo[9], foo[3]}   // true
 ```
@@ -2379,9 +2403,11 @@ of the iris as an integer 1, 2, or 3.  Then we will just read in
 the data and fit and summarize the results.
 
 ```{python}
+M = 100 if DRAFT else 1000
 vary_model = csp.CmdStanModel(
                   stan_file = '../stan/iris-petals-varying.stan')
 vary_sample = vary_model.sample(data = iris_data(), seed = 123,
+                                iter_warmup = M, iter_sampling = M,	    
                                 show_progress = False,
 				show_console = False)
 vary_sample.summary(sig_figs = 2)
@@ -2394,15 +2420,14 @@ $\widehat{\sigma} = 0.16$. In the varying effects model, we see that
 the estimates for $\alpha_k$ and $\beta_k$ vary considerably by $k$.
 For example, as we see in the data, there is very little effect of
 width on length for *iris setosa*, with $\widehat{\beta}_1 = 0.075$,
-wheres there is a large effect for *iris * of $\widehat{\beta}_2 =
-0.6$. Furthermore, our value for $\sigma$ is lower, which indicates
-lower residual error in our predictors. We will leave evaluating
-varying error scales to the reader.
+wheres there is a large effect for *iris versicolor* of
+$\widehat{\beta}_2 = 0.6$. Furthermore, our value for $\sigma$ is
+lower, which indicates lower residual error in our predictors. We will
+leave evaluating varying error scales to the reader.
 
 
 We now have three different regression lines, which we plot on the
-log scale and color to match the data.
-
+log scale with color matching the data..  
 ```{python}
 df = iris_data_frame()
 df['log_petal_length'] = np.log(df['petal_length'])
@@ -2421,54 +2446,62 @@ mydraw(
 )
 ```
 
+We now have a good fit for each of the groups and, as we might expect,
+a lower error scale $\sigma$ than for the model with a single
+regression.
+
 # Containers: arrays, vectors, and matrices
 
 Stan is strongly typed, and each of the types has a distinct purpose.
 Constraints act as error checks in the data, transformed data,
 transformed parameter, and generated quantities blocks.  In the
 parameter block, they are used to transform from unconstrained to
-constrained values (with implicit change of variables adjustment).
-The full set of transforms and their log absolute Jacobian
-determinants are given in the _Stan Reference Manual_.
+constrained values (with an implicit change of variables adjustment).
+@stan2023 provides complete details or the full set of transforms,
+inverse transforms, and their log absolute Jacobian
+determinants.
 
 ## Integer and real primitives
 
-The two primitive types are `int` and `real`.  In the compiled C++
+The two primitive types are `int` and `real.`  In the compiled C++
 code, these are 32-bit signed integers and 64-bit floating point
 values, respectively.
 
 The third scalar type is `complex`, where a complex value consists of
-a real component and an imaginary component, both of which are real
-numbers.
+a real component and an imaginary component, both of which are
+represented as 64-bit floating point values.
 
 ### Constrained primitive types
 
 Integer and real types may be constrained with lower bounds, upper
 bounds, or both.  For example, `real<lower=0>` is the type for a
 concentration, `real<lower=0, upper=1>` is the type for a probability,
-`real<lower=-1, lower=1> is the type for a correlation, 
+`real<lower=-1, lower=1>` is the type for a correlation, 
 `int<lower=0>` is the type for a count, and `int<lower=1, upper=5>` is
 the type for an ordinal response to a survey.
 
 ## Arrays
 
 For any type `T`, we can write `array[N] T` for the type of an array
-of size `N` containing elements of type `T`.  We can also write
-`array[M, N]` for a 2D array and so on for higher dimensionality.
+of size `N` containing elements of type `T.`  We can also write
+`array[M, N] T` for a 2D array and so on for higher dimensionality.
+For example, `array[3, 2] int` is a two-dimensional array of integers
+of shape 3 by 2.
 
 ## Matrices
 
 The type `matrix[M, N]` is for an $M \times N$ matrix.  The type
 `complex_matrix[M, N]` is for an $M \times N$ matrix with complex values.
-We can assign real matrices to complex matrices, but not vice-versa.
-
 
 ### Constrained matrix types
 
-There are four special matrix types for positive definite and unit
-positive definite matrices and their Cholesky factors, `cov_matrix`,
-`cholesky_factor_cov`, `corr_matrix`, and `cholesky_factor_corr`.  The
-Cholesky factors are lower triangular.
+There are four special matrix types.  The type `cov_matrix` is for
+positive definite matrices, whereas `cholesky_factor_cov` is for
+Cholesky factors of positive definite matrices.  The type
+`corr_matrix` is for positive definite matrices with unit diagonals
+and `cholesky_factor_corr` is for Cholesky factors of correlation
+matrices.  The Cholesky factors are lower triangular and should be
+preferred to the full matrices where possible.
 
 
 ## Vectors and row vectors
@@ -2479,14 +2512,32 @@ is like an $M \times 1$ matrix and a row vector is like a $1 \times N$
 vector.  There are also `complex_vector` and `complex_row_vector`
 types which work the same way.
 
+The reason we do not just represent vectors as matrices is that we are
+able to reduce types in arithmetic.  For example, the product of a
+row vector and a product vector is a scalar rather than a $1 \times 1$
+matrix.  Similarly, the product of a matrix and a vector is a vector.
+
 ### Constrained vector types
 
-There are constrained vector types for (upward) ordered vectors
-(`ordered[M]`), positive (upward) ordered vectors (`pos_ordered[M]`),
-unit vectors where the sum of squared values is one
-(`unit_vector[M]`), and simplexes where the sum of the non-negative
-values is 1 (`simplex[M]`).  All of these produce size `M` vectors
-matching the constraints.
+There is a vector type `ordered[M]` for vectors in ascending order,
+and a similar type `pos_ordered[M]` for vectors of non-negative values
+in ascending order.
+
+The vector type `unit_vector[M]` is for vectors of unit Euclidean
+length (i.e., the sum of squared values is one).  There is also a
+`simplex[M]` type for simplex (non-negative values that sum to one).
+
+### Assignment and function calls
+
+Calling a function works like assigning the variables in the argument
+list to the variables in the function declaration.  In general, Stan
+is \textit{contravariant}, so that if a type `T` is assignable to a
+type `U`, then a type `array[N] T` is assignable to `array[N] U`.
+Similarly, integer-valued primitives and containers may be assigned to
+their real or complex counterparts, and real-valued primitives and
+containers may be assigned to their complex counterparts (but not the
+other way around).  Similarly, variables of a constrained type may be
+assigned to variables of an unconstrained type.
 
 
 # Discrete parameters
@@ -2509,9 +2560,9 @@ well because the parameters tend to get locked and not mix well.
 We'll consider a simple two-component normal mixture model
 parameterized with a discrete responsibility parameter.  This model
 assumes that each item $y_n$ is drawn from one of two possible normal
-distributions, $\textrm{normal}(\mu_1, \sigma_1)$ and
+distributions, $\textrm{normal}(\mu_1, \sigma_1)$ or
 $\textrm{normal}(\mu_2, \sigma_2)$, with a probability $\lambda \in
-[0, 1]$ of being drawn from the frist distribution.  Let's assume we
+[0, 1]$ of being drawn from the first distribution.  Let's assume we
 have $N$ observations $y_n \in \mathbb{R}$.  We will use $z_n \in \{
 0, 1 \}$ as the discrete parameter representing the distribution from
 which $y_n$ arose.  This gives us the following model
@@ -2522,25 +2573,29 @@ y_n &\sim \textrm{normal}(\mu_{z_n}, \sigma_{z_n})
 \end{align}
 In frequentist settings, the parameters $z_n$ are sometimes called
 _missing data_ to finesse a philosophical aversion to probability
-distribution over parameters.
+distributions over parameters.
 
 ## Marginalization to the rescue
 
-The immediate problem is that we cannot code this directly as written
-in Stan because we do not have discrete parameters.  But what we can
-do is _marginalize_ out the discrete parameters.  We know from the
-_law of total probability_ that if $B$ is a discrete random variable,
-then we can derive the marginal probability $p(a)$ from the joint
-probability function $p(a, b)$ by
+The immediate problem is that we cannot code this model in Stan by
+just following the math because we do not have discrete parameters.
+But what we can do is _marginalize_ out the discrete parameters.  We
+know from the _law of total probability_ that if $B$ is a discrete
+random variable, then we can derive the marginal probability $p(a)$
+from the joint probability function $p(a, b)$ by
 $$
 p(a) = \sum_{b \in B} p(a, b).
 $$
 
-We can put our likelihood in this form as
+We can express our mixture model's sampling distribution over both $y$
+and $z$,
 $$
 p(y, z \mid \lambda, \mu, \sigma)
 = \prod_{m = 1}^M p(y_n, z_n \mid \lambda, \mu, \sigma).
 $$
+This is called the \textit{complete data likelihood} in frequentist
+settings. 
+
 Then we can evaluate the likelihood elementwise,
 $$
 p(y_n, z_n \mid \lambda, \mu, \sigma)
@@ -2550,25 +2605,25 @@ $$
 Now we can marginalize out the $z_n$ by considering values 0 and 1,
 \begin{align}
 p(y_n \mid \lambda, \mu, \sigma)
-&= p(y_n, z_n = 0 \mid \lambda, \mu, \sigma)
-  + p(y_n, z_n = 1 \mid \lambda, \mu, \sigma)
+&= p(y_n, z_n = 1 \mid \lambda, \mu, \sigma)
+  + p(y_n, z_n = 0 \mid \lambda, \mu, \sigma)
 \\[6pt]
-&= \textrm{bernoulli}(0 \mid \lambda) \cdot \textrm{normal}(y_n \mid \mu_0, \sigma_0)
+&= \textrm{bernoulli}(1 \mid \lambda) \cdot \textrm{normal}(y_n \mid \mu_1, \sigma_1)
 \\[2pt]
-& \qquad + \ \textrm{bernoulli}(1 \mid \lambda) \cdot \textrm{normal}(y_n \mid \mu_1, \sigma_1).
+& \qquad + \ \textrm{bernoulli}(0 \mid \lambda) \cdot \textrm{normal}(y_n \mid \mu_2, \sigma_2).
 \end{align}
 We can further substitute in the value for the Bernoulli densities,
 which are
 \begin{align}
-\textrm{bernoulli}(0 \mid \lambda) &= 1 - \lambda, \ \textrm{and}
+\textrm{bernoulli}(1 \mid \lambda) &= \lambda, \ \textrm{and}
 \\[4pt]
-\textrm{bernoulli}(1 \mid \lambda) &= \lambda,
+\textrm{bernoulli}(0 \mid \lambda) &= 1 - \lambda,
 \end{align}
-to produce
+to produce the standard form of the mixture model sampling distribution,
 $$
 p(y_n \mid \lambda, \mu, \sigma)
-= (1 - \lambda) \cdot \textrm{normal}(y_n \mid \mu_0, \sigma_0)
-+ \lambda \cdot \textrm{normal}(y_n \mid \mu_1, \sigma_1).
+= \lambda \cdot \textrm{normal}(y_n \mid \mu_1, \sigma_1)
++ (1 - \lambda) \cdot \textrm{normal}(y_n \mid \mu_2, \sigma_2).
 $$
 
 
@@ -2577,16 +2632,17 @@ $$
 ## Simulated data: adult height of men and women
 
 Let's consider a specific instance, a collection of height data where
-men and women have not been discriminated.  Let's assume for the sake
-of simulation that men have a mean height of 175cm with standard
-deviation of 7.5cm and women have a mean height of 162cm with a
-standard deviation of 6.3cm.  We'll further assume that women make up
-51% of the adult population (this varies dramatically across ages).
-This will allow us to simulate data for 5000 randomly selected
-heights.
+measurements for men and women have not been identified. Let's assume
+for the sake of simulation that men have a mean height of 175cm with
+standard deviation of 7.5cm and women have a mean height of 162cm with
+a standard deviation of 6.3cm.  We'll further assume that women make
+up 51% of the adult population (this varies across age bands).
+This will allow us to simulate and plot data for 5000 randomly selected
+heights;  we put vertical lines at the mean female height (red) and
+male height (blue).
 
 ```{python}
-M = 50 # 5_000
+M = 100 if DRAFT else 5_000
 female_mean_height_cm = 162
 male_mean_height_cm = 175
 female_sd_height_cm = 6.3
@@ -2596,6 +2652,19 @@ mu = np.array([female_mean_height_cm, male_mean_height_cm])
 sigma = np.array([female_sd_height_cm, male_sd_height_cm])
 sex = np.array(np.random.binomial(n = 1, p = prob_female, size=M))
 heights = np.random.normal(loc = mu[sex], scale = sigma[sex], size=M)
+
+mydraw(
+  pn.ggplot(pd.DataFrame({'height': heights}),
+                 pn.aes(x = 'height')) +
+  pn.geom_histogram(bins=50, color='white') +
+  pn.labs(x = 'height') +
+  pn.geom_vline(xintercept=162, color='red') +
+  pn.geom_vline(xintercept=175, color='blue') +
+  pn.theme(axis_text_y = pn.element_blank(),
+           axis_title_y = pn.element_blank(),  
+           axis_ticks_major_y = pn.element_blank())
+
+)
 ```
 
 
@@ -2604,8 +2673,7 @@ heights = np.random.normal(loc = mu[sex], scale = sigma[sex], size=M)
 We have successfully marginalized out the $z$ and derived $p(y \mid
 \lambda, \mu, \sigma)$, but this leaves us with a residual
 problem---Stan works on the log scale and we have done our derivation
-on the linear scale.  Well, all we need to do is take the log and
-we're done.
+on the linear scale.  That is, we start with
 \begin{align}
 \log p(y_n \mid \lambda, \mu, \sigma)
 =
@@ -2622,7 +2690,8 @@ $$
 $$
 
 The reason we use log-sum-exp is that it can be made arithmetically
-stable in such a way as to prevent numerical overflow by noting
+stable in such a way as to prevent numerical overflow by pulling out
+the maximum value,
 $$
 \textrm{log-sum-exp}(a, b)
 = \textrm{max}(a, b)
@@ -2675,7 +2744,7 @@ model {
   }
 }
 ```
-This program uses local variables `lp1` and `lp2`.  These have scope
+This program uses local variables `lp1` and `lp2.`  These have scope
 just within the for-loop and take on different values with each loop
 iteration.  In general, local variables can be assigned and reassigned
 in Stan.  They are declared with sizes, but cannot have constraints.
@@ -2685,12 +2754,16 @@ because Stan arrays are indexed from 1.  The biggest departure from
 the mathematical model as written is that we have declared `mu` to be
 of type `ordered`, which is the type of a vector of increasing values.
 The reason we do this is that the indexes are not well
-identified---swapping them preserves the likelihood.
+identified in the sense that swapping indexes preserves the same
+likelihood.  This way, the smaller component will be the first
+component and the model will be identified without changing the
+likelihood.  @betancourt2017mix provides more details on how this works
+and shows that ordering does not change the underlying model.
 
 We have included weakly informative priors for `mu` and `sigma` based
 on our prior knowledge of heights.  The likelihood then just follows
 the mathematical definition.  We had to resort to a loop because Stan
-isn't able to vectorize mixtures.
+isn't currently able to vectorize mixtures.
 
 ## Fitting the simulated data
 
@@ -2699,37 +2772,39 @@ Now we can fit our simulated data.
 ```{python}
 model = csp.CmdStanModel(stan_file = '../stan/heights.stan')
 data = {'M': M, 'heights': heights}
+J = 100 if DRAFT else 1000
 sample = model.sample(data = data, seed = 123,
+                      iter_warmup = J, iter_sampling = J,
                       show_progress = False, show_console = False)
 sample.summary(sig_figs = 2)	      
 ```
 
 Mixture models are quite challenging to fit when the components have
-similar distributions as the normals with close locations and scales
-do here.  Checking the fit, we find $\widehat{R}$ values as high as
+similar distributions as they do here (the normal components have
+similar locations and scales so that much of their probability mass
+overlaps).  Checking the fit, we find $\widehat{R}$ values as high as
 1.01 (still acceptable) and effective sample sizes of around 1/6 the
 number of iterations.  Nevertheless, we see the Monte Carlo standard
 error is relatively low for all posterior means other than for
-$\lambda$.  Although we recover reasonable estimates for
-all parameters (simulated values were $\lambda = 0.51$, $\mu = [162 \ 175]$
-and $\sigma = [6.3 \ 7.5]$), the posterior intervals are only well constrained for
-`mu`, with `sigma` being much wider and `lambda` being very poorly
-identified.  These intervals grow with less data and shrink with more
-data.
+$\lambda$.  Although we recover reasonable estimates for all
+parameters (simulated values were $\lambda = 0.51$, $\mu = [162 \
+175]$ and $\sigma = [6.3 \ 7.5]$), the posterior intervals are only
+well constrained for `mu`, with `sigma`, with `lambda`
+being less well identified.  These intervals shrink with the number
+observations $N$ at a rate of $\mathcal{O}(1 / \sqrt{N})$. 
 
 
 ## Built-in Stan function for mixtures
 
-
 For simple mixtures of this kind, Stan supplies a built-in function
-```
+```stan
 log_mix(lambda, lp1, lp2)
     = log_sum_exp(log(lambda) + lp1,
                   log1m(lambda) + lp2)
 ```
 which is a more efficient drop-in replacement for the explicit
-definition in our example code, the body of the loop in the model of
-which can just be
+definition in our example code.  The body of the loop in the model can
+be replaced with the one-liner
 ```stan
 target += log_mix(lambda, normal_lpdf(heights[m] | mu[1], sigma[1]),
                           normal_lpdf(heights[m] | mu[2], sigma[2]));
@@ -2748,17 +2823,17 @@ expectation rather than working with the sample (i.e., we will
 _Rao-Blackwellize_).  The calculation for the expected sex given
 values of $\mu$ and $\sigma$ and $y_n$ is
 $$
-\textrm{Pr}[Z_n = 1 \mid y]
+\Pr\!\left[Z_n = 1 \mid y, \mu, \sigma\right]
 \ = \
-\mathbb{E}[Z_n \mid y]
+\mathbb{E}\left[Z_n \mid y, \mu, \sigma\right]
 \ = \
-\frac{\displastyle p(y_n \mid \mu_0, \sigma_0)}
+\frac{\displaystyle p(y_n \mid \mu_0, \sigma_0)}
        {\displaystyle p(y_n \mid \mu_0, \sigma_0)
                       + p(y_n \mid \mu_1, \sigma_{z_n})}
 $$
 On the log scale where Stan operates, that's
 $$
-\log \textrm{Pr}[Z_n = 1 \mid y]
+\log \textrm{Pr}[Z_n = 1 \mid y, \mu, \sigma]
 = \log p(y_n \mid \mu_0, \sigma_0)
   - \textrm{log-sum-exp}(\log p(y_n \mid \mu_0, \sigma_0),
                          \log p(y_n \mid \mu_1, \sigma_1).
@@ -2790,25 +2865,31 @@ Now we can compile and fit this model.
 ```{python}
 model = csp.CmdStanModel(stan_file = '../stan/heights-post.stan')
 data = {'M': M, 'heights': heights}
+J = 100 if DRAFT else 1000
 sample = model.sample(data = data, seed = 123,
+                      iter_warmup = J, iter_sampling = J,
                       show_progress = False, show_console = False)
 sample.summary(sig_figs = 2)	      
 ```
 
 The probabilities range from 0 to 1 with some intermediate values.
-The means after sampling are close to the means of the direct
-probability estimate, but much noisier (i.e., higher MCMC standard
-error).  We can compare the probabilities to the simulated values of
-$z$, 
+We have calculated posterior expectations two ways, by averaging
+expected values (`Pr_female`) and by taking random draws (`sex`).
+The posterior means are similar for these variables, but `sex` has
+much higher variance due to the sampling.
+
+We can compare the probabilities to the simulated values of $z$, which
+are 
 ```{python}
 print(f"{sex[0:10] =}")
 ```
 
 # Debugging Stan programs
 
-As usual, we have presented a series of Stan programs that actually
-work as intended.  When developing new programs, one often runs into
-problems.
+As is usual in simple tutorials like this, we have presented a series
+of Stan programs that actually work as intended.  When developing new
+programs, one often runs into problems.  This section will cover some
+typical Stan coding errors and provide some tips on debugging.
 
 ## Failure to provide support over constrained parameters
 
@@ -2826,12 +2907,21 @@ model {
 ```
 This violates Stan's requirements because the declared constraints
 allow a negative value for `sigma`, but the model block does not.  The
-way to fix this is to declare `sigma` to be of type `real<lower=0>`.
+way to fix this is to declare `sigma` to be of type `real<lower=0>.`
 Often this kind of bug shows up as a failure to randomly initialize.
 For instance, if we had `vector[10] sigma`, we'd only have a $2^{-10}$
 or about 1/1000 chance of generating valid initializations at random,
 because Stan initializes parameters using a $\textrm{uniform}(-2, 2)$
 distribution on the unconstrained scale.
+
+## Start with small, simulated data sets
+
+It can be difficult to debug wild type data at scale.  Instead,
+simulating a small data set lets you work the kinks out of the code in
+a controlled context where we know the true answers.  Then, when the
+code is working over small simulated data, it can be loosed on the
+real data. 
+
 
 ## Debug by print
 
@@ -2843,15 +2933,15 @@ by line, for example,
 ```stan
 model {
   y ~ normal(alpha + beta * x, sigma);
-  print("step 17, target() = ", target());
+  print("step 17: target() = ", target());
   sigma ~ lognormal(0, 1);
-  print("step 18. target() = ", target());
+  print("step 18: target() = ", target());
 }
 ```
 Then if one of the statements throws an exception, you will see the
 print statement just before it was called. If one of the statements
 leads to a not-a-number or negative infinity value, you will see the
-first place this affects `target()`. You can also print the results of
+first place this affects `target().` You can also print the results of
 intermediate calculations.  Be careful printing long structures; you
 might want to try printing a slice, e.g.,
 ```stan
@@ -2859,6 +2949,21 @@ matrix[256, 256] a = b * c;
 print("a[1:3, 5:6] = ", a[1, 1]);
 ```
 
+## Test quantities of interest
+
+So far, we've only talked about making the program work as intended.
+We also want to test our output as we have done in several of our
+running examples.   If we wrote a model in order to provide posterior
+predictive inference, test it with posterior predictive inference
+(either real or simulated).
+
+## More advice on workflow
+
+Going into full details of how to develop Stan models is beyond this
+simple getting started tutorial.  For more information, see
+@gelman2020workflow.  The various inference mechanisms targeted by the
+Bayesian workflow suggestions can be implemented in Stan as outlined
+in Part III of @stan2023users.
 
 
 # Making Stan programs go faster
@@ -2873,8 +2978,14 @@ density and gradients.
 
 There are many ways to write a Stan program to compute the log density
 and gradients of a model with respect to a fixed parameter vector.
-Some of them are faster than others.  For speeding up Stan programs,
-most of the usual considerations apply.  Specifically, we want to
+Some of them are faster than others.  Which version is faster may wind
+up depending on the shape of the data (e.g., caching can be very
+valuable in some circumstances where variables are heavily reused, but
+can be a burden in sparse data circumstances where all combinations of
+variables are not used).
+
+For speeding up Stan programs, most of the usual considerations in
+speeding up computer programs apply.  Specifically, we want to
 optimize memory locality and we want to reduce branch points; together
 these are the main efficiency bottlenecks for modern code.
 
@@ -2883,10 +2994,10 @@ these are the main efficiency bottlenecks for modern code.
 As Donald Knuth is reputed to have said, "Premature optimization is
 the root of all evil."  It's pretty much always a good idea to get a
 simple version of your code working on a small slice of data first.
-Then only worry about optimization if you need it and if you do need
-it, don't try it without an unoptimized form that works as backup.
-Every developer has learned through hard experience that it's often a
-whole lot easier to optimize working code than it is to debug
+Then only worry about optimization if you need it.  If you do need to
+optimize, don't try it without an unoptimized form that works as a
+guide.  Every developer has learned through hard experience that it's
+often a whole lot easier to optimize working code than it is to debug
 optimized code.
 
 ### Do not repeat yourself
@@ -2904,7 +3015,10 @@ for (n in 1:N) {
 The problem here is that `exp(log_sigma)` gets computed `N` times.
 This uses more memory, as Stan records every operation with links to
 its operands during.  It is also slow, with `N - 1` redundant
-applications of the chain rule (a multiply/add).  Instead, the code should be refactored to
+applications of exponentiation in the forward pass and and
+multiply/adds for the chain rule in the backward pass.  Instead, the
+code should be refactored to compute the exponentiation of `log_sigma`
+once, assign it to a local variable, and re-use it in the loop.
 
 ```stan
 real sigma = exp(log_sigma);
@@ -2916,7 +3030,10 @@ for (n in 1:N) {
 ### Avoid autodiff if possible
 
 If you have a constant that's being defined, define it in the
-transformed data block.  That way it only gets evaluated once.  For example, rather than doing this,
+transformed data block.  That way it only gets evaluated once.  For
+example, don't do the following, as it repeatedly allocates and fills
+a $K$-vector and then applies useless autodiff steps in the reverse
+pass. 
 ```stan
 data {
   real<lower=0> alpha;
@@ -2925,7 +3042,7 @@ model {
   theta ~ dirichlet(rep_vector(alpha, K));
 }  
 ```
-then it's much better to do this,
+Instead, code this as follows.
 ```stan
 transformed data {
   vector<lower=0>[K] alphas = rep_vector(alpha, K);
@@ -2935,7 +3052,8 @@ model {
 }
 ```
 
-The other case to do this is for generated quantities. If it's
+The other way to get rid of autodiff is to move posterior predictions
+into the generated quantities block.  In general, if it's
 possible to move a variable to the generated quantities block, it
 should be moved.  For example, we might be tempted do posterior
 predictive simulation as follows.
@@ -2950,8 +3068,10 @@ model {
   y_tilde ~ normal(alpha + beta * x_tilde, sigma);
 }
 ```
+This is correct and will provide the right answer, but it is inefficient.
 In situations like this, we can move `y_tilde` down to generated
-quantities because it's conditionally independent given `mu` and `sigma`.
+quantities because it's conditionally independent of the data
+given `mu` and `sigma.`
 ```stan
 parameters {
   real alpha, beta;
@@ -2964,8 +3084,8 @@ generated quantities {
   array[M_tilde] y_tilde = normal_rng(alpha + beta * x_tilde, sigma);
 }  
 ```
-If we really need a vector for `y_tilde` for some reason, we can
-convert with `to_vector()`.
+Vectorized `_rng` functions return arrays; if we really need a vector
+for `y_tilde` for some reason, we can convert with `to_vector().`
 
 
 ### Do not use diagonal multivariate normal
@@ -2974,7 +3094,8 @@ Instead of
 ```stan
 y ~ multi_normal(mu, diag_matrix(sigma));
 ```
-which creates a matrix then factors to compute its inverse and determinant, we can use the univariate normal,
+which creates a matrix then factors to compute its inverse and
+determinant, we can use the vectorized form of the univariate normal,
 ```stan
 y ~ normal(mu, sigma);
 ```
@@ -2990,8 +3111,9 @@ faster.
 
 Matrices are organized in column-major order in memory, whereas arrays
 are row major.  That means that the columns of a matrix are stored
-together in memory, and therefore `Sigma[1:M, n]` is efficient, but
-`Sigma[m, 1:N]` is not if `M` is large.
+together in memory, and therefore slicing out a column `Sigma[1:M, n]`
+is relatively efficient for large `M`, but slicing out a column using
+`Sigma[m, 1:N]` will be inefficient if `M` is large.
 
 If you need to access vectors one by one but you do not need matrix
 operations, use an array of vectors in either order:
@@ -3003,8 +3125,8 @@ array[N] vector[M] alpha_t_arr;  // transposed
 Accessing elements of an array does not require any copying.
 
 Overall, copying and rearranging data structures is not very expensive
-in Stan.  Loops are very fast, and rearranging doesn't add any
-overhead to the automatic differentiation.
+in Stan.  Loops are very fast, and rearranging doesn't add anything to
+the expression graph for automatic differentiation.
 
 
 ### Vectorize non-linear operations over parameters
@@ -3019,7 +3141,9 @@ for (n in 1:N) {
 ```
 Written this way, Stan isn't smart enough to realize it can compute
 `log(sigma)` once and re-use.  It will also build a huge number of
-edges from the log density to `alpha` and `beta`, one for each `y[n]`.  On the other hand, it's much faster written as follows.
+expression graph edges from the log density of to `alpha` and `beta`,
+one for each `y[n].`  The same contribution to the log density can be
+executed much faster with vectorized code such as the following.
 ```stan
 y ~ normal(alpha + beta * x, sigma);
 ```
@@ -3028,11 +3152,10 @@ The speed from vectorization is not because loops are slow, it's
 because doing autodiff in a loop leads to a much larger expression
 graph and hence much more work when updating the chain rule.  The
 vectorized form has a single output variable for the log density with
-three edges leading to `alpha`, `beta`, and `sigma`.  It will also be
+three edges leading to `alpha`, `beta`, and `sigma.`  It will also be
 clever enough to calculate `log(sigma)` once and reuse it.  This
 advantage is even bigger for distributions like multivariate normal
 that require expensive internal determinant calculations.
-
 
 
 ## Statistical efficiency
@@ -3046,8 +3169,8 @@ The first thing to consider is _identifiability_.  A likelihood $p(y
 \mid \theta)$ is _identifiable_ if distinct parameters lead to
 distinct likelihoods, or in symbols, if $\theta \neq \theta'$ implies
 $p(y \mid \theta) \neq p(y \mid \theta')$.  The other way around, a
-likelihood is not identifiable if there are $\theta \neq \theta'$ such
-that $p(y \mid \theta) = p(y \mid \theta')$.
+likelihood is not identifiable if there exist $\theta \neq \theta'$ such
+that $p(y \mid \theta) = p(y \mid \theta').$
 
 The classic _Bradley-Terry model_ for inferring quality based on
 pairwise comparisons has a non-identifiable likelihood.  Let's
@@ -3157,12 +3280,12 @@ covariance will be equal to the negative inverse Hessian everywhere.
 
 With its default settings, Stan preconditions by scaling each of the
 parameters as close to unit scale as it can manage.  Under this
-scheme, the adapted metric requires $\mathcal{O}(D)$ storage and
-each leapfrog step (the most inner loop in Stan) requires
-$\mathcal{O}(D)$ time.  By selecting a dense metric, Stan will also
-adapt to a fixed curvature (i.e., one that does not vary over the
-posterior). This requires $\mathcal{O}(D^2)$ storage, a one-time
-$\mathcal{O}(D^3)$ cost to Cholesky factor, and then requires
+scheme, in $D$ dimensions, the adapted metric requires
+$\mathcal{O}(D)$ storage and each leapfrog step (the most inner loop
+in Stan) requires $\mathcal{O}(D)$ time.  By selecting a dense metric,
+Stan will also adapt to a fixed curvature (i.e., one that does not
+vary over the posterior). This requires $\mathcal{O}(D^2)$ storage,
+several $\mathcal{O}(D^3)$ costs to Cholesky factor, and then requires
 $\mathcal{O}(D^2)$ time per leapfrog step to evaluate.
 
 ### Reparameterization
@@ -3180,8 +3303,8 @@ model {
   alpha ~ normal(0, sigma);
 }
 ```
-This model induces a strong dependence between `sigma` and `alpha`.
-When `sigma` is small`, `alpha` must be small, and when `sigma` is
+This model induces a strong dependence between `sigma` and `alpha.`
+When `sigma` is small, `alpha` must be small, and when `sigma` is
 large, `alpha` will vary over a wide range.  This varying curvature
 (high curvature for low `sigma`, very flat expanses for high `sigma`)
 is very challenging for MCMC sampling.
@@ -3202,23 +3325,160 @@ model {
 }
 ```
 We now have an independent standard normal distribution on
-`alpha_std`, not on `alpha`.  It induces the correct distribution on
+`alpha_std`, not on `alpha.`  It induces the correct distribution on
 the transformed parameter `alpha`, so that `alpha` has a `normal(0,
 sigma)` distribution.  While this correction is only in the prior,
-if there is not a lot of data for each `n`, the posterior will be similar.
+if there is not a lot of data for each `n`, the posterior will be
+similar.
+
+We can code the same model as above using an affine variable transform
+to rescale `alpha` with `sigma`.
+```stan
+parameters {
+  real<lower=0> sigma;
+  vector<multiplier=sigma>[N] alpha;  // non-centering
+}
+model {
+  sigma ~ lognormal(0, 1.5)
+  alpha ~ normal(0, sigma);  
+}
+```
 
 ### Priors for speed and knowledge
 
 Often we are tempted to use vague or overdispersed priors.  When this
 gets too extreme, it can cause computational difficulties navigating
-flat expanses of probability space.  If you have used vague priors to
-avoid thinking too hard and computation is going awry, you might
-consider adding priors with a bit more information.  It's often
-possible to impose _weakly informative priors_ that only determine the
-scale of a variable, which is often known.  Priors are particularly
-important when there is not much data.  Also, it's nice to actually
-use real prior knowledge in inference because not doing so is just
-leaving useful information on the table.
+flat expanses of probability space.  And we will have statistical
+difficulties from the prior pulling most of the probability mass away
+from the natural posterior.
+
+If you have used vague priors to avoid thinking too hard and
+computation is going awry, you might consider adding priors with a bit
+more information.  It's often possible to impose _weakly informative_
+priors that only determine the scale of a variable, which is often
+known.  For example if we think a value $\alpha$ is going to have a
+value in the single digits, we can use a prior like
+```stan
+alpha ~ normal(0, 5);
+```
+that puts approximately 95% of the probability mass in the region
+$(-10, 10)$.
+
+We do not recommend interval constraints other than for naturally
+constrained parameters (e.g., probabilities fall in $[0, 1]$ and
+concentrations in $[0, \infty)$).  The reason we do not want to use
+```stan
+alpha ~ uniform(-10, 10);
+```
+is that if the data is consistent with `alpha` near the boundary (-10
+or 10), then probability mass gets bunched up and posterior means get
+pushed away from the boundary.  For example, consider the following
+Stan program.
+```{.stan filename='stan/interval-censor.stan'}
+data {
+  int<lower=0> B;
+  int<lower=0> N;
+  vector[N] y;
+}
+parameters {
+  real<lower=-B, upper=B> mu;
+  real<lower=0> sigma;
+}
+model {
+  y ~ normal(mu, sigma);
+}  
+```
+In this model, we have an improper uniform prior on `sigma` and a
+proper uniform prior on `mu` in the interval $(-B, B)$. Stan allows
+improper priors as long as the posterior is proper.
+
+We can then
+simulate data according to the sampling distribution,
+$$
+y_n \sim \textrm{normal}(9.9, 4).
+$$
+Although the true value of $\mu$ is 9.9, which falls in the interval
+$(-10, 10)$, consider what happens when we fit 50 random draws with
+this model.
+```{python}
+model = csp.CmdStanModel(stan_file = '../stan/interval-censor.stan')
+N = 50
+mu = 9.9
+sigma = 4
+y = np.random.normal(mu, sigma, N)
+B = 10
+data = {'B': B, 'N': N, 'y': y}
+M = 100 if DRAFT else 1000
+sample = model.sample(data = data, seed = 123,
+                      iter_warmup = M, iter_sampling = M,
+                      show_progress = False, show_console = False)
+print(f"interval = ({-B}, {B})")
+sample.summary(sig_figs = 2)		      
+```
+What happens is that all of the posterior mass for $\mu$ that would
+fall above 10 is pushed down inside the interval.  As a result, we
+bias $\mu$ and $\sigma$ so that their estimates are too low.  If we
+were to expand the interval to 20 and fit the same data, the result
+is quite different.
+```{python}
+B = 20
+data = {'B': B, 'N': N, 'y': y}
+M = 100 if DRAFT else 1000
+sample2 = model.sample(data = data, seed = 123,
+                      iter_warmup = M, iter_sampling = M,
+                      show_progress = False, show_console = False)
+print(f"interval = ({-B}, {B})")
+sample2.summary(sig_figs = 2)		      
+```
+If you were thinking we should recover $\mu = 9.9$ and $\sigma = 4$,
+it's worth noting the sample mean and standard deviation for our
+simulated data `y`, which are
+```{python}
+print(f"mean(y) = {np.mean(y):5.2f};  sd(y) = {np.std(y):4.2f}")
+```
+
+
+## A final note on priors
+
+Priors are particularly important when there is not much data in order
+to control computation.  We can evaluate prior sensitivity by
+considering changing priors, as we did in the last section, to see
+what their effect is on the posterior.
+
+In general, we would recommend using as much prior knowledge as you
+can during inference.  Not doing so leaves useful information on the table.
+
+
+# Further reading
+
+## Bayesian statistics
+
+For reading on Bayesian statistics, I would highly recommend the
+two-book sequence of @mcelreath2023, followed by @gelman2013bayesian;
+the latter is [available as a free pdf from the
+authors](http://www.stat.columbia.edu/~gelman/book/).
+
+## Stan
+
+The reference Stan paper is @carpenter2015, but there is no point in
+reading that paper if you have read this.  It's better to skip
+directly to the *Stan User's Guide* (@stan2023users), which contains much more
+information on modeling in Stan than this introduction.  For full
+details on Stan's programming language and execution, see the
+*Stan Reference Manual* (@stan2023); for information on the library of
+special mathematical and statistical functions, see the *Stan
+Functions Reference* (@stan2023funs).
+
+There is also a wealth of information available in the form of [Stan
+case studies](https://mc-stan.org/users/documentation/case-studies)
+and [Stan conference
+proceedings](https://github.com/stan-dev/stancon_talks), both of which
+are distributed in the form of reproducible notebooks.
+
+## Bayesian workflow
+
+The paper that kicked off the focus on workflow is @gabry2019; the
+current state of our thinking is @gelman2020workflow.
 
 
 # Appendices
@@ -3238,8 +3498,6 @@ observing new data.
 4.  Evaluate _event probabilities_ conditioned on observed data $y$,
 such as $\textrm{Pr}[\textrm{cond}(\theta) \mid y]$ for some condition
 on the parameters by integrating over the posterior. 
-
-We work through an example end-to-end in the next section.
 
 ### Bayes's theorem
 
@@ -3317,7 +3575,7 @@ $$
 $$
 
 With Bayesian statistics, we are typically interested in conditional
-expectations, which is the value of a random variable conditioned on
+expectations, which are the value of a random variable conditioned on
 the observed value of a second random variable.  Suppose $Y$ is a
 second random variable and we observe that $Y = y$.  The _conditional
 expectation_ of $Z$ given $Y = y$ is written
@@ -3332,13 +3590,13 @@ before, this assumes a fixed, joint measure for $Y$ and $Z$.
 We are typically concerned with cases where $Z = f(\Theta)$ is a
 function of the parameters $\Theta$ (and perhaps some data, as well),
 and the conditioning is with respect to observed data $y$, where we
-will drop the explicit $Y = y$ conditioning and just use $y$,
+will drop the explicit $Y = y$ conditioning and use $y$ as shorthand,
 $$
 \mathbb{E}[f(\Theta) \mid y]
 = \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
 $$
 These posterior expectations simply average the value of the function
-$f(\theta)$ over the posterior $p(\theta \mid y)$.  All of our
+$f(\theta)$ over the posterior $p(\theta \mid y).$  All of our
 inferences proceed this way---by averaging a quantity of interest
 expressed as a function of parameters over the posterior
 
@@ -3356,19 +3614,19 @@ $$
 \textrm{Pr}[Z \leq z] = p.
 $$
 That is, the $p$-quantile of $Z$ is the value $z$ such that the
-probability $Z$ is less than or equal to $z$ is $p$.  In Bayesian
+probability $Z$ is less than or equal to $z$ is $p.$  In Bayesian
 applications, we will typically be taking the probability for
 functions of parameters $Z = f(\Theta)$ and conditioning on observed data $y$.
 
 The 0.5-quantile is known as the _median_.  There is a 50% chance that
 a random variable takes on a value less than its median and a 50%
 chance that it takes on a value greater.  Another common Bayesian
-estimator for parameters $\Theta$ is their posterior median,
+estimator for parameter $\Theta$ is its posterior median,
 $$
 \overline{\theta} = \textrm{quantile}(Z, 0.5).
 $$
 The median estimator has the property of minimizing expected absolute
-<error (in contrast to the posterior mean estimate, which minimizes
+error (in contrast to the posterior mean estimate, which minimizes
 expected squared error), again assuming the model represents the true
 data generating process.
 
@@ -3513,7 +3771,7 @@ We typically assume some mild conditions on the Markov chain
 transition.  First, it must be _ergodic_ in the sense of never getting
 stuck in such a way it can't visit the rest of the parameter space.
 Second, it must be _aperiodic_ in the sense of not cycling regularly
-through regions of the parameter space.  Third, it needs to preserve
+through disjoint regions of the parameter space.  Third, it needs to preserve
 the target density in the sense that if  $\theta^{(m)} \sim
 p(\theta \mid y)$ has the posterior as its marginal distribution, then
 $\theta^{(m+1)} \sim p(\theta \mid y)$ also follows the posterior
@@ -3548,7 +3806,7 @@ mild conditions above, we know that we get the right answer asymptotically,
 &= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta
 \\[6pt]
 &= \lim_{M \rightarrow \infty} \ \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right).
-\end{align}.
+\end{align}
 
 With only finite time in practice, we use the initial segment of the
 chain to estimate expectations,
@@ -3595,8 +3853,5 @@ $$
 \widehat{\theta} - \theta
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
-
-
-
 
 # References

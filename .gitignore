@@ -135,6 +135,9 @@ dmypy.json
 *.tex
 quarto/stan-getting-started_files/
 
+# Mac caches
+*.DS_Store
+
 # auto-gen models
 stan/ab-test
 stan/binomial-rng
@@ -147,6 +150,7 @@ stan/heights-post
 stan/iris-petals-log
 stan/iris-petals-varying
 stan/iris-posterior-predictive-sim
+stan/interval-censor
 
 # auto-generated
 quarto/stan-getting-started.html
