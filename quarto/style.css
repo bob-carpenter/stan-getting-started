@@ -1,7 +1,14 @@
 a {
-    color: midnightblue; # rgb(0, 0, 128)
+    color: midnightblue;
+    text-decoration: none;
 }
 
+a:hover {
+    color: midnightblue;
+    text-decoration: underline;
+}
+
+
 code, pre {
-  font-size: 0.825em; /* Adjust this value to your preference */
+    font-size: 0.825em; /* Adjust this value to your preference */
 }
