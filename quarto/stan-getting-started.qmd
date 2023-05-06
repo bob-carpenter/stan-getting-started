@@ -3,13 +3,11 @@ title: "Getting Started with Stan"
 subtitle: "in Python with `cmdstanpy` and `plotnine`"
 author: "Bob Carpenter"
 date: "May 2023"
-theme:
-  - cosmo
-  - custom.scss
 format:
   html:
-    embed-resources: true
-    highlight-style: arrow
+    theme: cosmo # united is darker
+    css: style.css
+    highlight-style: atom-one
     mainfont: Palatino
     fontcolor: black
     monobackgroundcolor: white
@@ -22,20 +20,19 @@ format:
     toc-location: right
     code-fold: true
     code-copy: true
-    css: style.css
     cap-location: bottom
     appendix-style: none
     format-links: false
+    embed-resources: true
   pdf:
     include-in-header:
       - file: header.tex
     mainfont: Palatino
-#    monofont: SourceCodePro
+    monofont: SourceCodePro
     monofontoptions:
       - Scale=0.6
     number-sections: true
     number-depth: 2
-#    shift-heading-level-by: -1
     margin-bottom: 1in
     fig-pos: "t!"
     biblio-title: "References"
@@ -46,6 +43,86 @@ format:
     highlight-style: github
 bibliography: references.bib
 ---
+
+# Preface {.unnumbered}
+
+## Prerequisites {.unnumbered}
+
+I will assume the reader is familiar with the basic notions of
+
+* differential and integral calculus in multiple dimensions,
+* matrix operations, including vector addition and matrix multiplication,
+* probability theory, including probability density and mass
+functions, cumulative distribution functions, expectations, events,
+and the basic rules of probability theory, and
+* Python numerical programming with NumPy.
+
+By basics, I really do mean basics.  You won't need to do any
+calculus, we will just use it to express what Stan computes.
+Similarly, we will use matrix notation to express models, and we will
+avoid advanced topics in linear algebra that are at the heart of some
+of Stan's internals.  I include an appendix that goes over the basics of
+Bayesian statistics from first principles using only basic mathematics
+(i.e., no measure theory). 
+
+## Python, CmdStanPy, NumPy, pandas, and plotnine {.unnumbered}
+
+For scripting language, we use [Python 3](https://www.python.org/downloads/).
+
+To access Stan, we use the Python package [CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html).
+
+For numerical and statistical computation in Python, we use
+[NumPy](https://numpy.org/).  Although we do not use it here,
+[SciPy](https://scipy.org/) extends NumPy with more advanced
+scientific computing and statistical algorithms.
+
+For plotting, we use the Python package
+[plotnine](https://plotnine.readthedocs.io/).  plotnine is a Python
+reimplementation of [ggplot2](https://ggplot2.tidyverse.org/), which is
+itself an implementation of the grammar of graphics [@wilkinson2005].
+
+We use [pandas](https://pandas.pydata.org/) for representing wide-form
+data frames, primarily because it is the required input for plotnine.
+
+
+## Python boilerplate  {.unnumbered}
+
+We include the following Python boilerplate to import and configure
+packages we will use throughout this tutorial.  
+
+```{python}
+# PROJECT SETUP
+# set DRAFT = False for final output; DRAFT = True is faster
+
+import itertools
+import logging
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.filterwarnings( "ignore", module = "plotnine\..*" )
+
+import cmdstanpy as csp
+csp.utils.get_logger().setLevel(logging.ERROR)
+
+import numpy as np
+import pandas as pd
+import plotnine as pn
+
+def mydraw(x):
+    """draw plot in the quarto doc"""
+    x.draw()
+
+DRAFT = True
+```
+
+
+## Acknowledgements {.unnumbered}
+
+I'd like to thank Mitzi Morris, Barry Smith, and Brian Ward for
+helpful feedback on earlier drafts.  I'd also like to thank the entire
+Stan Development Team.  Stan is an open project and a large team
+effort and we're always happy to help onboard new developers.
+
+
 
 # Introduction
 
@@ -82,8 +159,11 @@ As an Appendix, I have provided a short introduction to Bayesian
 inference.  This establishes both the notation and provides more
 formal definitions of exactly what Stan is computing.
 
-If you're looking for a gentle introduction to Bayesian statistics,
-I can highly recommend \textit{Statistical Rethinking} @mcelreath2023.
+If you're looking for a gentle introduction to Bayesian statistics, I
+can highly recommend *Statistical Rethinking* [@mcelreath2023].  For a
+more advanced introduction, try *Bayesian Data Analysis*
+[@gelman2013bayesian], which is available from the authors as a [free
+pdf](http://www.stat.columbia.edu/~gelman/book/).
 
 ## Markov chain Monte Carlo methods
 
@@ -102,139 +182,34 @@ Carlo](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) (MCMC)
 methods, which introduce dependency among the draws making up the
 random sample.
 
-## Stan
+## Stan and probabilistic programming
 
-Stan is an expressive probabilistic programming language that allows a
-wide range of statistical models to be coded.  At its heart, a Stan
-program declares data variables, parameters, and defines a posterior
-log density up to a constant.  The most straightforward way to define
-the posterior log density up to a constant is to define the joint
-density and apply Bayes's rule, but Stan allows intermediate optimizations that lead to 
+Stan is a probabilistic programming language.  Stan is what is known
+as a *domain specific* programming language, meaning it was written
+for particular application.  Specifically, Stan was designed for
+coding statistical models.  Although Stan is used most widely for
+MCMC, it also enables frequentist inference (e.g., maximum likelihood,
+bootstrap, etc.)
 
+A Stan program declares data variables and parameters, along with
+a differentiable posterior log density (of the parameters given the
+data) up to a constant.  Although this is the only requirement, most
+Stan programs define the joint log density of the parameters and
+varaibles, which can be shown to be equal to the log posterior plus a
+constant.  
+
+Stan programs are probabilistic programs in the sense that their data
+and parameters can represent random variables.  Running a Stan program
+twice will give different answers.  Stan programs can be made
+deterministic in order to provide reproducible results by fixing a
+random seed.
 
 Stan programs are translated to C++ and fit with either MCMC or
-approximate methods.  Users provide Stan data and access Stan output
-through analytics languages like Python, R, or Julia.  This note
-focuses on MCMC-based inference and Python.
+approximate methods like variational inference or Laplace
+approximation.  Users provide Stan data and access Stan output through
+analytics languages like Python, R, or Julia.
   
-## Prerequisites
 
-I will assume the reader is familiar with the basic notions of
-differential and integral calculus in multiple dimensions (e.g., the
-typical first- and second-year undergraduate sequence).  But don't
-worry, we only need calculus to define what we are computing---the
-actual calculations will all be done by Stan.  I will further assume
-that the reader is familiar with the basics of matrix operations
-(e.g., as taught in an intro to linear algebra class).  
-
-I will further assume that the reader is familiar with basic notions
-of probability theory, including discrete and continuous densities,
-probability density and mass functions, cumulative distribution
-functions, expectations, and the basic rules of probability theory
-(e.g., as taught in an upper level undergraduate introduction to
-mathematical statistics).
-
-I will also assume the reader is familiar with basic Python numerical
-programming, including NumPy and SciPy (there are a lot of tutorials
-available online and in book form).  I'll be using [Python
-3](https://www.python.org/downloads/) with the
-[CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html) interface
-to Stan.  Click the links and follow the install instructions if you
-would like to follow along in code.
-
-## Which Stan interface should I use?
-
-Stan can be accessed directly from the command line or through
-analysis languages like Python, R, or Julia.  The compiled model class
-can also be accessed directly in these languages.
-
-### CmdStan
-
-The reference implementation of Stan is CmdStan, which is
-a command-line interface (CLI) written entirely in C++.  
-
-* CLI: [CmdStan](https://mc-stan.org/users/interfaces/cmdstan)
-
-CmdStan produces comma-separated value (CSV) output, which makes it
-easy to read into languages such as R, Python, or Julia for further
-analysis.
-
-### Out of process interfaces
-
-I would strongly recommend one of the following interfaces, which
-write data to a file, execute a separate process for CmdStan, then
-read the results in through the file system.
-
-* Python: [CmdStanPy](https://mc-stan.org/cmdstanpy/)
-* R: [CmdStanR](https://https://mc-stan.org/cmdstanr/)
-* Julia: [Stan.jl](https://mc-stan.org/users/interfaces/julia-stan)
-
-The out-of-process architecture makes these interfaces relatively easy
-to install and keep up to date with Stan because there are no C++
-compatibility issues to work out between the analysis languages and
-Stan.  This case study uses CmdStanPy.
-
-### In process interfaces
-
-The following interfaces were the first two developed for Stan.
-
-* R: [RStan](http://mc-stan.org/rstan/)
-* Python: [PyStan](https://pystan.readthedocs.io/en/latest/index.html)
-
-The Python in-memory interface was later replaced with the following
-HTTP-based web service.
-
-* HTTP: [HttpStan](https://github.com/stan-dev/httpstan)
-
-Both RStan and HttpStan (and hence PyStan) rely on high-level foreign
-function interfaces (FFI) to Stan (specifically Cython and Rcpp),
-which means they invoke Stan in memory in the same process running R
-or HttpStan.  This requires compatibility between the C++ compiler
-used for Python and R and the the one used for compiling a Stan program.
-This in turn complicates installation, particularly on Windows.
-
-### Model interface
-
-We have recently developed a more portable in-memory interface to
-Stan's log density function along with gradients and Hessians, and the
-constraining and unconstraining parameter transforms.  These are coded
-using a relatively portable low-level memory interface (`.C` in R,
-`.ctypes` in Python).
-
-* R, Python, Julia, C, Rust: [BridgeStan](https://github.com/roualdes/bridgestan)
-
-
-
-## Python boilerplate
-
-We include the following Python boilerplate to import and configure
-packages we will use throughout these notes.
-
-```{python}
-# PROJECT SETUP
-import cmdstanpy as csp
-
-import numpy as np
-
-# stop plotnine griping
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-warnings.filterwarnings( "ignore", module = "plotnine\..*" )
-
-# stop stan informational updates and warnings
-import logging
-csp.utils.get_logger().setLevel(logging.ERROR)
-
-import pandas as pd
-import plotnine as pn
-import itertools
-
-def mydraw(x):
-    """draw plot in the quarto doc"""
-    x.draw()
-
-DRAFT = True
-```
 
 # Stan for forward simulation
 
@@ -795,7 +770,7 @@ a line before an operator, ideally right before a term in a chain of
 additions or a factor in a chain of multiplications.
 
 
-# Stan for solving inverse problems
+# Stan example: Laplace's live birth inverse problem
 
 Given a forward model that generates data from parameters, the
 _inverse problem_ is that of _inferring_ parameter values from
@@ -976,10 +951,11 @@ $$
 \theta^{(1)}, \ldots, \theta^{(M)} \sim p(\theta \mid y).
 $$
 If we were to take $M \rightarrow \infty$, the draws will converge to
-being identically drawn from the posterior. In well behaved models,
-with a modestly large $M$ (hundreds or thousands), the draws will
-become numerically indistinguishable from true draws from the
-posterior.
+being identically drawn from the posterior. In simple or well behaved
+models, coupling arguments show that they converge to true draws from
+the posterior in hundreds or thousands (or sometimes more) draws [@jacob2020]; they
+become numerically indistinguishable from true draws well before that
+time. 
 
 ### Stan's sampler
 
@@ -1009,7 +985,11 @@ We fit Laplace's model by compiling the model, constructing a
 dictionary for the data, and then calling the `sample` method on the
 compiled model with the dictionary. We call the sample method with
 1,000 warmup iterations and 10,000 sampling iterations; we are taking
-so many draws in order to draw smooth histograms later.
+so many draws in order to draw show smooth plots later.  The Stan
+programs considered in this introduction are all quite simple and
+inexpensive to run for many iterations.  We consider how many draws
+are required for statistical inference in the section on [practical
+guidelines](#practical-guidelines).
 
 ```{python}
 model = csp.CmdStanModel(stan_file = '../stan/sex-ratio.stan')
@@ -1084,10 +1064,9 @@ $$
 
 We have snuck in conditional _expectation_ notation in the first line
 of this definition.  Expectations are just weighted averages, with
-weights given by a probability density.  Bayesian inference invariably
-comes down to estimating expectations over the posterior density of a
-Bayesian model.  The concise notation for this is conditional
-expectation notation,
+weights given by a probability density.  Bayesian inference involves
+expectations over the posterior, the concise notation for which is
+*conditional expectation* notation,
 $$
 \mathbb{E}\!
 \left[ f(\Theta) \mid Y = y \right]
@@ -1153,15 +1132,6 @@ print(f"    = ({quantile_05:.3f}, {quantile_95:.3f})")
 ```
 Other intervals are computed in the exact same way.
 
-### Posterior mode estimator
-
-A popular non-Bayesian point estimate is the _posterior mode_
-$\theta^*$, defined as the point with the highest posterior density,
-$$
-\theta^* = \textrm{arg max}_\theta \ p(\theta \mid y).
-$$
-The posterior mode is sometimes called the _maximum a posteriori_
-(MAP) estimator. Posterior modes can be calculated with Stan using optimization.
 
 ### Estimation error and bias
 
@@ -1186,7 +1156,7 @@ averaged over the data distribution for the random variable $Y$),
 &= \int_Y \hat{\theta}(y) - \theta \ \textrm{d}y.
 \end{align}
 
-## Properties of estimators
+### Properties of estimators
 
 The posterior mean is a popular Bayesian estimator for two reasons.
 First, it is an _unbiased_ estimator in the sense of having zero
@@ -1200,11 +1170,11 @@ Posterior means might not exist if the posterior has very wide tails,
 like the standard Cauchy distribution, $\textrm{cauchy}(x \mid 0, 1)
 \propto \frac{1}{1 + x^2}$.
 
-The posterior median has three pleasant properties. First, it is always
-well defined, even for densities with poles or very wide tails.
-Second, it is more robust to outliers than squared error because
-errors are not amplified by squaring.  Third, the posterior median
-estimator minimizes expected absolute error.
+The posterior median $\theta^+$ has three pleasant properties. First,
+it is always well defined, even for densities with poles or very wide
+tails.  Second, it is more robust to outliers than squared error
+because errors are not amplified by squaring.  Third, the posterior
+median estimator minimizes expected absolute error.
 
 The posterior mode may not exist.  For example, there is no posterior
 mode in standard hierarchical models.  There is not even a mode for a
@@ -1399,14 +1369,13 @@ are producing draws from the same distribution.
 
 ## Warmup
 
-Stan performs a number of _warmup iterations_, during which it
-tries to find the region in which it should be sampling and then adapt
-a good step size and estimate the posterior covariance (just the
-diagonal, i.e., the variances, by default).  The step size is used in
-the Hamiltonian dynamics simulator and the (co)variance is used as a
-_preconditioner_.  A preconditioner warps the sample space, in our
-case, with a fixed _Euclidean metric_, which Stan estimates using the
-covariance of roughly the last half of the warmup iterations.
+During its initial warmup iterations, Stan tries to find the high
+probability mass region in which it should be sampling, adapt a good
+step size, and estimate posterior variance.  The variance is used to
+*precondition* the sampler through scaling; see [@neal2011] for
+details.  Stan can also estimate a dense covariance matrix and
+precondition with rotation and scaling (i.e., with a Euclidean
+metric).
 
 Warmup converges when the step size and posterior covariance estimates
 no longer change.  With multiple chains, it's possible to test that
@@ -1431,7 +1400,7 @@ the chain agree, then calculates variances within each chain and
 across all chains and compares.  The statistic $\widehat{R}$ converges
 to 1 as the Markov chains converge to the same distributions.
 
-## Practical guidelines
+## How many chains for how long?  {#practical-guidelines}
 
 A simple rule of thumb is to run four chains until $\hat{R} \leq
 1.01$ and effective sample size (ESS) is greater than 100.  The reason we
@@ -1476,7 +1445,7 @@ left over to continue to work on documents, email, etc.  In a server
 setting, memory usage, latency, throughput, and I/O need to be
 balanced even more carefully between throughput and resource usage.
 
-# A/B testing
+# Stan example: A/B testing
 
 A common application of statistics is to compare two things, such as
 the effectiveness of a new drug versus the current drug used to treat
@@ -1645,10 +1614,11 @@ The _data_ block contains only variable declarations. The variables
 declared in the data block are read once at data load time.
 
 The _transformed data_ block contains variable declarations and
-definitions.   is executed once, after the data is read is
+definitions.   It is executed once, after the data is read is
 in, to define the transformed data variables.  It defines functions
 of the data, such as standardized predictors, constants to use for
-priors, etc.
+priors, etc.  The transformed data block may use pseudorandom number
+generation. 
 
 All variable declarations at the block level must declare types and
 sizes (which may be data dependent).  Local variables within blocks
@@ -1687,10 +1657,13 @@ at the end of the block's execution.  If the constraints are violated,
 an exception will be thrown, which typically causes the current
 proposal to be rejected.
 
-Variables declared in the parameters block may never be set---they are
-provided externally by the inference algorithm (or the user in the
-case of BridgeStan).  After the transformed parameters block has
-executed, variables declared in it may not be reassigned.
+Variables declared in the parameters block are like function argument
+declarations.  The log density function defined by a Stan program
+takes the parameters as an argument.  Thus the parameter values are always
+supplied externally to a Stan program.
+
+After the transformed parameters block has executed, variables
+declared in it may not be reassigned.
 
 The only difference between variables declared as local variables in
 the model block and those declared in the transformed parameters block
@@ -1758,12 +1731,17 @@ applied anywhere in a Stan program, just like built-in functions. In
 addition to ordinary mathematical functions, users can define several
 types of special-purpose functions with Stan-specific behavior.
 
-### User-defined density and mass functions
+### User-defined probability density and mass functions
 
-Defining a function with any of the suffixes `lpdf`, `lupdf`, `lpmf`,
-or `lupmf` defines a density or mass function.  The first argument is
-the variate and the remaining arguments are the parameters.  These
-functions are called using standard vertical bar notation to separate
+Defining a function with the suffix `_lpdf` defines a continuous
+log probability density function where the first variable is a
+real- or complex-valued variate (these may be containers like matrices).
+
+Similarly, the suffix `_lpmf` marks a discrete log probability density
+function and Stan will validate that the first argument is declared as
+an integer.
+
+These functions are called using standard vertical bar notation to separate
 the variate and its parameters and they may also be used in sampling
 statements.  For example, consider the following custom log probability
 density function.
@@ -1779,16 +1757,11 @@ increment the target log density,
 ```stan
   target += foo_lpdf(z | phi);
 ```
-
-They may also be used directly in sampling statements after removing
-the suffix.
+User-defined functions ending in `_lpdf` may also be used directly in
+sampling statements after removing the suffix.
 ```stan
   z ~ foo(phi);
 ```
-
-Stan validates that the first argument of an `lpdf` or `lupdf` is
-real-valued and that the first argument of an `lpmf` or `lupmf` is
-integer-valued.
 
 ### User-defined random number generators
 
@@ -1846,7 +1819,7 @@ architecture for automatic differentiation; current details are only
 in the [developer documentation](https://mc-stan.org/math/index.html)
 and [code repository](https://github.com/stan-dev/math).
 
-# Regression and prediction
+# Stan example: Regression and prediction
 
 In this section, we will go over simple regression models in Stan and
 see how to generate predictions for new items based on fitted
@@ -1888,10 +1861,14 @@ width.  If we let $x_n$ be the petal width for flower $n$ and let
 $y_n$ be the petal length.  A linear regression says that we expect
 $y_n$ to be a linear function of $x_n$, or roughly, the expected value
 of $y_n$ will be $\alpha + \beta \cdot x_n$ for some intercept
-$\alpha$ and slope $\beta$.  A linear regression allows an inexact
-relationship where the linear relation only holds in expectation.  In
-real observations, there will be _error_ due to either measurement or
-a failure of the linear relationship.  
+$\alpha$ and slope $\beta$.
+
+The linear relation in a linear regression only holds in expectation.
+That is, we expect the value of $y_n$ to be $\alpha + \beta \cdot
+x_n$, but in real observations there will be *error* due to either
+measurement or a failure of the linear relationship.  In the Iris data
+plot, you can see that there are multiple irises with exactly the same
+measured petal width but varying petal lengths.
 
 We can introduce a variable $\epsilon_n$ for the difference between a
 petal's length and its expected length given the linear relationship, 
@@ -2029,9 +2006,9 @@ mydraw(
 ```
 
 In order to fit all three groups of data, the plot doesn't do such a
-great job of fitting any of them---the larger *iris setosa* instances
-haver overestimated petal lengths, whereas they are overestimated for
-*iris versicolor*.
+great job of fitting any of them---the larger instances among *iris
+setosa* examples and the larger instances among the *irs versicolor*
+have underestimated petal lengths.
 
 We didn't include the error scale, but it's roughly 0.5.  That means
 it won't be uncommon to get errors greater than 1 or less than -1.
@@ -2116,14 +2093,16 @@ sampling uncertainty and draw
 $$
 \tilde{y}^{(m)} \sim \textrm{normal}\!\left(\alpha^{(m)} + \beta^{(m)} \cdot \tilde{x} \mid \sigma^{(m)}\right),
 $$
+
 where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
-\sigma \mid x, y)$ are posterior draws.  In general, if we then want to estimate
-$\tilde{y}$, we can take posterior means of these values.  In the case
-here, our sampling distribution is symmetric, so we do not need to add
-sampling uncertainty if our only goal is to estimate an expectation.
-In general, using expectations in place of draws is more efficient,
-as shown by the Rao-Blackwell theorem; replacing draws with
-expectations is sometimes called *Rao-Blackwellization*.
+\sigma \mid x, y)$ are posterior draws.  In general, if we then want
+to estimate $\tilde{y}$, we can take posterior means of these values.
+In the case here, our sampling distribution is symmetric, so we do not
+need to add sampling uncertainty if our only goal is to estimate an
+expectation.\footnote{The *Rao-Blackwell theorem* tells us that using
+expectations is at least as efficient as samples; in practice it can
+be dramatically more efficient.}
+
 
 ### Standalone generated quantities
 
@@ -2623,9 +2602,9 @@ We can express our mixture model's sampling distribution over both $y$
 and $z$,
 $$
 p(y, z \mid \lambda, \mu, \sigma)
-= \prod_{m = 1}^M p(y_n, z_n \mid \lambda, \mu, \sigma).
+= \prod_{n = 1}^N p(y_n, z_n \mid \lambda, \mu, \sigma).
 $$
-This is called the \textit{complete data likelihood} in frequentist
+This is called the *complete data likelihood* in frequentist
 settings. 
 
 Then we can evaluate the likelihood elementwise,
@@ -2727,7 +2706,7 @@ the maximum value,
 $$
 \textrm{log-sum-exp}(a, b)
 = \textrm{max}(a, b)
-  + \textrm{log-sum-exp}(a - \textrm{max}(a, b),
+  + \textrm{log-sum-exp}(a - \textrm{max}(a, b), \
                          b - \textrm{max}(a, b))
 \\[4pt]
 $$
@@ -2952,7 +2931,15 @@ It can be difficult to debug wild type data at scale.  Instead,
 simulating a small data set lets you work the kinks out of the code in
 a controlled context where we know the true answers.  Then, when the
 code is working over small simulated data, it can be loosed on the
-real data. 
+real data.
+
+Simulating data can be challenging for some models.  First, it can be
+a lot of effort, because it requires rewriting the model using random
+number generation in the generated quantities block.  Second, some
+models are not fully generative because they either have improper
+priors or because they have reduced rank parameterizations (e.g.,
+intrinsic conditional autoregressive models or sum-to-zero parameter
+constraints).
 
 
 ## Debug by print
