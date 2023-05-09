@@ -21,7 +21,6 @@ format:
     code-fold: true
     code-copy: true
     cap-location: bottom
-    appendix-style: none
     format-links: false
     embed-resources: true
   pdf:
@@ -64,6 +63,19 @@ avoid advanced topics in linear algebra that are at the heart of some
 of Stan's internals.  I include an appendix that goes over the basics of
 Bayesian statistics from first principles using only basic mathematics
 (i.e., no measure theory). 
+
+## Source code and license
+
+All of the source markdown, yaml, LaTeX, and BibTeX files are
+available in
+
+* Source Repository: [github.com/bob-carpenter/stan-getting-started](https://github.com/bob-carpenter/stan-getting-started)
+
+Everything is open source, with licenses:
+
+* *Code*: BSD-3-Clause license
+* *Text*: CC-BY 4.0
+
 
 ## Python, CmdStanPy, NumPy, pandas, and plotnine {.unnumbered}
 
@@ -195,7 +207,7 @@ A Stan program declares data variables and parameters, along with
 a differentiable posterior log density (of the parameters given the
 data) up to a constant.  Although this is the only requirement, most
 Stan programs define the joint log density of the parameters and
-varaibles, which can be shown to be equal to the log posterior plus a
+variables, which can be shown to be equal to the log posterior plus a
 constant.  
 
 Stan programs are probabilistic programs in the sense that their data
@@ -473,16 +485,17 @@ form.
       y[m] = bernoulli_rng(1 - rho);
     }
 ```
+
 The more concise form exploits two features of Stan.  First, boolean
-expressions are coded as 1 (true) or 0 (false) in Stan, like in C++.
-Because `y[m - 1]` is constrained to take on values 0 or 1, we know
-that `y[m - 1] == 1` is equivalent to `y[m - 1]`.  Second, it uses the
-_ternary operator_, also like in C++.  The expression `cond ? e1 : e2`
-involves three arguments, separated by a question mark (`?`) and a
-colon (`:`); it's value is the value of `e1` if `cond` is true and the
-value of `e2` otherwise.  Unlike an ordinary function, the ternary
-operator only evaluates `e1` if the condition is true and only
-evaluates `e2` if the condition is false.
+expressions are coded as `1` (true) or `0` (false) in Stan, like in
+C++ and Python.  Because `y[m - 1]` is constrained to take on values 0
+or 1, we know that `y[m - 1] == 1` is equivalent to `y[m - 1]`.
+Second, it uses the _ternary operator_, also like in C++.  The
+expression `cond ? e1 : e2` involves three arguments, separated by a
+question mark (`?`) and a colon (`:`); it's value is the value of `e1`
+if `cond` is true and the value of `e2` otherwise.  Unlike an ordinary
+function, the ternary operator only evaluates `e1` if the condition is
+true and only evaluates `e2` if the condition is false.
 
 We can fit the model in Python as we did before and print the first
 100 values simulated for the Markov chain $y$.
@@ -589,7 +602,7 @@ in the interval $[-1, 1]$ and assigns them uniform random values.  The
 indicator variable `inside` is set to 1 if the Euclidean length of the
 vector $\begin{bmatrix}x & y\end{bmatrix}$ is less than 1 (i.e., it
 falls within an inscribed unit circle) and is set to 0 otherwise.  The
-We then set a variabler `pi` equal to 4 times the indicator value.
+We then set a variable `pi` equal to 4 times the indicator value.
 The mean of the sample for `pi` will be our estimate of $\pi$.
 
 First, we compile and then sample from the model, taking a sample size
@@ -653,14 +666,16 @@ with enough draws, we can get any desired precision; in practice, we
 don't have that long to wait and have to make do with only a few
 digits of accuracy in our Monte Carlo estimates. This is usually not a
 problem because statistical uncertainty still dominates our numerical
-imprecision in most applications.
+imprecision in most applications; we discuss this important point later when
+contrasting estimation uncertainty and sampling uncertainty in the
+[section on posterior predictive inference](#uncertainty-types) and when considering
+practical guidance on [how long to run Stan](#practical-guidelines).
 
 
-# Gotchas for Python programmers
+# Hints for Python programmers
 
 Python follows general programming language idioms like in C++ and
 Java, whereas Stan follows linear algebra idioms like in R and MATLAB.
-
 
 ## Indexing from 1
 
@@ -669,6 +684,30 @@ matrices, which is from 1.  If I declare a `vector[3]`, then the valid
 indexes are 1, 2, and 3.  If `v` is a vector variable, then `v[0]` is
 an indexing error and will throw an exception and log a warning as it
 is caught and the resulting MCMC proposal is rejected.
+
+## Storage order
+
+Unlike Python, Stan uses a column-major memory layout for matrices.
+This means it's more efficient to iterate by column than by row
+through a matrix.  To visit every element of a matrix, you want to
+loop as follows.
+```stan
+matrix[M, N] x;  // M rows, N columns
+for (n in 1:N) {
+  for (m in 1:M) {
+    ... operate on x[m, n] ...
+  }
+}
+```
+
+Arrays in Stan are stored in row-major order, but they are not stored
+in a single array like in NumPy's `ndarray` type.  Arrays of
+primitives store the primitive values in memory-local order.  Arrays
+of containers store pointers to the containers.  Thus accessing array
+members can be non-local in memory, but will not require copying.  In
+contrast, accessing a row or column of a matrix usually requires
+allocating memory and copying.
+
 
 ## Inclusive ranges
 
@@ -709,7 +748,8 @@ containers (2D array, 1D array of vectors, 1D array of column
 vectors, and matrix).  There are functions to convert back and forth
 for common cases, but complicated cases must be handled manually.
 Loops that just do reassignment are fast in Stan as there is no
-autodiff overhead.
+overhead from derivative calculations; see the [section on automatic
+differentiation](#autodiff) for more details.
 
 ## Block scope
 
@@ -756,12 +796,12 @@ Stan follows C/C++ conventions on whitespace in which any sequence of
 whitespace characters (space, tab, new line) are interchangeable
 semantically.  Python and R are both space-sensitive in different
 ways---Python uses space as a block delimiter and R has an eager
-line-based parser.  In Stan, it is OK to continue expressions on
-the following line without any special syntactic marker like the
-backslash (`\`) in Python, e.g.,
+line-based parser.  In Stan, we use semicolons (`;`) to mark the end
+of an atomic statement.  This means it is OK to continue expressions on
+the following line without any special syntactic marker,  e.g.,
 ```stan
-real lp = bernoulli_lpmf(1 | theta)
-          + normal_lpdf(y[n] | mu[1], sigma[1]);
+lp[k] = bernoulli_lpmf(k | theta)
+        + normal_lpdf(y[n] | mu[k], sigma[k]);
 ```
 Both R and Python here would try to terminate the assignment to `lp`
 after the first line and leave a dangling expression for the second
@@ -777,6 +817,82 @@ _inverse problem_ is that of _inferring_ parameter values from
 observed data.
 
 ## Bayesian solutions to inverse problems
+
+@bayes1763 introduced the paradigm of statistical inference that has
+come to be known as Bayesian statistics.
+
+### Parametric statistics and variable types
+
+Before introducing Bayes's paradigm, we will try to settle on some
+terminology around variables.  In Stan, we classify each variable as
+being a data variable or a parameter.
+
+When talking about Bayesian statistics abstractly (i.e., without
+regard to a specific model form), we will use the variable $y$ to
+represent all of the model's *data*, which are values that are known
+or observed.  Data my include
+
+* *constants*: sizes, bounds,
+* *unmodeled data*: covariates (aka features), constant parameters of
+priors, and
+* *modeled data*: outcome measurements, individual or group-level
+covariates in generative models.
+
+
+Similarly, we us the variable $\theta$ for all of our
+model's *parameters*, which are values that are not known and must be
+inferred. Parameters may include
+
+* *process parameters*: parameters of the forward scientific process,
+* *measurement parameters*: parameters of the measurement process,
+* *hyperpriors*: hyperparameters for prior distributions,
+* *missing data*: unknown data items, latent but potentially
+observable values, and
+* *predictive quantities*: event probability indicators, predictions,
+forecasts, backcasts.
+
+Constants are things like the sizes of matrices, the number of
+components in a mixture model, the bounds on a constrained variable,
+etc.  Covariates are typically used as inputs (aka dependent
+variables) to a regression.  For instance if I might want to predict
+someone's presidential vote based on their income and state of
+residence.  In this case, the income and state of residence are
+unmodeled covariates and the vote is modeled data if it is known.
+
+In Stan, the number of parameters may depend on the data, but once the
+data $y$ is fixed, the number of parameters is also fixed. This means
+we can implement some *non-parametric* models (e.g., Gaussian
+processes), but have to approximate others (e.g., Dirichlet processes).
+
+
+### The Bayesian process
+
+@gelman2013bayesian summarize the process of developing a Bayesian model
+for an applied problem as follows,
+
+1. _Define a joint _probability model_ over all of the observables and
+non-observables that is consistent with what we know about the
+underlying scientific process and underlying measurement process
+(which together form the data-generating process) and our prior knowledge.
+
+2. _Condition on observed data_ to infer the posterior distribution of
+any quantities of interest such as predictions or event probabilities.
+
+3.  _Evaluate the model_ in terms of fit to data and resulting 
+predictions, how sensitive the predictions are to model assumptions,
+and if necessary, go back to step (1) and refine the model.
+
+Usually, the joint probability model here is defined in terms of a
+parametric _sampling density_ $p(y \mid \theta)$ which is a *forward
+model* describing how to generate observations $y$ given parameters
+$\theta$, and a _prior density_ $p(\theta)$ capturing what is known
+about the unknowns before observing the current data $y$.
+
+Stan is useful for expressing the model (1), performing posterior
+inference (2), and evaluating and comparing models (3).
+
+
+### Bayes's formulation
 
 @bayes1763 formulated the inverse problem of determining a posterior
 distribution with density $p(\theta \mid y)$ from a prior with density
@@ -803,28 +919,72 @@ p(\theta \mid y)
 & \textrm{[chain rule]} 
 \end{align}
 
-Bayes's rule presents an integral in the denominator that is often
-intractable in applications.  The good news is that most applications
-do not require us to solve this integral.  The bad news is that they
-require estimating expectations, which are the solution to a different
-intractable integral over the posterior.  The good news that makes
-modern Bayesian statistics possible is that we can solve these
-intractable integrals using Markov chain Monte Carlo methods.
+The first steps reveal the key densities involved in Bayesian
+inference for data $y$ and parameters $\theta$,
+$$
+\underbrace{p(\theta \mid y)}_{\textrm{posterior}}
+=
+\underbrace{p(y \mid \theta)}_{\textrm{likelihood}}
+\cdot
+\underbrace{p(\theta)}_{\textrm{prior}}
+\ / 
+\underbrace{p(y)}_{\textrm{evidence}}.
+$$
+When considered as a function of the parameter $\theta$ for fixed data
+$y$, as it is in Bayes's rule, the density $p(y \mid \theta)$ is known
+as the _likelihood_. 
+
+The second step expresses the evidence in terms of the likelihood and
+prior. 
+$$
+p(y) = \int_{\Theta} p(y \mid \theta) \cdot p(\theta) \,
+\textrm{d}\theta.
+$$
+In applications, this integral is usually intractable in the sense of
+there being no closed-form analytic solution in terms of elementary
+functions.  For example, even a simple logistic regression presents an
+intractable integral for the evidence, with
+\begin{align}
+p(\theta) &= \textrm{normal}(\theta, 1),
+\\[2pt]
+p(y \mid \theta, x) &= \prod_{n=1}^N \textrm{bernouolli}(y_n \mid
+\textrm{logit}^{-1}(x_n \cdot \theta))
+\end{align}
+
+The good news is that most applications of Bayesian statistics do not
+require us to solve the integral presented in the denominator of
+Bayes's rule, even numerically.  One case where we need normalizing
+constants is to evaluate Bayes factors for model comparison, but like
+@gelman2013bayesian, we prefer other means of evaluating models like
+posterior predictive checks or cross-validation, both of which are beyond the
+scope of this getting-started tutorial.
+
+Rather than computing the evidence, we work up to a proportion (i.e.,
+a multiplicative constant), where we have
+$$
+p(\theta \mid y) \propto p(y \mid \theta) \cdot p(\theta),
+$$
+because $p(y)$ is a constant in the sense that it does not depend on
+$\theta$.  This is what lets us express the log posterior as the sum
+of the log likelihood and the log prior in Stan,
+$$
+\log p(\theta \mid y)
+= \log p(y \mid \theta)
++ \log p(\theta)
++ \textrm{const},
+$$
+where the constant is the negative log evidence, $- \log p(y)$.
 
 
-## The rule of succession
+## Live birth data
 
 A decade after Bayes published his rule, @laplace1774 used Euler's
 _beta function_ to derive the conjugate prior for binomially
-distributed data.  A _conjugate prior_ for a sampling distribution is
-a family of distributions such that if the prior is drawn from that
-family, the posterior will be, too.  Laplace's so-called _rule of
-succession_ is a special case of this relationship, with a conjugate
-beta prior for binomial data.  We will work through Laplace's analysis
-in what has become the standard textbook introduction to Bayesian
-inference. 
-
-## Live birth data
+distributed data. A _conjugate prior_ for a sampling distribution is a
+family of distributions such that if the prior is drawn from that
+family, the posterior will be, too. In this section, we will work
+through Laplace's analysis in what has become the standard textbook
+introduction to Bayesian inference.
 
 Laplace gathered data on the sexes of babies in live births in Paris
 between 1745 and 1770.
@@ -1289,8 +1449,11 @@ generated quantities {
 }  
 ```
 Conditional expressions like `theta > 0.5` take on the value
-1 if they are true and 0 if they are false.  As is conventional in
-languages such as C++, the indicator function itself isn't written.
+1 if they are true and 0 if they are false.  In mathematical notation,
+we would write $\textrm{I}(\theta > 0.5)$, which takes on value 1 if
+$\theta > 0.5$ and 0 otherwise; in Stan, like in C++, we treat `>` as
+a binary operator that returns either 0 or 1, so we just write `theta
+> 0.5` in Stan.
 
 ### The answer to Laplace's question
 
@@ -1340,11 +1503,15 @@ sample.summary(sig_figs = 3)
 ```
 
 The rows are for our random variables, with `lp__` indicating the
-unnormalized log density defined by the Stan program (which includes
-change of variable adjustments for constrained parameters).  The
-other two rows are for variables defined in the Stan program, `theta`,
-and `boys_gt_girls.`  The number of significant figures used in the
-results can be controlled in the summary function, as can the
+unnormalized log density defined by the Stan program.  The
+unnormalized log density includes any change-of-variables adjustments
+required for transforming constrained parameters; the transforms for
+constrained parameters and associated change-of-variables adjustments
+are detailed in [@stan2023].
+
+The other two rows are for variables defined in the Stan program,
+`theta`, and `boys_gt_girls.` The number of significant figures used
+in the results can be controlled in the summary function, as can the
 quantiles being reported.
 
 The first column reports the posterior mean, and agrees with our
@@ -1394,7 +1561,7 @@ draws to investigate the behavior of warmup.
 ## Potential scale reduction and $\widehat{R}$
 
 Stan uses the _potential scale reduction_ statistic $\widehat{R}$
-(pronounced ``R hat'').  Given a sequence of Markov chains, Stan
+(pronounced "R hat").  Given a sequence of Markov chains, Stan
 splits each of them in half to make sure the first half and second half of
 the chain agree, then calculates variances within each chain and
 across all chains and compares.  The statistic $\widehat{R}$ converges
@@ -1431,7 +1598,7 @@ first ESS estimate is unreliable.
 ## Running chains concurrently
 
 You can set the number of chains that are run using the `chains`
-argument of the `sampling()` method and you can set the maximum number
+argument of the `sample()` method and you can set the maximum number
 of chains to execute concurrently using `parallel_cores` (which
 defaults to 1, sequential execution).  If you set the maximum number
 of parallel chains to be too low, CPU resources are potentially
@@ -1456,7 +1623,7 @@ hypothetical option A and option B.
 
 Let's consider three good Mexican restaurants in New York City,
 Downtown Bakery II in the East Village, Taqueria Gramercy in Gramercy,
-and La Delicias Mexianas in Spanish Harlem.  Here's the number of
+and La Delicias Mexicanas in Spanish Harlem.  Here's the number of
 reviews and 5-star reviews for these restaurants on the web site Yelp.
 
 | name | 5-star reviews | total reviews |
@@ -1696,14 +1863,16 @@ is equivalent to the target increment statement
 ```stan
 target += normal_lupdf(x | 0, 1);
 ```
+
 The vertical bar is used to separate outcome variates from the
-parameters.  The notation `lpdf` is used for log probability density functions,
-`lpmf` for log probability mass functions. The variants `lupdf` and
-`lupmf` are
-for their unnormalized counterparts that may drop normalizing constants.
-Unless the normalizing constants are needed, for example in a mixture
-model component, it is more efficient to use the `lupdf` and `lupmf`
-forms  either explicitly or implicitly using sampling statements.
+parameters.  The notation `lpdf` denotes a log probability density
+function, with `lpmf` for log probability mass functions. The variants
+`lupdf` and `lupmf` are for their unnormalized counterparts, which may
+drop normalizing constants that do not depend on the parameters.
+Unless the normalizing constants are
+needed, for example in a mixture model component, it is more efficient
+to use the `lupdf` and `lupmf` forms either explicitly or implicitly
+through sampling statements.
 
 ## Generated quantities
 
@@ -1762,6 +1931,10 @@ sampling statements after removing the suffix.
 ```stan
   z ~ foo(phi);
 ```
+A user-defined `_lpdf` function implicitly defines an equivalent `_lupdf`
+function so that user-defined `_lpdf` functions may be used with
+sampling notation.  User-defined functions ending in `_lupdf` or
+`_lupmf` are not allowed.
 
 ### User-defined random number generators
 
@@ -1799,7 +1972,7 @@ real pos_constrain_lp(real v) {
 }
 ```
 
-## Automatic differentiation
+## Automatic differentiation {#autodiff}
 
 Stan uses _automatic differentiation_ to define gradients of the log
 density function.  This is done by building up the complete
@@ -2015,6 +2188,31 @@ it won't be uncommon to get errors greater than 1 or less than -1.
 For *iris setosa*, this could easily result in predictions with
 negative lengths!
 
+## Built-in generalized linear model functions
+
+Stan supplies built-ins for the most common generalized linear model
+(GLM) functions.  These allow linear and non-linear regressions to be
+coded easily and efficiently.  For example, our linear regression
+could be coded with the `normal_id_glm` function and a logistic
+regression coded with the `bernoulli_logit_glm`.  The linear
+regression for the Iris data could be written as follows
+```stan
+  petal_length ~ normal_id_glm(petal_width, alpha, beta, sigma);
+```
+if the data and parameter type declarations are generalized to
+```stan
+  matrix<lower=0>[N, 1] petal_width;
+  vector[N] petal_length;
+  real alpha;
+  vector[1] beta;
+  real<lower=0> sigma;
+```
+The generalization of a vector of predictors to a matrix allows
+multivariate regressions with multiple predictors per item (e.g.,
+using population density, speed limit, traffic density, and time of
+day to predict pedestrian traffic accidents).
+
+
 ## Robust regression
 
 Although we won't consider this model in detail, Stan's plug-and-play
@@ -2055,7 +2253,7 @@ It's perhaps easiest to understand by considering the Monte Carlo
 approximation, which just averages the sampling log density over draws
 of parameters from the posterior.
 
-### Sampling uncertainty and estimation uncertainty
+### Sampling uncertainty and estimation uncertainty {#uncertainty-types}
 
 It can help to break the integral down into the two components of
 uncertainty, sampling uncertainty due to our sampling distribution and
@@ -2097,18 +2295,20 @@ $$
 where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
 \sigma \mid x, y)$ are posterior draws.  In general, if we then want
 to estimate $\tilde{y}$, we can take posterior means of these values.
-In the case here, our sampling distribution is symmetric, so we do not
-need to add sampling uncertainty if our only goal is to estimate an
-expectation.\footnote{The *Rao-Blackwell theorem* tells us that using
-expectations is at least as efficient as samples; in practice it can
-be dramatically more efficient.}
-
+In the case here, our sampling distribution is symmetric, so that the
+expectation of the random draws and the expectation of their mean is
+identical.  If our only goal is to estimate an expectation, it is
+better to average expectations than to average random draws with those
+expectations.  This is formalized in the [*Rao-Blackwell
+theorem*](https://en.wikipedia.org/wiki/Rao%E2%80%93Blackwell_theorem).
+Converting an estimator that uses a sample to one that uses
+expectations of that sample is called "Rao-Blackwellization."
 
 ### Standalone generated quantities
 
 Let's put all this together into a Stan program.  First, let's make
 posterior predictions for some new $\tilde{y}$.  We can do this using
-Stan's \textit{standalone generated quantities} feature that lets us
+Stan's *standalone generated quantities* feature that lets us
 run the generated quantities block of a new model given draws from
 another model.  We could've also just included the generated
 quantities block in the original program.
@@ -2382,10 +2582,11 @@ defined as regular vector addition and subtraction.
 ### Multi-indexing in Stan
 
 This model uses a technique we call multi-indexing and it works the
-similarly to the way indexing works in R.  Suppose we have a vector
+similarly to the way indexing works in NumPy.  Suppose we
+have a vector 
 of size `J` and an array of indexes of size `N.`  
 ```stan
-array[N] int idxs;
+array[N] int<lower=1, upper=J> idxs;
 vector[J] foo;
 ```
 We can use the multiple indexes in `idxs` to index `foo` as `foo[idxs].`
@@ -2491,6 +2692,16 @@ concentration, `real<lower=0, upper=1>` is the type for a probability,
 `int<lower=0>` is the type for a count, and `int<lower=1, upper=5>` is
 the type for an ordinal response to a survey.
 
+There is a second kind of modifier, which is not technically a
+constraint, but is a transform.  If we declare
+```stan
+vector<offset=mu, multiplier=sigma>[K] alpha;
+```
+then the unconstrained representation is multiplied by `sigma` and
+then offset by `mu` to get the constrained value `alpha`.  This is
+primarily used for non-centered parameterizations of hierarchical
+models, which are beyond this tutorial. 
+
 ## Arrays
 
 For any type `T`, we can write `array[N] T` for the type of an array
@@ -2542,16 +2753,17 @@ length (i.e., the sum of squared values is one).  There is also a
 
 Calling a function works like assigning the variables in the argument
 list to the variables in the function declaration.  In general, Stan
-is \textit{contravariant}, so that if a type `T` is assignable to a
-type `U`, then a type `array[N] T` is assignable to `array[N] U`.
-Similarly, integer-valued primitives and containers may be assigned to
-their real or complex counterparts, and real-valued primitives and
-containers may be assigned to their complex counterparts (but not the
-other way around).  Similarly, variables of a constrained type may be
-assigned to variables of an unconstrained type.
+is what programming language researchers call *covariant*, meaning
+that if a type `T` is assignable to a type `U`, then a type `array[N]
+T` is assignable to `array[N] U`.  Similarly, integer-valued
+primitives and containers may be assigned to their real or complex
+counterparts, and real-valued primitives and containers may be
+assigned to their complex counterparts (but not the other way around).
+Variables of a constrained type may be assigned to variables of an
+unconstrained type.
 
 
-# Discrete parameters
+# Stan Example: Discrete parameters and mixture models
 
 Although Stan only allows parameters which are real or complex valued,
 it is able to work with models involving discrete parameters by
@@ -3046,22 +3258,24 @@ for (n in 1:N) {
 }
 ```
 
-### Avoid autodiff if possible
+### Avoid automatic differentiation if possible
 
 If you have a constant that's being defined, define it in the
 transformed data block.  That way it only gets evaluated once.  For
 example, don't do the following, as it repeatedly allocates and fills
-a $K$-vector and then applies useless autodiff steps in the reverse
-pass. 
+a $K$-vector and then applies useless automatic differentiation steps
+in the reverse pass.  
 ```stan
 data {
   real<lower=0> alpha;
 }
 model {
-  theta ~ dirichlet(rep_vector(alpha, K));
+  vector[K] alpha_v = rep_vector(alpha, K);
+  theta ~ dirichlet(alpha_v);
 }  
 ```
-Instead, code this as follows.
+Instead, define the constant in the transformed data block and then
+reuse it in the model block, as follows.
 ```stan
 transformed data {
   vector<lower=0>[K] alphas = rep_vector(alpha, K);
@@ -3087,10 +3301,15 @@ model {
   y_tilde ~ normal(alpha + beta * x_tilde, sigma);
 }
 ```
-This is correct and will provide the right answer, but it is inefficient.
+This is correct and will provide the right answer, but it is
+computationally and statistically inefficient.  It's computationally
+inefficient because Hamiltonian Monte Carlo is more expensive than
+random variate generation.  It's also statistically inefficient
+because it will typically produce correlated draws rather than
+independent draws, leading to a lower effective sample size.
 In situations like this, we can move `y_tilde` down to generated
-quantities because it's conditionally independent of the data
-given `mu` and `sigma.`
+quantities because it's conditionally independent of the data given
+`mu` and `sigma.` 
 ```stan
 parameters {
   real alpha, beta;
@@ -3131,7 +3350,7 @@ faster.
 Matrices are organized in column-major order in memory, whereas arrays
 are row major.  That means that the columns of a matrix are stored
 together in memory, and therefore slicing out a column `Sigma[1:M, n]`
-is relatively efficient for large `M`, but slicing out a column using
+is relatively efficient for large `M`, but slicing out a row using
 `Sigma[m, 1:N]` will be inefficient if `M` is large.
 
 If you need to access vectors one by one but you do not need matrix
@@ -3500,28 +3719,11 @@ The paper that kicked off the focus on workflow is @gabry2019; the
 current state of our thinking is @gelman2020workflow.
 
 
-# Appendices
+# A. Bayesian statistics and Markov chain Monte Carlo {.unnumbered}
 
-## Bayesian statistics
+### Bayes's theorem {.unnumbered}
 
-@bayes1763 introduced the paradigm of statistical inference that has
-come to be known as Bayesian statistics.  In retrospect, Bayes's idea
-is quite simple, involving four conceptually simple steps.
-
-1.  Define a parametric _sampling density_ $p(y \mid \theta)$ which
-describes how to generate observations $y$ given parameters $\theta$.
-2.  Define a _prior density_ $p(\theta)$ capturing what is known before
-observing new data.
-3.  Derive the _posterior density_ $p(\theta \mid y) \propto p(y \mid
-\theta) \cdot p(\theta)$ via Bayes's rule.
-4.  Evaluate _event probabilities_ conditioned on observed data $y$,
-such as $\textrm{Pr}[\textrm{cond}(\theta) \mid y]$ for some condition
-on the parameters by integrating over the posterior. 
-
-### Bayes's theorem
-
-Bayes
-formalized his approach in the following theorem.
+@bayes1763 formalized his approach in the following theorem.
 
 ::: {#thm-line}
 ### Bayes's Theorem
@@ -3580,7 +3782,7 @@ applications to model comparison we will need a normalizing sampling
 distribution $p(y \mid \theta)$ in order to make and compare
 probabilistic predictions.
 
-## Expectation notation
+## A.2 Expectation notation {.unnumbered}
 
 If we have a (potentially multivariate) random variable $Z$, we write
 $\mathbb{E}[Z]$ for its _expectation_, which is defined as its average
@@ -3621,7 +3823,7 @@ expressed as a function of parameters over the posterior
 
 
 
-## Quantiles, medians, and uncertainty intervals
+## A.3 Quantiles, medians, and uncertainty intervals {.unnumbered}
 
 Suppose $Z$ is a univariate random variable (e.g., one of the
 parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
@@ -3670,7 +3872,7 @@ For example, the central 95% interval for $Z$ is
 $\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
 
 
-## Bayesian inference
+## A.4 Bayesian inference {.unnumbered}
 
 Bayesian inference is largely about estimating quantities of interest
 based on a probability model and observed data.  In typical applied
@@ -3686,7 +3888,7 @@ particular, posterior intervals (sometimes called "credible
 intervals").
 
 
-### Parameter estimation
+### Parameter estimation {.unnumbered}
 
 The first quantity of interest is the value of parameters.  The
 standard Bayesian parameter estimate is the posterior mean, or
@@ -3724,7 +3926,7 @@ It's clear from the final form that the estimate $\widehat{\theta}$ is determine
 by averaging over posterior uncertainty. 
 
 
-### Event probabilities
+### Event probabilities {.unnumbered}
 
 An _event_ in statistics is a subset of the parameter space, $A
 \subseteq \Theta$, where $\Theta$ is the set of all valid parameter
@@ -3749,7 +3951,7 @@ we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
 is a value.
 
 
-### Posterior predictive inference
+### Posterior predictive inference {.unnumbered}
 
 Often we are interested in predicting new data $\tilde{y}$ given the
 observation of existing data $y$.  This is a form of _posterior
@@ -3768,7 +3970,7 @@ p(\tilde{y} \mid y)
 
 
 
-## Markov chain Monte Carlo
+## A.5 Markov chain Monte Carlo {.unnumbered}
 
 Stan performs asymptotically exact, full Bayesian inference using
 Markov chain Monte Carlo (MCMC).  MCMC starts from an initial value
@@ -3873,4 +4075,4 @@ $$
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
 
-# References
+# References {.unnumbered}
