@@ -127,6 +127,7 @@ DRAFT = True
 ```
 
 
+
 ## Acknowledgements {.unnumbered}
 
 I'd like to thank Mitzi Morris, Barry Smith, and Brian Ward for
@@ -3715,8 +3716,8 @@ are distributed in the form of reproducible notebooks.
 
 ## Bayesian workflow
 
-The paper that kicked off the focus on workflow is @gabry2019; the
-current state of our thinking is @gelman2020workflow.
+The paper that kicked off the Stan project's focus on workflow is
+@gabry2019; the current state of our thinking is @gelman2020workflow.
 
 
 # A. Bayesian statistics and Markov chain Monte Carlo {.unnumbered}
@@ -4074,5 +4075,30 @@ $$
 \widehat{\theta} - \theta
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
+
+# B. Installed packages {.unnumbered}
+
+The system and operationg system are as follows.
+```{python}
+import sys
+import platform
+
+print("\nSystem")
+print(sys.version)
+
+print("\nOperating System")
+print(f"""  {platform.system() = }
+  {platform.release() = }
+  {platform.version = }""")
+```
+
+The installed packages (i.e., the working set) is as follows.
+```{python}
+import pkg_resources
+
+print("\nInstalled packages:")
+for dist in pkg_resources.working_set:
+    print(dist)
+```
 
 # References {.unnumbered}
