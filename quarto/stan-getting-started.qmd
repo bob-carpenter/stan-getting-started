@@ -1,6 +1,6 @@
 ---
 title: "Getting Started with Stan"
-subtitle: "in Python with `cmdstanpy` and `plotnine`"
+subtitle: "in Python with CmdStanPy and plotnine"
 author: "Bob Carpenter"
 date: "May 2023"
 format:
@@ -64,7 +64,7 @@ of Stan's internals.  I include an appendix that goes over the basics of
 Bayesian statistics from first principles using only basic mathematics
 (i.e., no measure theory). 
 
-## Source code and license
+## Source code and license {.unnumbered}
 
 All of the source markdown, yaml, LaTeX, and BibTeX files are
 available in
@@ -197,12 +197,13 @@ random sample.
 
 ## Stan and probabilistic programming
 
-Stan is a probabilistic programming language.  Stan is what is known
-as a *domain specific* programming language, meaning it was written
-for particular application.  Specifically, Stan was designed for
-coding statistical models.  Although Stan is used most widely for
-MCMC, it also enables frequentist inference (e.g., maximum likelihood,
-bootstrap, etc.)
+Stan is what is known as a *domain specific language* (DSL), meaning
+it was written for particular application. Specifically, Stan is
+a *probabilistic programming language* (PPL) designed for coding
+statistical models. Although Stan is used most widely for Bayesian
+inference, it can also perform standard frequentist inference (e.g.,
+maximum likelihood, bootstrap, etc.), though we do not touch on those
+capabilities in this introduction.
 
 A Stan program declares data variables and parameters, along with
 a differentiable posterior log density (of the parameters given the
@@ -212,8 +213,11 @@ variables, which can be shown to be equal to the log posterior plus a
 constant.  
 
 Stan programs are probabilistic programs in the sense that their data
-and parameters can represent random variables.  Running a Stan program
-twice will give different answers.  Stan programs can be made
+and parameters can represent *random variables*. One way to think of a
+random variable in the context of Stan is as a variable that takes its
+value randomly (though in fact, it takes its value pseudorandomly
+based on a random seed). This means that by default, running a Stan
+program twice will give different answers. Stan programs can be made
 deterministic in order to provide reproducible results by fixing a
 random seed.
 
@@ -222,6 +226,80 @@ approximate methods like variational inference or Laplace
 approximation.  Users provide Stan data and access Stan output through
 analytics languages like Python, R, or Julia.
   
+
+# Pragmatic Bayesian statistics
+
+There have been several schools of Bayesian statisticians, including
+those identifying as *subjective Bayesians* and those identifying
+as *objective Bayesians*. These two paradigms have diametrically
+opposed philosophical approaches---the "subjective" approach use as
+much prior information as is consistent with their beliefs, whereas
+the "objective" approach uses as little prior information as possible.
+strong priors based on beliefs, whereas the "objective" approach tries
+to find the weakest possible priors. Both these groups then trust
+their inferences based on their chosen philosophical approach.
+
+We are going to follow a more pragmatic approach to Bayesian
+statistics that views model building as more of an engineering
+discipline than a philosophical exercise. This perspective is laid out
+in detail in @gelman2013bayesian and @gelman2020workflow. The
+pragmatic approach feels more like modern machine learning than
+statistics, with its emphasis on predictive calibration (which is
+itself a frequentist notion when applied to future data) and its
+willingness to modify a statistical model based on its behavior on the
+data.
+
+The fundamental distinguishing feature of frequentist statistics is
+that probabilities are understood as long-run frequencies of
+repeatable processes. This prohibits placing probability distributions
+over parameters, because there is no long-term repeatable process in
+the world generating new parameters. For example, the gravitational
+constant has a single value and is not the value of a potentailly
+repeatable trial like a coin flip (other than in a philosphical,
+possible worlds sense).
+
+In our pragmatic approach to Bayesian statistics, we treat probability
+as fundamentally _epistemic_ rather than _deontic_, meaning it is
+about human _knowledge_, not about human _belief_. This is a subtle,
+but important distinction. Although frequentists sometimes worry that
+Bayesians are "putting their thumb on the scale" by including their
+prior knowledge in a model rather than "letting the data speak for
+itself," this is an instance of the pot calling the kettle black. The
+biggest "subjective" decision in model building is shared between
+Bayesian and frequentist approaches, namely the likelihood assumed to
+model the data-generating process.  In practice, we often sidestep the
+concerns of subjectivity by using weakly informative priors that
+indicate the scale, but not the particular value, of a prior.  And we
+furthermore run sensitivity analyses to test the effect of our prior
+assumptions. 
+
+@laplace1814 begins his book on probability by stating the general
+epistemic position on probability in terms of an entity that knows all
+(aka Laplace's demon).
+
+> We may regard the present state of the universe as the effect of its
+past and the cause of its future. An intellect which at a certain
+moment would know all forces that set nature in motion, and all
+positions of all items of which nature is composed, if this intellect
+were also vast enough to submit these data to analysis, it would
+embrace in a single formula the movements of the greatest bodies of
+the universe and those of the tiniest atom; for such an intellect
+nothing would be uncertain and the future just like the past would be
+present before its eyes.
+
+John Stuart @mill1882 is more explicit in laying out the epistemic
+view of probbility as follows.
+
+> We must remember that the probability of an event is not a quality
+of the event itself, but a mere name for the degree of ground which
+we, or some one else, have for expecting it. $\ldots$ Every event is
+in itself certain, not probable; if we knew all, we should either know
+positively that it will happen, or positively that it will not. But
+its probability to us means the degree of expectation of its
+occurrence, which we are warranted in entertaining by our present
+evidence.
+
+
 
 
 # Stan for forward simulation
@@ -324,18 +402,20 @@ sample = model.sample(data = data, seed = 123, chains = 1,
                       show_progress = False, show_console = False)
 ```
 
-In the `sample` method of the `CmdStanModel` object, we provide the
-data, the pseudorandom number generator seed (for reproducibility of
-this case study), the number of sampling iterations (10), the number
-of warmup iterations (0, because we are just generating which doesn't
-need any warmup), the number of Markov chains (1), and we turn off all
-the messages. Our initial setup set the logger level to `WARNING` for
-the `cmdstanpy` package in order to get rid of the information-level
-messages that would otherwise provide updates on a running Stan program.
+For the `sample()` method of the `CmdStanModel` object, we provide the
+data, the pseudorandom number generator seed for reproducibility of
+this case study (which we explain below), the number of sampling
+iterations (10), the number of warmup iterations (0, because we are
+just generating which doesn't need any warmup), the number of Markov
+chains (1), and we turn off all the messages. Our initial setup set
+the logger level to `WARNING` for the `cmdstanpy` package in order to
+get rid of the information-level messages that would otherwise provide
+updates on a running Stan program.
 
 The `sample` method returns a sample consisting of the specified
-number of draws (10 here). We can extract the draws for the variable
-`y` as an array and then print them along with our other variables.
+number of random draws (10 here). We can extract the draws for the
+variable `y` as an array and then print them along with our other
+variables.
 
 ```{python}
 y = sample.stan_variable('y')
@@ -421,6 +501,36 @@ draws for $y$ concentrate near 300, or near the value of
 $0.3$ for $\theta$. As $N$ grows, the central limit theorem tells us
 to expect that the width of these histograms to shrink at a rate of
 $\mathcal{O}(1 / \sqrt{N})$.
+
+## Pseudorandom numbers {#prng-seed}
+
+As a probabilistic programming language, Stan relies on random number
+generation. Because Stan runs on traditional digital computers (i.e.,
+von Neumann machines), it cannot truly generate random numbers.
+Instead, it does the next best thing and generates a sequence
+of *pseudorandom numbers*. Specifically, we set a random number
+generation *seed*, which when combined with a pseudorandom number
+generator, generates a sequence of numbers deterministically that have
+many of the properties of truly random numbers.
+
+We can see how random number generators work in Stan by running our
+sampling method with seeds 123, 19876, and 123.  
+```{python}
+for seed in [123, 19876, 123]:
+    sample = model.sample(data = data, seed = seed, chains = 1,
+                          iter_sampling = 10, iter_warmup = 0,
+                          show_progress = False, show_console = False)
+    print(f"{seed = };  sample = {np.asarray(sample.stan_variable('y'), dtype=int)}")		      
+```
+The two runs with seed 123 produce the same results. The code to
+extract values of `y` is clunky because the `stan_variable()` method
+always returns a floating point type and we have converted it to an
+integer-valued NumPy array.
+
+Generally, we want our Stan programs to *replicate* similar results
+with different random seeds. Substantially different results from
+different seeds is a red flag that there is something wrong with the
+combination of model and data.
 
 
 ## Monte Carlo and Markov chain Monte Carlo methods
@@ -3071,7 +3181,6 @@ the sex for the first ten individuals based on this probability.
 
 ```{.stan filename='../stan/heights-post.stan'}
 generated quantities {
-  array[10] int<lower=0, upper=1> sex;
   vector<lower=0, upper=1>[10] Pr_female;
   for (m in 1:10) {
     real lp1 = bernoulli_lpmf(0 | lambda)
@@ -3720,9 +3829,29 @@ The paper that kicked off the Stan project's focus on workflow is
 @gabry2019; the current state of our thinking is @gelman2020workflow.
 
 
-# A. Bayesian statistics and Markov chain Monte Carlo {.unnumbered}
+# A. Bayesian statistics {.unnumbered}
 
-### Bayes's theorem {.unnumbered}
+In this appendix, we provide more formal definitions of the mathematics of Bayesian statistics.
+
+## A.0 Probability theory
+
+A _sample space_ is a set $\Omega$, the members of which represent
+possible ways the world might be (i.e., what are sometimes known as
+"possible worlds").
+
+A _sigma algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
+$\mathcal{S} \subsetq \textrm{pow}(\Omega)$, that satisfy three
+properties,
+
+* *unit*: $\emptyset \in \mathcal{S}$
+* *closed under complements*: if $A \in \mathcal{S},$ then $A^{\comp} \in
+* *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
+then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
+
+
+
+
+## A.1 Bayes's theorem {.unnumbered}
 
 @bayes1763 formalized his approach in the following theorem.
 
@@ -3889,7 +4018,7 @@ particular, posterior intervals (sometimes called "credible
 intervals").
 
 
-### Parameter estimation {.unnumbered}
+## Parameter estimation {.unnumbered}
 
 The first quantity of interest is the value of parameters.  The
 standard Bayesian parameter estimate is the posterior mean, or
@@ -3927,7 +4056,7 @@ It's clear from the final form that the estimate $\widehat{\theta}$ is determine
 by averaging over posterior uncertainty. 
 
 
-### Event probabilities {.unnumbered}
+## Event probabilities {.unnumbered}
 
 An _event_ in statistics is a subset of the parameter space, $A
 \subseteq \Theta$, where $\Theta$ is the set of all valid parameter
@@ -3952,7 +4081,7 @@ we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
 is a value.
 
 
-### Posterior predictive inference {.unnumbered}
+## Posterior predictive inference {.unnumbered}
 
 Often we are interested in predicting new data $\tilde{y}$ given the
 observation of existing data $y$.  This is a form of _posterior
