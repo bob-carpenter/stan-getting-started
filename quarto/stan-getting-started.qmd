@@ -131,9 +131,12 @@ DRAFT = True
 ## Acknowledgements {.unnumbered}
 
 I'd like to thank Mitzi Morris, Barry Smith, and Brian Ward for
-helpful feedback on earlier drafts.  I'd also like to thank the entire
-Stan Development Team.  Stan is an open project and a large team
-effort and we're always happy to help onboard new developers.
+helpful feedback on earlier drafts. Thanks to ChatGPT 4.0 (May 3, 2023
+version) for extensive help on plotting and data frame construction.
+I'd also like to thank the entire Stan Development Team and all of our
+users.  Stan is an open project and a large team effort and we're
+always happy to help onboard new developers, and we wouldn't be doing
+it without users.
 
 
 
@@ -3829,29 +3832,204 @@ The paper that kicked off the Stan project's focus on workflow is
 @gabry2019; the current state of our thinking is @gelman2020workflow.
 
 
-# A. Bayesian statistics {.unnumbered}
+# A Probability theory {.unnumbered}
 
-In this appendix, we provide more formal definitions of the mathematics of Bayesian statistics.
-
-## A.0 Probability theory
+## Probability spaces {.unnumbered}
 
 A _sample space_ is a set $\Omega$, the members of which represent
 possible ways the world might be (i.e., what are sometimes known as
 "possible worlds").
 
-A _sigma algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
-$\mathcal{S} \subsetq \textrm{pow}(\Omega)$, that satisfy three
+A _$\sigma$-algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
+$\mathcal{S} \subseteq \textrm{pow}(\Omega)$, that satisfy three
 properties,
 
-* *unit*: $\emptyset \in \mathcal{S}$
-* *closed under complements*: if $A \in \mathcal{S},$ then $A^{\comp} \in
+* *unit*: $\emptyset \in \mathcal{S}$,
+* *closed under complements*: if $A \in \mathcal{S},$ then $A^{\complement}
+\in \mathcal{S}$, and
 * *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
 then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
 
+*Example 1*: The power set of any set forms a $\sigma$-algebra set
+because it contains the empty set and is closed under complements and
+arbitrary unions.
+
+*Example 2*: A second simple example can be defined over the real
+numbers $\mathbb{R}$ by taking the minimu set including all of the
+open intervals $(a, b) \subset \mathbb{R}$ and closed under
+complements and countable unions.  The resulting $\sigma$-algebra
+defined from closing open sets this way is called a *Borel algebra*.
+
+A _measure_ over $\mathcal{S}$ is a function $\Pr: \mathcal{S}
+\rightarrow [0, 1]$ such that for all $A, B_n \in \mathcal{S},$
+
+* *empty set zero probability*: $\Pr[\emptyset] = 0$,
+* *full set unit probability*: $\Pr[\Omega] = 1$,
+* *non-negativity*: if $A \in \mathcal{S}$, then $\Pr[A] \geq 0$, and
+* *countable additivity*: if $A_n \in \mathcal{S}$ for $n \in
+\mathbb{N}$ is a sequence of pairwise disjoint sets (i.e., $A_i \cap A_j =
+\emptyset$ if $i \neq j$), then
+$$
+\Pr\!\left[\bigcup_{n = 0}^\infty B_n\right] = \sum_{n=0}^\infty \Pr\!\left[B_n\right].
+$$
+
+An element $A \in \mathcal{S}$ is said to be a *measurable set*.  The
+sample space $\Omega$ with a measure $\Pr$ over the $\sigma$-algebra
+$\mathcal{S}$ together make up a *probability space* $(\Omega,
+\mathcal{S}, \Pr)$.
+
+## Random variables, cdfs, pdfs, and pmfs {.unnumbered}
+
+A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$.
+That is, a random variable is the kind of object that produces a real
+value for every possible way the world can be (i.e., for every $\omega
+\in \Omega$).  Random variables act like regular variables in that
+arithmetic operations can be extended to them.  For example, $(X +
+Y):\Omega \rightarrow \mathbb{R}$ is a random variable whose value in
+a state $\omega \in \Omega$ is given by
+$$
+(X + Y)(\omega) = X(\omega) + Y(\omega).
+$$
+
+### Cumulative distribution function {.unnumbered}
+
+Given a random variable $X$, its *cumulative distribution function*
+(cdf) $F_X:\mathbb{R} \rightarrow [0, 1]$ is defined for $x \in
+\mathbb{R}$ by
+$$
+F_X(x) = \Pr[X \leq x],
+$$
+where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega)
+\leq x \}$.
+
+### Probability density funtion {.unnumbered}
+
+If the cumulative distribution function $F_X$ for a random variable
+$X$ is continuous and differentiable, we define its *probability
+density function* (pdf) $p_X:\mathbb{R} \rightarrow (0, \infty)$ by
+$$
+p_X(x) = \frac{\textrm{d}}{\textrm{d}u} F_X(u) \bigg|_{u = x},
+$$
+for $x \in \mathbb{R}$.
+
+```{python}
+import scipy as sp
+
+# Define the standard normal distribution
+mu = 0
+sigma = 1
+dist = sp.stats.norm(loc=mu, scale=sigma)
+
+# Generate x values
+x = np.linspace(-6, 6, 100)
+
+# Generate y values for PDF and CDF
+pdf_y = dist.pdf(x)
+cdf_y = dist.cdf(x)
+
+# Create a dataframe for PDF and CDF
+df_pdf = pd.DataFrame({
+    'x': x,
+    'y': pdf_y,
+    'type': 'PDF'
+})
+
+df_cdf = pd.DataFrame({
+    'x': x,
+    'y': cdf_y,
+    'type': 'CDF'
+})
+
+# Concatenate the dataframes
+df = pd.concat([df_pdf, df_cdf])
+
+# Plot
+mydraw(
+    pn.ggplot(df, pn.aes(x='x', y='y')) +
+    pn.geom_line() +
+    pn.facet_wrap('~ type', scales = 'free_y') +
+    pn.labs(x='x', y='value', title='pdf and cdf of X ~ normal(0, 1)') +
+    pn.theme(figure_size=(10, 4),
+             panel_spacing=0.5)
+)
+```
+
+With the plots next to each other, it's easier to see how the pdf is
+the derivative of the cdf---the derivative is maximum at 0.5, and
+approaches zero as values for $X$ move away from zero.  The pdf is
+symmetric around zero because the cdf has the property that
+$$
+F_X(x) = 1 - F_X(-x).
+$$
+The function $1 - F_X(y)$ is known as the _complementary cumulative
+distribution function_ and it's used to improve numerical stability.
 
 
+### Probability mass function {.unnumbered}
 
-## A.1 Bayes's theorem {.unnumbered}
+If the cumulative distribution function $F_X$ for a random variable
+$X$ is discrete (in the sense of being made up only of step
+functions), then we define its *probability mass function* (pmf)
+$p_X:\mathbb{N} \rightarrow (0, \infty)$ by
+$$
+p_X(n) = p_X(n + 1) - p_X(n),
+$$
+for $n \in \mathbb{N}$.
+
+The *support* of a random variable $X$ is the set of values it can
+take on, which is formally defined as the values for which the pdf or
+pmf is greater than 0,
+$$
+\textrm{support}(X) = \{ x : p_X(x) > 0 \}.
+$$
+
+The characterization of random variables with pdfs and pmfs is
+incomplete because not all probability distributions can be classified
+as discrete or continuous.  A random variable $X$ can have a cdf with
+both continuous portions and jumps.  For example, if we define a
+mixture of a discrete and continuous cdf (e.g., for a spike-and-slab
+prior in Bayesian statistics), we get a cdf that is neither discrete
+nor continuous.
+
+```{python}
+support = np.arange(2, 13)
+probs = [0, 1/36, 2/36, 3/36, 4/36, 5/36, 6/36, 5/36, 4/36, 3/36, 2/36, 1/36]
+cdf_values = np.cumsum(probs)
+
+# Create a dataframe
+df = pd.DataFrame({
+    'n': support,
+    'cdf': cdf_values[1:12],
+    'cdf_low': cdf_values[0:11]
+})
+
+# Create the plot
+plot = (pn.ggplot(df, pn.aes(x='n', y='cdf')) +
+    pn.geom_point(size=2) +
+    pn.scale_x_continuous(breaks=np.arange(2, 13)) +
+    pn.labs(x='n', y='Pr[X <= n]') +
+    pn.theme(strip_margin_x=5.0) +
+    pn.scale_x_continuous(limits=(1,13),
+                          breaks=range(2,13),
+			  expand=(0, 0)))
+for n in range(0,12):
+    plot += pn.geom_segment(pn.aes(x = n + 1,
+                                   y = cdf_values[n],
+                                   xend = n + 2 - 0.075,
+                                   yend = cdf_values[n]))
+plot += pn.geom_point(pn.aes(x='n', y='cdf_low'),
+                      size=2, stroke=0.5, fill='none',
+		      shape='o', color='black')
+mydraw(plot)
+```
+
+
+# B. Bayesian statistics {.unnumbered}
+
+In this appendix, we provide a concise mathematical overview of
+Bayesian statistics.
+
+## B.1 Bayes's theorem {.unnumbered}
 
 @bayes1763 formalized his approach in the following theorem.
 
@@ -3912,7 +4090,7 @@ applications to model comparison we will need a normalizing sampling
 distribution $p(y \mid \theta)$ in order to make and compare
 probabilistic predictions.
 
-## A.2 Expectation notation {.unnumbered}
+## B.2 Expectation notation {.unnumbered}
 
 If we have a (potentially multivariate) random variable $Z$, we write
 $\mathbb{E}[Z]$ for its _expectation_, which is defined as its average
@@ -3953,7 +4131,7 @@ expressed as a function of parameters over the posterior
 
 
 
-## A.3 Quantiles, medians, and uncertainty intervals {.unnumbered}
+## B.3 Quantiles, medians, and uncertainty intervals {.unnumbered}
 
 Suppose $Z$ is a univariate random variable (e.g., one of the
 parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
@@ -4002,7 +4180,7 @@ For example, the central 95% interval for $Z$ is
 $\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
 
 
-## A.4 Bayesian inference {.unnumbered}
+## B.4 Bayesian inference {.unnumbered}
 
 Bayesian inference is largely about estimating quantities of interest
 based on a probability model and observed data.  In typical applied
@@ -4100,7 +4278,7 @@ p(\tilde{y} \mid y)
 
 
 
-## A.5 Markov chain Monte Carlo {.unnumbered}
+## C. Markov chain Monte Carlo {.unnumbered}
 
 Stan performs asymptotically exact, full Bayesian inference using
 Markov chain Monte Carlo (MCMC).  MCMC starts from an initial value
@@ -4205,7 +4383,7 @@ $$
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
 
-# B. Installed packages {.unnumbered}
+# C. Installed packages {.unnumbered}
 
 The system and operationg system are as follows.
 ```{python}
