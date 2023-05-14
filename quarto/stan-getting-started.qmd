@@ -118,6 +118,7 @@ csp.utils.get_logger().setLevel(logging.ERROR)
 import numpy as np
 import pandas as pd
 import plotnine as pn
+import patchworklib as pw
 
 def mydraw(x):
     """draw plot in the quarto doc"""
@@ -4000,27 +4001,43 @@ cdf_values = np.cumsum(probs)
 df = pd.DataFrame({
     'n': support,
     'cdf': cdf_values[1:12],
-    'cdf_low': cdf_values[0:11]
+    'cdf_low': cdf_values[0:11],
 })
 
-# Create the plot
-plot = (pn.ggplot(df, pn.aes(x='n', y='cdf')) +
+plot1 = (pn.ggplot(df, pn.aes(x='n', y='cdf')) +
     pn.geom_point(size=2) +
     pn.scale_x_continuous(breaks=np.arange(2, 13)) +
     pn.labs(x='n', y='Pr[X <= n]') +
     pn.theme(strip_margin_x=5.0) +
     pn.scale_x_continuous(limits=(1,13),
-                          breaks=range(2,13),
-			  expand=(0, 0)))
+                          breaks=support,
+                          expand=(0, 0)) +
+    pn.ggtitle('cdf'))
 for n in range(0,12):
-    plot += pn.geom_segment(pn.aes(x = n + 1,
+    plot1 += pn.geom_segment(pn.aes(x = n + 1,
                                    y = cdf_values[n],
                                    xend = n + 2 - 0.075,
                                    yend = cdf_values[n]))
-plot += pn.geom_point(pn.aes(x='n', y='cdf_low'),
+plot1 += pn.geom_point(pn.aes(x='n', y='cdf_low'),
                       size=2, stroke=0.5, fill='none',
 		      shape='o', color='black')
-mydraw(plot)
+		      
+df2 = pd.DataFrame({
+    'n': support,
+    'probs': probs[1:]
+})
+plot2 = (pn.ggplot(df2, pn.aes(x='n', y='probs'))
+         + pn.geom_bar(stat='identity', color='black', fill='white')
+         + pn.scale_x_continuous(breaks=support)
+         + pn.scale_y_continuous(breaks=np.arange(1, 7) / 36,
+                                 labels=['1/36', '2/36', '3/36',
+                                         '4/36', '5/36', '6/36'])
+         + pn.ggtitle('pmf'))
+
+g1 = pw.load_ggplot(plot1, figsize=(3.25, 3))
+g2 = pw.load_ggplot(plot2, figsize=(3.25, 3))
+g12 = (g1 | g2)
+g12.savefig()
 ```
 
 
