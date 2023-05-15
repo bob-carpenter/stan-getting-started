@@ -3835,7 +3835,7 @@ The paper that kicked off the Stan project's focus on workflow is
 
 # A Probability theory {.unnumbered}
 
-## Probability spaces {.unnumbered}
+## A.1 Probability spaces {.unnumbered}
 
 A _sample space_ is a set $\Omega$, the members of which represent
 possible ways the world might be (i.e., what are sometimes known as
@@ -3879,7 +3879,7 @@ sample space $\Omega$ with a measure $\Pr$ over the $\sigma$-algebra
 $\mathcal{S}$ together make up a *probability space* $(\Omega,
 \mathcal{S}, \Pr)$.
 
-## Random variables, cdfs, pdfs, and pmfs {.unnumbered}
+## A.2 Random variables, cdfs, pdfs, and pmfs {.unnumbered}
 
 A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$.
 That is, a random variable is the kind of object that produces a real
@@ -3932,13 +3932,13 @@ cdf_y = dist.cdf(x)
 df_pdf = pd.DataFrame({
     'x': x,
     'y': pdf_y,
-    'type': 'PDF'
+    'type': 'PDF p_X'
 })
 
 df_cdf = pd.DataFrame({
     'x': x,
     'y': cdf_y,
-    'type': 'CDF'
+    'type': 'CDF F_X'
 })
 
 # Concatenate the dataframes
@@ -3949,7 +3949,7 @@ mydraw(
     pn.ggplot(df, pn.aes(x='x', y='y')) +
     pn.geom_line() +
     pn.facet_wrap('~ type', scales = 'free_y') +
-    pn.labs(x='x', y='value', title='pdf and cdf of X ~ normal(0, 1)') +
+    pn.labs(x='x', y='value', title='cumulative distribution function and probability desnity function of X ~ normal(0, 1)') +
     pn.theme(figure_size=(10, 4),
              panel_spacing=0.5)
 )
@@ -3962,7 +3962,7 @@ symmetric around zero because the cdf has the property that
 $$
 F_X(x) = 1 - F_X(-x).
 $$
-The function $1 - F_X(y)$ is known as the _complementary cumulative
+The function $1 - F_X(x)$ is known as the _complementary cumulative
 distribution function_ and it's used to improve numerical stability.
 
 
@@ -3981,7 +3981,7 @@ The *support* of a random variable $X$ is the set of values it can
 take on, which is formally defined as the values for which the pdf or
 pmf is greater than 0,
 $$
-\textrm{support}(X) = \{ x : p_X(x) > 0 \}.
+\textrm{supp}(X) = \{ x : p_X(x) > 0 \}.
 $$
 
 The characterization of random variables with pdfs and pmfs is
@@ -4039,6 +4039,113 @@ g2 = pw.load_ggplot(plot2, figsize=(3.25, 3))
 g12 = (g1 | g2)
 g12.savefig()
 ```
+
+
+## A.3 Expectation notation {.unnumbered}
+
+### Expectation
+
+If we have a (potentially multivariate) random variable $Z$, we write
+$\mathbb{E}[Z]$ for its _expectation_, which despite the fancy name,
+is just its average value, weighted by density,
+$$
+\mathbb{E}[Z] = \int_{\textrm{supp}(Z)} z \cdot p_Z(z) \, \textrm{d}z.
+$$
+Discussing random variables presupposes a background probability space
+$(\Omega, \mathcal{S}, \Pr)$ with respect to which the cumulative
+distribution function $F_Z$ and the probability density function $p_Z$
+are defined.
+
+Statistical notation overloads many notations, and commonly just $Z$
+rather than $\textrm{supp}(Z)$ is used to subscript the integral.
+
+### Conditional expectation
+
+With Bayesian statistics, we are typically interested in conditional
+expectations, which are the value of a random variable conditioned on
+the observed value of a second random variable.  Suppose $Y$ is a
+second random variable over the same implicit probability space
+and we observe that $Y = y$.  The _conditional
+expectation_ of $Z$ given $Y = y$ is
+$$
+\mathbb{E}[Z \mid Y = y]
+= \int_{Z} z \cdot p(z \mid y) \, \textrm{d}z.
+$$
+That is, we take a weighted average of the value of $Z$ with weights
+determined by the conditional density $p_{Z \mid Y}(z \mid y)$.
+
+### Expectations of functions of random variables
+
+Suppose we have a random variable $Z$ and a real-valued function
+$f:\textrm{supp}(Z) \rightarrow \mathbb{R}^N$.  We can then define
+a new random variable $W = f(Z)$.  To calculate the expectation of $W$
+in terms of the density for $Z$, we use the so-called *law of the
+unconscious statistician*, which tells us
+$$
+\mathbb{E}[W] = \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z.
+$$
+
+
+We define the
+expectation of $f(Z)$ as
+\begin{align}
+\mathbb{E}[W] = \mathbb{E}[f(Z)] = \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z.
+$$
+The conditional form follows suit,
+$$
+\mathbb{E}[f(Z) \mid Y = y] = \int_Z f(z) \cdot p_{Z \mid Y}(z \mid y) \, \textrm{d}z.
+$$
+Either way, we just take a weighted average the value of $f(z)$ with
+weights $p_Z(z)$ or $p_{Z|Y}(z \mid y).$
+
+
+## A.4 Quantiles, medians, and uncertainty intervals {.unnumbered}
+
+Suppose $Z$ is a univariate random variable (e.g., one of the
+parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
+univariate random variable $Z$, $\textrm{quantile}(Z, p)$, is defined
+by
+$$
+\textrm{quantile}(Z, p) = z
+\ \textrm{ if and only if } \
+\textrm{Pr}[Z \leq z] = p.
+$$
+That is, the $p$-quantile of $Z$ is the value $z$ such that the
+probability $Z$ is less than or equal to $z$ is $p.$  In Bayesian
+applications, we will typically be taking the probability for
+functions of parameters $Z = f(\Theta)$ and conditioning on observed data $y$.
+
+The 0.5-quantile is known as the _median_.  There is a 50% chance that
+a random variable takes on a value less than its median and a 50%
+chance that it takes on a value greater.  Another common Bayesian
+estimator for parameter $\Theta$ is its posterior median,
+$$
+\overline{\theta} = \textrm{quantile}(Z, 0.5).
+$$
+The median estimator has the property of minimizing expected absolute
+error (in contrast to the posterior mean estimate, which minimizes
+expected squared error), again assuming the model represents the true
+data generating process.
+
+
+If we have two probabilities, $0 \leq p^L \leq p^U \leq 1$, they
+define the $(p^L, p^U)$ _posterior interval_ 
+$$
+\textrm{interval}(Z, p^L, p^U)
+= \left(
+    \textrm{quantile}(Z, p^L),
+    \textrm{quantile}(Z, p^U)
+  \right).
+$$
+
+The probability that a point falls in the interval is given by the
+differences in probabilities,
+$$
+\textrm{Pr}\!\left[Z \in \textrm{interval}(Z, p^L, p^U)\right] = p^U - p^L.
+$$
+If $1 - p^U = p^L$, the interval is called the _central $(p^L - p^U)$ interval_.
+For example, the central 95% interval for $Z$ is
+$\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
 
 
 # B. Bayesian statistics {.unnumbered}
@@ -4106,95 +4213,6 @@ This lets us proceed with only an unnormalized sampling density $p(y
 applications to model comparison we will need a normalizing sampling
 distribution $p(y \mid \theta)$ in order to make and compare
 probabilistic predictions.
-
-## B.2 Expectation notation {.unnumbered}
-
-If we have a (potentially multivariate) random variable $Z$, we write
-$\mathbb{E}[Z]$ for its _expectation_, which is defined as its average
-value.  This assumes we have a fixed measure to provide a density
-$p_Z(z)$ for the random variable $Z$.  We compute the average value by
-averaging over the possible values for $Z$ with weights given by its
-density,
-
-$$
-\mathbb{E}[Z] = \int_{Z} z \cdot p_Z(z) \, \textrm{d}z.
-$$
-
-With Bayesian statistics, we are typically interested in conditional
-expectations, which are the value of a random variable conditioned on
-the observed value of a second random variable.  Suppose $Y$ is a
-second random variable and we observe that $Y = y$.  The _conditional
-expectation_ of $Z$ given $Y = y$ is written
-$$
-\mathbb{E}[Z \mid Y = y]
-= \int_{Z} z \cdot p(z \mid y) \, \textrm{d}z.
-$$
-That is, we take a weighted average of the value of $Z$ with weights
-determined by the posterior density $p_{Z \mid Y}(z \mid y)$.  As
-before, this assumes a fixed, joint measure for $Y$ and $Z$.
-
-We are typically concerned with cases where $Z = f(\Theta)$ is a
-function of the parameters $\Theta$ (and perhaps some data, as well),
-and the conditioning is with respect to observed data $y$, where we
-will drop the explicit $Y = y$ conditioning and use $y$ as shorthand,
-$$
-\mathbb{E}[f(\Theta) \mid y]
-= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
-$$
-These posterior expectations simply average the value of the function
-$f(\theta)$ over the posterior $p(\theta \mid y).$  All of our
-inferences proceed this way---by averaging a quantity of interest
-expressed as a function of parameters over the posterior
-
-
-
-## B.3 Quantiles, medians, and uncertainty intervals {.unnumbered}
-
-Suppose $Z$ is a univariate random variable (e.g., one of the
-parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
-univariate random variable $Z$, $\textrm{quantile}(Z, p)$, is defined
-by
-$$
-\textrm{quantile}(Z, p) = z
-\ \textrm{ if and only if } \
-\textrm{Pr}[Z \leq z] = p.
-$$
-That is, the $p$-quantile of $Z$ is the value $z$ such that the
-probability $Z$ is less than or equal to $z$ is $p.$  In Bayesian
-applications, we will typically be taking the probability for
-functions of parameters $Z = f(\Theta)$ and conditioning on observed data $y$.
-
-The 0.5-quantile is known as the _median_.  There is a 50% chance that
-a random variable takes on a value less than its median and a 50%
-chance that it takes on a value greater.  Another common Bayesian
-estimator for parameter $\Theta$ is its posterior median,
-$$
-\overline{\theta} = \textrm{quantile}(Z, 0.5).
-$$
-The median estimator has the property of minimizing expected absolute
-error (in contrast to the posterior mean estimate, which minimizes
-expected squared error), again assuming the model represents the true
-data generating process.
-
-
-If we have two probabilities, $0 \leq p^L \leq p^U \leq 1$, they
-define the $(p^L, p^U)$ _posterior interval_ 
-$$
-\textrm{interval}(Z, p^L, p^U)
-= \left(
-    \textrm{quantile}(Z, p^L),
-    \textrm{quantile}(Z, p^U)
-  \right).
-$$
-
-The probability that a point falls in the interval is given by the
-differences in probabilities,
-$$
-\textrm{Pr}\!\left[Z \in \textrm{interval}(Z, p^L, p^U)\right] = p^U - p^L.
-$$
-If $1 - p^U = p^L$, the interval is called the _central $(p^L - p^U)$ interval_.
-For example, the central 95% interval for $Z$ is
-$\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
 
 
 ## B.4 Bayesian inference {.unnumbered}
