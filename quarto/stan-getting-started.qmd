@@ -159,7 +159,7 @@ might want to perform inference about a population after measuring a
 subset of its members, or we might want to predict future events after
 observing past events.
 
-There are many ways to go about applied statistics.  These notes focus
+There are many approaches to applied statistics.  These notes focus
 on Bayesian statistics, a form of statistical modeling and inference
 that is grounded in probability theory.  In the Bayesian
 approach to statistics, we characterize our knowledge of the world in
@@ -174,12 +174,13 @@ generating process, then Bayesian statistical inference can be shown
 to have several desirable properties, such as calibration and
 resistance to overfitting.
 
-As an Appendix, I have provided a short introduction to Bayesian
-inference.  This establishes both the notation and provides more
-formal definitions of exactly what Stan is computing.
+Appendix B provides a short, but precise introduction to Bayesian
+inference, following Appendix A, which reviews the basics of
+probability theory.  This establishes both the notation and provides
+more formal definitions of exactly what Stan is computing.
 
 If you're looking for a gentle introduction to Bayesian statistics, I
-can highly recommend *Statistical Rethinking* [@mcelreath2023].  For a
+highly recommend *Statistical Rethinking* [@mcelreath2023].  For a
 more advanced introduction, try *Bayesian Data Analysis*
 [@gelman2013bayesian], which is available from the authors as a [free
 pdf](http://www.stat.columbia.edu/~gelman/book/).
@@ -188,18 +189,35 @@ pdf](http://www.stat.columbia.edu/~gelman/book/).
 
 Bayesian inference for parameter estimation, prediction, or event
 probability estimation is based on posterior expectations.  A
-posterior expectation is a high dimensional integral.  The standard
-approach to solving high-dimensional integrals is the [Monte Carlo
-method](https://en.wikipedia.org/wiki/Monte_Carlo_method), which uses
-random sampling to solve high-dimensional integrals (which is not
-itself a random quantity).
+posterior expectation is a high dimensional integral over the space of
+parameters.  Stan adopts the standard approach to solving general
+high-dimensional integrals, which is the [Monte Carlo
+method](https://en.wikipedia.org/wiki/Monte_Carlo_method). Monte Carlo
+methods use random sampling (hence the name) to solve high-dimensional
+integrals (which is not itself a random quantity).
 
-For statistical models, where the expectation is over an unnormalized
-density from which we cannot easily take random samples, we have to
-resort to [Markov chain Monte
-Carlo](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) (MCMC)
-methods, which introduce dependency among the draws making up the
-random sample.
+We cannot use standard Monte Carlo methods for most problems of
+interest in Bayesian statistics because we cannot generate a sample of
+independent draws from the posterior density of interest.[^1]
+The exception is simple models in the exponential family with
+conjugate priors [@diaconis1979].  So instead, we have to resort to
+Markov chain Monte Carlo (MCMC) methods [@brooks2011], which create
+samples with correlation structure among the draws making up the
+sample.
+
+[^1]: The statistical sampling literature often overloads "sample" to mean both a sample and a draw.
+
+Alternatives to MCMC include rejection sampling [@gilks1992],
+sequential Monte Carlo [@doucet2001], approximate Bayesian computation
+(ABC) [@marin2012], variational inference [@blei2017], and nested
+Laplace approximation [@rue2009], among others.
+
+Among MCMC methods, Stan adopts Hamiltonian Monte Carlo (HMC)
+[@neal2011], which is currently the most efficient and scalable MCMC
+method for smooth target densities.  Popular alternatives include
+random-walk Metropolis-Hastings [@chib1995] and Gibbs sampling
+[@casella1992], both of which are simpler, but much less efficient
+than HMC for all but the easiest of problems.
 
 ## Stan and probabilistic programming
 
@@ -227,10 +245,11 @@ program twice will give different answers. Stan programs can be made
 deterministic in order to provide reproducible results by fixing a
 random seed.
 
-Stan programs are translated to C++ and fit with either MCMC or
-approximate methods like variational inference or Laplace
-approximation.  Users provide Stan data and access Stan output through
-analytics languages like Python, R, or Julia.
+Stan programs are translated to C++ and we estimate quantities of
+interest using either MCMC or approximate methods like variational
+inference or Laplace approximation.  Users provide Stan data and
+access Stan output through analytics languages like Python, R, or
+Julia.
   
 
 # Pragmatic Bayesian statistics
@@ -319,8 +338,8 @@ Let's say we have 100 trials, each with a 30% chance of success. The
 out of 100 that it actually rained; it might represent the chance of a
 drug improving a patient's condition with the result being the number
 of patients who improve; or, it might represent the chance of a
-successful penalty kick from a given position on a field, and the the
-total number representing the number of goals in 100 attempts.
+successful penalty kick from a given position on a field, with the
+result representing the number of goals in 100 attempts.
 
 In statistical sampling notation, we write
 $$
@@ -329,7 +348,7 @@ $$
 to indicate that the random variable $Y$ has a binomial distribution
 with $N \in \mathbb{N}$ trials, each with probability $\theta \in [0, 1]$
 of success. The value of the variable $Y$ will be the number of
-successes in $N$ independent trials with a probability $\theta$ of success. The
+successes in $N$ independent trials. The
 probability mass function function for $Y$, written $p_Y$, is defined
 for $y \in 0{:}N$ by
 by
@@ -346,7 +365,7 @@ simply $p(y \mid N, \theta)$ and allowing context to disambiguate.
 
 ## A first Stan program
 
-Now let's say we wanted to generate random instantiations of $Y$ for
+Let's say we wanted to generate random instantiations of $Y$ for
 given values of $N$ and $\theta$. We can do that using the following
 Stan program, which we will unpack line by line after its listing.
 
@@ -363,7 +382,11 @@ generated quantities {
 The first thing to notice is that a Stan program is organized into
 blocks.  Here we have two blocks, a _data block_ containing declarations
 of variables that must be input as data, and a _generated quantities
-block_, which not only declares variables, but assigns to them.
+block_, which not only declares variables, but assigns a value to
+them.  In the case of this Stan program, the generated quantity
+variable `y` is assigned the result of taking a single draw from a
+$\textrm{binomial}(N, \theta)$ distribution, which Stan provides
+through the `binomial_rng` function.
 
 The second thing to notice about a Stan program is that the variables
 are all declared with types. Stan uses _static typing_, which means
@@ -377,18 +400,21 @@ The program declares three variables, `N` and `y` of type `int`
 (integer values in $\mathbb{Z}$), and `theta` of type `real` (real
 values in $\mathbb{R}$). On actual computers, our integers will have
 fixed upper and lower bounds and our real numbers are subject to all
-the vagaries of numerical floating point calculations.
+the vagaries of numerical floating point calculations.  Stan uses
+double-precision (64-bit) floating point and follows the [IEEE
+754 standard](https://standards.ieee.org/ieee/754/6210/) other than
+in a few highly-optimized calculations that lose a few bits of precision.
 
-In addition to its basic type, a type may also have constraints.
-Because `N` is a count, it must be greater than or equal to zero,
-which we indicate with the bound `lower=0.` Similarly, the variable
-`y` is the number of successes out of `N` trials, so it must take on a
-value between 0 and `N` (inclusive); that is represented with the
-constraint `lower=0, upper=N.` Finally, the variable `theta` is real
-and declared to fall in the interval $[0, 1]$ with the constraint
-`lower=0, upper=1.` Technically, our bounds are open for real values,
-but in practice, we might wind up with 0 or 1 values due to underflow
-or rounding errors in floating point arithmetic.
+A type may also have constraints.  Because `N` is a count, it must be
+greater than or equal to zero, which we indicate with the bound
+`lower=0.` Similarly, the variable `y` is the number of successes out
+of `N` trials, so it must take on a value between 0 and `N`
+(inclusive); that is represented with the constraint `lower=0,
+upper=N.` Finally, the variable `theta` is real and declared to fall
+in the interval $[0, 1]$ with the constraint `lower=0, upper=1.`
+Technically, our bounds are open for real values, but in practice, we
+might wind up with 0 or 1 values due to underflow or rounding errors
+in floating point arithmetic.
 
 At run time, the compiled Stan program must be given values for `N`
 and `theta`, at which point, each iteration it will sample a value of
@@ -3869,8 +3895,8 @@ non-trivial $\sigma$-algebra has a binary sample space $\Omega = \{ 0,
 \}, \{ 0, 1 \} \right\}$.
 
 *Example 2*: A second simple example can be defined over the real
-numbers $\mathbb{R}$ as the smallest set including all of the
-open intervals $(a, b) \subset \mathbb{R}$ and closed under
+interval $(0, 1)$ as the smallest set including all of the
+open intervals $(a, b) \subset (0, 1)$ and closed under
 complements and countable unions.  A $\sigma$-algebra
 defined by closing open sets this way is called a *Borel algebra*.
 
@@ -3898,6 +3924,63 @@ An element $A \in \mathcal{S}$ is said to be a *measurable set*.  The
 sample space $\Omega$ with a measure $\Pr$ over the $\sigma$-algebra
 $\mathcal{S}$ together make up a *probability space* $(\Omega,
 \mathcal{S}, \Pr)$.
+
+*Example 1, cont.* Continuing Example 1 from above, we can define a
+measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
+\}$ and measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1 \},
+\{ 0, 1 \} \right\}$.  This involves assigning probabilities to all of the
+events.  By construction, we know that
+$$
+\Pr[\{ \}] = 0 \qquad \Pr[\{ 0, 1 \}] = 1.
+$$
+By the countable additive property of measures, and the fact that
+events $\{ 0 \}$ and $\{ 1 \}$ are disjoint, it follows that
+$$
+\Pr[\{ 0 \}] + \Pr[\{ 1 \}] = \Pr[\{ 0 \} \cup \{ 1 \}] = 1,
+$$
+and therefore
+$$
+\Pr[\{ 0 \}] = 1 - \Pr[\{ 1 \}].
+$$
+If we think of the sample space as representing
+a boolean outcome of a football match (1 for the home team winning, 0
+for the visiting team winning), then $\Pr[\{ 1 \}]$ is the probability
+that the home team wins and $\Pr[\{ 0 \}]$ is the probability that the
+visiting team wins.
+
+*Example 2, cont.* Continuing example 2 from above, we can define a
+measure over intervals $(a, b) \subseteq (0, 1)$ by
+$$
+\Pr[(a, b)] = b - a.
+$$
+This measure can then be extended to unions of non-intersecting
+intervals by countable additivity and to complements by noting that it follows from countable additivity that
+$$
+\Pr[A^{\complement}] = 1 - \Pr[A].
+$$
+If $a = b$, we have a singleton event $(a, a) = \{ a \}$ with $\Pr[(a,
+a)] = 0$.  That is, points do not have non-zero probability mass in continuous
+measures. 
+
+*Example 3, cont.* Suppose we have a product $\sigma$-algebra $(0, 1)
+\times (0, 1)$, i.e., a unit square.  We can define a basis for our
+measure in terms of open discs in $(0, 1)^2$ as
+$$
+\textrm{D}([x \quad y], r) = \left\{
+[x' \quad y'] : \bigg|\bigg| \, [x' \quad y'] - [x \quad y]\, \bigg|\bigg| < r
+\right\},
+$$
+where $||v|| = \sqrt{v^{\top} \cdot v}$ is the 2-norm.  We define a
+measure $\Pr$ by assigning discs probability equal to their area,
+$$
+\Pr[\textrm{D}([x \quad y], r)] = \pi \cdot r^2,
+$$
+assuming the disc falls entirely within the unit square( i.e., $x - r,
+x+r, y - r, y + r \in (0, 1)$.  Probabilities for other
+events are defined using the rules for complements and finite unions.
+This construction works with the volumes of balls in three dimensions
+and the hypervolumes of hyperballs in higher dimensions.
+
 
 ## A.2 Joint and conditional probability {.unnumbered}
 
@@ -3978,17 +4061,40 @@ Conditional mutual independence is defined the same way.
 A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$
 where for every $x \in \mathbb{R}$, the set $\{ \omega : X(\omega)
 \leq x \}$ is measurable (i.e., in the $\sigma$-algebra of the
-underlying probability space).
+underlying probability space).  As a deterministic function, a random
+variable is neither a variable nor in and of itself random.
 
-That is, a random variable is the kind of object that produces a real
-value for every possible way the world can be (i.e., for every $\omega
-\in \Omega$).  Random variables act like regular variables in that
-arithmetic operations can be extended to them.  For example, $(X +
-Y):\Omega \rightarrow \mathbb{R}$ is a random variable whose value in
-a state $\omega \in \Omega$ is given by
+A random variable gets its randomness from the underlying probability
+space over which it operates.  Specifically, a random variable is the
+kind of object that produces a real value for every possible way the
+world can be (i.e., for every $\omega \in \Omega$).
+
+Regular functions can be naturally extended to operate on random
+variables by applying them elementwise.  For example, $(X + Y):\Omega
+\rightarrow \mathbb{R}$ is a random variable whose value in a state
+$\omega \in \Omega$ is given by
 $$
 (X + Y)(\omega) = X(\omega) + Y(\omega).
 $$
+
+*Example 1, cont.* Recall the measure over $\Omega = \{ 0, 1 \}$ with
+$\Pr[\{ 1 \}] = p$ and $\Pr[\{ 0 \}] = 1 - p$.  Let's fix $p = 0.3$
+for concreteness.  We can define a random
+variable $X:\Omega \rightarrow \mathbb{R}$ by $X(0) = -2$ and $X(1) =
+10$.  This random variable represents the payoff of a 2 dollar bet
+placed on a successful outcome of $X$ at 5:1 odds.  Although the
+random variable $X$ is just a deterministic function, its possible
+values are assigned probabilities by the measure, specifically,
+$\Pr[X = -2] = 0.3$ abd $\Pr[X = 10] = 0.7$.
+
+*Example 2, cont.* Recal the measure over $\Omega = (0, 1)$ that takes
+the probability of a subinterval to be equal to its length.  We can
+define a random variable $X:\Omega \rightarrow \mathbb{R}$ by setting
+$X(\omega) = \log \omega$.  We can also define a random variable $Y$
+over the same measure by setting $Y(\omega) = 0$ if $\omega < 0.2$ and
+$Y(\omega) = 1$ otherwise.  The variable $X$ has uncountably many
+possible values, whereas the value $Y$ only has finitely many possible
+values. 
 
 ### Cumulative distribution function {.unnumbered}
 
