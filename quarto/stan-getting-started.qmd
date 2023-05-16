@@ -132,12 +132,14 @@ DRAFT = True
 ## Acknowledgements {.unnumbered}
 
 I'd like to thank Mitzi Morris, Barry Smith, and Brian Ward for
-helpful feedback on earlier drafts. Thanks to ChatGPT 4.0 (May 3, 2023
-version) for extensive help on plotting and data frame construction.
-I'd also like to thank the entire Stan Development Team and all of our
-users.  Stan is an open project and a large team effort and we're
-always happy to help onboard new developers, and we wouldn't be doing
-it without users.
+helpful feedback on earlier drafts. Thanks to [ChatGPT Plus
+4.0](https://en.wikipedia.org/wiki/GPT-4) (May 5 and May 12, 2023
+versions) for extensive help on plotting and data frame construction
+and rewriting some passages I couldn't seem to write clearly. I'd also
+like to thank the entire Stan Development Team and all of our users.
+Stan is an open project and a large team effort and we're always happy
+to help onboard new developers, and we wouldn't be doing it without
+users.
 
 
 
@@ -3835,11 +3837,17 @@ The paper that kicked off the Stan project's focus on workflow is
 
 # A Probability theory {.unnumbered}
 
+This brief overview of the main definitions of probability theory was
+greatly influenced by @anderson1979, Appendix A, "Brief Review of
+Results of Probability Theory."
+
 ## A.1 Probability spaces {.unnumbered}
 
-A _sample space_ is a set $\Omega$, the members of which represent
-possible ways the world might be (i.e., what are sometimes known as
-"possible worlds").
+### Sample spaces and $\sigma$-algebras
+
+A _sample space_ is a non-empty set $\Omega$, the members of which
+represent possible ways the world might be (i.e., what are sometimes
+known as "possible worlds").
 
 A _$\sigma$-algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
 $\mathcal{S} \subseteq \textrm{pow}(\Omega)$, that satisfy three
@@ -3851,15 +3859,27 @@ properties,
 * *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
 then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
 
-*Example 1*: The power set of any set forms a $\sigma$-algebra set
-because it contains the empty set and is closed under complements and
-arbitrary unions.
+*Example 1*: The power set of any non-empty set forms a complete
+atomic boolean algebra under union, intersection, and complementation,
+and is hence a $\sigma$-algebra. The simplest $\sigma$-algebra has a
+singleton sample space $\Omega = \{ 0 \}$, with measurable events
+$\mathcal{S} = \left\{ \{\}, \{ 0 \} \right\}$. The simplest
+non-trivial $\sigma$-algebra has a binary sample space $\Omega = \{ 0,
+1 \}$, with measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1
+\}, \{ 0, 1 \} \right\}$.
 
 *Example 2*: A second simple example can be defined over the real
-numbers $\mathbb{R}$ by taking the minimu set including all of the
+numbers $\mathbb{R}$ as the smallest set including all of the
 open intervals $(a, b) \subset \mathbb{R}$ and closed under
-complements and countable unions.  The resulting $\sigma$-algebra
-defined from closing open sets this way is called a *Borel algebra*.
+complements and countable unions.  A $\sigma$-algebra
+defined by closing open sets this way is called a *Borel algebra*.
+
+*Example 3*: If $\Omega_1, \mathcal{S}_1$ and $\Omega_2,
+\mathcal{S}_2$ are $\sigma$-algebras, then so is the product algebra
+$\Omega_1 \times \Omega_2, \left\{ A_1 \times A_2 : A_1 \in \mathcal{S}_1 \
+\textrm{and} \ A_2 \in \mathcal{S}_2 \right\}$.
+
+### Measures and probability spaces
 
 A _measure_ over $\mathcal{S}$ is a function $\Pr: \mathcal{S}
 \rightarrow [0, 1]$ such that for all $A, B_n \in \mathcal{S},$
@@ -3879,9 +3899,86 @@ sample space $\Omega$ with a measure $\Pr$ over the $\sigma$-algebra
 $\mathcal{S}$ together make up a *probability space* $(\Omega,
 \mathcal{S}, \Pr)$.
 
-## A.2 Random variables, cdfs, pdfs, and pmfs {.unnumbered}
+## A.2 Joint and conditional probability {.unnumbered}
 
-A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$.
+### Joint probability
+
+If $A$ and $B$ are events, we define the *joint probability* of $A$
+and $B$, written $\Pr[A, B]$, by
+$$
+\Pr[A, B] = \Pr[A \cap B].
+$$
+This notation extends to any number of events, with $\Pr[A, B, C] =
+\Pr[A \cap B \cap C]$ and so on.
+
+### Conditional probability
+
+If $\Pr[B] \neq 0$, we define the *conditional probability* of $A$ given
+$B$ by
+$$
+\Pr[A \mid B] = \frac{\Pr[A, B]}{\Pr[B]}.
+$$
+
+### Bayes's rule
+
+If $\Pr[B] \neq 0$ and events $A_0, A_2, \cdots$ partition the sample
+space (i.e., they are mutually disjoint and $\bigcup_{n \in \mathbb{N}}
+A_n = \Omega$), then
+\begin{align}
+\Pr[A \mid B]
+&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
+        {\Pr[B]}
+\\[4pt]
+&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
+        {\sum_{n \in \mathbb{N}} \Pr[B, A_n]}
+\\[4pt]
+&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
+        {\sum_{n \in \mathbb{N}} \Pr[B \mid A_n] \cdot \Pr[A_n]}
+\end{align}
+
+
+## A.3 Independent events {.unnumbered}
+
+There are several notions of independence in statistics, which are
+summarized below.
+
+### Independence
+
+A pair of events $A$ and $B$ are said to be *independent* if
+$$
+\Pr[A, B] = \Pr[A] \cdot \Pr[B].
+$$
+
+### Conditional independence
+
+A pair of events $A$ and $B$ are said to be *conditionally
+independent* given an event $C$ if
+$$
+\Pr[A, B \mid C] = \Pr[A \mid C] \cdot \Pr[B \mid C].
+$$
+
+
+
+### Mutual indepdedence
+
+A sequence of events $A_0, A_1, \ldots, A_N$ is said to be *mutually
+independent* if $N = 1$, or if 
+* $\Pr\!\left[\bigcap_{n = 1}^N A_n\right] = \prod_{n=1}^N \Pr[A_n],$ and
+* every proper subsequence $A_m, A_{m+1}, \ldots, A_{M}$ is mutually
+independent,
+where a proper subsequence is one in which $m \neq 0$ or $M \neq N$.
+
+Conditional mutual independence is defined the same way.
+
+
+
+## A.4 Random variables, cdfs, pdfs, and pmfs {.unnumbered}
+
+A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$
+where for every $x \in \mathbb{R}$, the set $\{ \omega : X(\omega)
+\leq x \}$ is measurable (i.e., in the $\sigma$-algebra of the
+underlying probability space).
+
 That is, a random variable is the kind of object that produces a real
 value for every possible way the world can be (i.e., for every $\omega
 \in \Omega$).  Random variables act like regular variables in that
@@ -3901,7 +3998,9 @@ $$
 F_X(x) = \Pr[X \leq x],
 $$
 where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega)
-\leq x \}$.
+\leq x \}$.  The cdf of a random variable is well-defined because all
+of the relevant events $X \leq x$ must be measurable in order
+for $X$ to be a random variable.
 
 ### Probability density funtion {.unnumbered}
 
@@ -4041,7 +4140,7 @@ g12.savefig()
 ```
 
 
-## A.3 Expectation notation {.unnumbered}
+## A.5 Expectations {.unnumbered}
 
 ### Expectation
 
@@ -4074,7 +4173,7 @@ $$
 That is, we take a weighted average of the value of $Z$ with weights
 determined by the conditional density $p_{Z \mid Y}(z \mid y)$.
 
-### Expectations of functions of random variables
+### Expectation of functions of random variables
 
 Suppose we have a random variable $Z$ and a real-valued function
 $f:\textrm{supp}(Z) \rightarrow \mathbb{R}^N$.  We can then define
@@ -4086,9 +4185,8 @@ $$
 $$
 
 
-We define the
-expectation of $f(Z)$ as
-\begin{align}
+We define the expectation of $f(Z)$ as
+$$
 \mathbb{E}[W] = \mathbb{E}[f(Z)] = \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z.
 $$
 The conditional form follows suit,
@@ -4098,8 +4196,30 @@ $$
 Either way, we just take a weighted average the value of $f(z)$ with
 weights $p_Z(z)$ or $p_{Z|Y}(z \mid y).$
 
+### Variance and standard deviation
 
-## A.4 Quantiles, medians, and uncertainty intervals {.unnumbered}
+The _variance_ of a random variable is the expectation of its squared
+difference from the expectation,
+$$
+\textrm{var}[X]
+= \mathbb{E}\!\left[
+\left( X - \mathbb{E}[X] \right)^2
+\right].
+$$
+The _standard deviation_ is the square root of the variance,
+$$
+\textrm{sd}[X] = \sqrt{\textrm{var}[X]}.
+$$
+
+The units of the standard deviation are identical to those of the
+random variable $X$. In contrast, the units of the variance are the
+square of the units of $X$. For example, if $X$ represents a
+distance measured in meters, then the standard deviation
+$\textrm{sd}[X]$ is also expressed in meters. On the other hand, the
+variance $\textrm{var}[X]$ is expressed in square meters.
+
+
+## A.5 Quantiles, medians, and uncertainty intervals {.unnumbered}
 
 Suppose $Z$ is a univariate random variable (e.g., one of the
 parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
@@ -4215,7 +4335,7 @@ distribution $p(y \mid \theta)$ in order to make and compare
 probabilistic predictions.
 
 
-## B.4 Bayesian inference {.unnumbered}
+## B.2 Bayesian inference {.unnumbered}
 
 Bayesian inference is largely about estimating quantities of interest
 based on a probability model and observed data.  In typical applied
@@ -4231,7 +4351,7 @@ particular, posterior intervals (sometimes called "credible
 intervals").
 
 
-## Parameter estimation {.unnumbered}
+### Parameter estimation {.unnumbered}
 
 The first quantity of interest is the value of parameters.  The
 standard Bayesian parameter estimate is the posterior mean, or
@@ -4269,7 +4389,7 @@ It's clear from the final form that the estimate $\widehat{\theta}$ is determine
 by averaging over posterior uncertainty. 
 
 
-## Event probabilities {.unnumbered}
+### Event probabilities {.unnumbered}
 
 An _event_ in statistics is a subset of the parameter space, $A
 \subseteq \Theta$, where $\Theta$ is the set of all valid parameter
@@ -4294,7 +4414,7 @@ we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
 is a value.
 
 
-## Posterior predictive inference {.unnumbered}
+### Posterior predictive inference {.unnumbered}
 
 Often we are interested in predicting new data $\tilde{y}$ given the
 observation of existing data $y$.  This is a form of _posterior
@@ -4313,7 +4433,7 @@ p(\tilde{y} \mid y)
 
 
 
-## C. Markov chain Monte Carlo {.unnumbered}
+# C. Markov chain Monte Carlo {.unnumbered}
 
 Stan performs asymptotically exact, full Bayesian inference using
 Markov chain Monte Carlo (MCMC).  MCMC starts from an initial value
@@ -4418,7 +4538,7 @@ $$
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
 $$
 
-# C. Installed packages {.unnumbered}
+# D. Installed packages {.unnumbered}
 
 The system and operationg system are as follows.
 ```{python}
