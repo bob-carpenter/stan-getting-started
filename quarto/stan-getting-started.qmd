@@ -3921,8 +3921,9 @@ $$
 
 ### Bayes's rule
 
-If $\Pr[B] \neq 0$ and events $A_0, A_2, \cdots$ partition the sample
-space (i.e., they are mutually disjoint and $\bigcup_{n \in \mathbb{N}}
+If $\Pr[B] \neq 0$ and events $A_0, A_1, A_2, \cdots$ partition the sample
+space (i.e., a mutually disjoint sequence of events that are
+pairwise disjoint and $\bigcup_{n \in \mathbb{N}}
 A_n = \Omega$), then
 \begin{align}
 \Pr[A \mid B]
@@ -3933,7 +3934,7 @@ A_n = \Omega$), then
         {\sum_{n \in \mathbb{N}} \Pr[B, A_n]}
 \\[4pt]
 &= \frac{\Pr[B \mid A] \cdot \Pr[A]}
-        {\sum_{n \in \mathbb{N}} \Pr[B \mid A_n] \cdot \Pr[A_n]}
+        {\sum_{n \in \mathbb{N}} \Pr[B \mid A_n] \cdot \Pr[A_n]}.
 \end{align}
 
 
