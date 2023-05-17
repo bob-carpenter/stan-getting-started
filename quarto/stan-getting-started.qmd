@@ -23,6 +23,7 @@ format:
     cap-location: bottom
     format-links: false
     embed-resources: true
+    anchor-sections: true
   pdf:
     include-in-header:
       - file: header.tex
@@ -47,26 +48,34 @@ bibliography: references.bib
 
 ## Prerequisites {.unnumbered}
 
-I will assume the reader is familiar with the basic notions of
+We will assume the reader will be able to follow text that includes
+basic notions from
 
 * differential and integral calculus in multiple dimensions,
-* matrix operations, including vector addition and matrix multiplication,
+* matrix arithmetic (but not linear algebra),
 * probability theory, including probability density and mass
 functions, cumulative distribution functions, expectations, events,
 and the basic rules of probability theory, and
 * Python numerical programming with NumPy.
 
-By basics, I really do mean basics.  You won't need to do any
+By basics, we really do mean basics. You won't need to do any
 calculus, we will just use it to express what Stan computes.
 Similarly, we will use matrix notation to express models, and we will
 avoid advanced topics in linear algebra that are at the heart of some
-of Stan's internals.  I include an appendix that goes over the basics of
-Bayesian statistics from first principles using only basic mathematics
-(i.e., no measure theory). 
+of Stan's internals.
+
+We include two appendices as both background and summary, with
+rigorous definitions of the mathematics used in this introduction.
+Those who are more mathematically inclined and want to brush up on
+probability theory and Bayesian statistics, may wish to start with the
+appendices.
+
+* Appendix A: [Probability theory](#a.-probability-theory)
+* Appendix B: [Bayesian statistics](#b.-bayesian-statistics)
 
 ## Source code and license {.unnumbered}
 
-All of the source markdown, yaml, LaTeX, and BibTeX files are
+All of the source markdown, YAML, LaTeX, and BibTeX files are
 available in
 
 * Source Repository: [github.com/bob-carpenter/stan-getting-started](https://github.com/bob-carpenter/stan-getting-started)
@@ -105,6 +114,7 @@ packages we will use throughout this tutorial.
 ```{python}
 # PROJECT SETUP
 # set DRAFT = False for final output; DRAFT = True is faster
+DRAFT = False
 
 import itertools
 import logging
@@ -124,7 +134,7 @@ def mydraw(x):
     """draw plot in the quarto doc"""
     x.draw()
 
-DRAFT = True
+
 ```
 
 
@@ -279,8 +289,8 @@ that probabilities are understood as long-run frequencies of
 repeatable processes. This prohibits placing probability distributions
 over parameters, because there is no long-term repeatable process in
 the world generating new parameters. For example, the gravitational
-constant has a single value and is not the value of a potentailly
-repeatable trial like a coin flip (other than in a philosphical,
+constant has a single value and is not the value of a potentially
+repeatable trial like a coin flip (other than in a philosophical,
 possible worlds sense).
 
 In our pragmatic approach to Bayesian statistics, we treat probability
@@ -313,7 +323,7 @@ nothing would be uncertain and the future just like the past would be
 present before its eyes.
 
 John Stuart @mill1882 is more explicit in laying out the epistemic
-view of probbility as follows.
+view of probability as follows.
 
 > We must remember that the probability of an event is not a quality
 of the event itself, but a mere name for the degree of ground which
@@ -443,18 +453,53 @@ sample = model.sample(data = data, seed = 123, chains = 1,
                       show_progress = False, show_console = False)
 ```
 
-For the `sample()` method of the `CmdStanModel` object, we provide the
-data, the pseudorandom number generator seed for reproducibility of
-this case study (which we explain below), the number of sampling
-iterations (10), the number of warmup iterations (0, because we are
-just generating which doesn't need any warmup), the number of Markov
-chains (1), and we turn off all the messages. Our initial setup set
-the logger level to `WARNING` for the `cmdstanpy` package in order to
-get rid of the information-level messages that would otherwise provide
-updates on a running Stan program.
+The [Python boilerplate](#python-boilerplate) above set the log level
+to `WARNING` for the `cmdstanpy` package in order to get rid of the
+information-level messages that would otherwise provide updates on a
+running Stan program. Changing the log level to `INFO` provides more
+information as a Stan program runs, and level `DEBUG` provides even
+more.
 
-The `sample` method returns a sample consisting of the specified
-number of random draws (10 here). We can extract the draws for the
+The constructor for `CmdStanModel` is used to construct a model from a
+Stan program found in the specified file. We highly recommend using a
+standalone file for Stan programs to make them easy to share, to allow
+both quotes for printing and apostrophes for transposition, and to
+make it easy to find the lines referenced by number in error messages.
+Under the hood, this first runs Stan's transpiler to convert the Stan
+program to a C++ class. Then it compiles the C++ program, which will
+take on the order of twenty seconds due to the heavy use of
+optimization and template metaprograms.
+
+For the `sample()` method of the `CmdStanModel` object `model`, we
+provide arguments
+
+* `data`: the data read in the data block of the Stan program,
+* `seed`: pseudorandom number generator for reproducibility,
+* `chains`: the number of simulation runs (`parallel_chains`
+indicates how many to run in parallel),
+* `iter_sampling`: number of draws (i.e., sample size) to return,
+* `iter_warmup`: number of warmup iterations to tune parameters of the
+sampling algorithm (not needed here, so set to 0),
+* `show_progress`: if `True`, print progress updates, and
+* `show_console`: pop up a GUI progress monitor.
+
+The `sample()` of the compiled model class returns a sample consisting
+of the specified number of random draws (10 here). The way this works
+here is that when `sample()` is called, CmdStan runs Stan as a
+standalone C++ program in a background process. This program starts by
+copying he data to a file, then reading the data file in to construct
+a C++ object representing the model. Then for this program, with only
+a generated quantities block, for each draw (the number of which is
+specified by `iter_sampling`) Stan runs a pseudorandom number
+generator to generate a draw from the specified binomial distribution.
+Random number generation is done with respect to the `seed` value
+specified in the call. For more details on how pseudorandom number
+generation is performed; see the (free online) book by @devroye1986
+for more information. We describe the operational semantics of Stan in
+more detail in the section on [Stan's execution
+model](l#stans-execution-model) below.
+
+Once sampling has executed, we can extract the sample for the scalar
 variable `y` as an array and then print them along with our other
 variables.
 
@@ -463,8 +508,8 @@ y = sample.stan_variable('y')
 print("N = ", N, ";  theta = ", theta, ";  y(0:10) =", *y.astype(int))
 ```
 
-Let's put that in a loop and see what it looks like for 10, 100, 1000,
-and 10,000 trials.
+Let's put that in a loop and see what it looks like for for `N` equal to
+10, 100, 1000, and 10,000.
 
 ```{python}
 for N in [10, 100, 1_000, 10_000]:
@@ -487,9 +532,10 @@ expected to shrink at a rate of $\mathcal{O}(1 / \sqrt{N})$ for $N$
 draws (this result is only asymptotic in $N$, but is very close for
 large-ish $N$ in practice).
 
-It is hard to scan these results. Let's take 10,000 trials each time
-and plot histograms. The following histogram plots the distribution of
-estimates based on 10, 100, and 1000 observations over 100,000 simulated trials.
+It is hard to scan these results. Let's repeat simulate 100,000 $y$
+values for each value of $N$ and plot histograms. The following
+histogram plots the distribution of estimates based on 10, 100, and
+1000 observations over 100,000 simulated trials.
 
 ```{python}
 np.random.seed(123)
@@ -500,59 +546,52 @@ M = 100 if DRAFT else 100_000
 for N in [10, 100, 1_000]:
     data = {'N': N, 'theta': theta}
     sample = model.sample(data = data, seed = 123, chains = 1,
-                          iter_sampling = M, iter_warmup = 0,
-                          show_progress = False,
-			  show_console = False)
+       iter_sampling = M, iter_warmup = 0, show_progress = False,
+       show_console = False)
     y = sample.stan_variable('y')
     theta_hat = y / N
     ps.extend(theta_hat)
     ts.extend(itertools.repeat(N, M))
 xlabel = 'estimated Pr[success]'    
 df = pd.DataFrame({xlabel: ps, 'trials': ts})
-mydraw(
-    pn.ggplot(df, pn.aes(x = xlabel))
+mydraw(pn.ggplot(df, pn.aes(x = xlabel))
   + pn.geom_histogram(binwidth=0.01)
   + pn.facet_grid('. ~ trials')
-  + pn.scales.scale_x_continuous(limits = [0, 1],
-                         breaks = [0, 1/4, 1/2, 3/4, 1],
-                         labels = ["0", "1/4", "1/2", "3/4", "1"],
-                         expand=[0, 0])
+  + pn.scales.scale_x_continuous(limits = [0, 1], breaks = [0, 1/4, 1/2, 3/4, 1],
+      labels = ["0", "1/4", "1/2", "3/4", "1"], expand=[0, 0])
   + pn.scales.scale_y_continuous(expand=[0, 0, 0.05, 0])
-  + pn.theme(aspect_ratio = 1,
-             panel_spacing = 0.1,
+  + pn.theme(aspect_ratio = 1, panel_spacing = 0.15,
              strip_text = pn.element_text(size = 6),
              strip_background = pn.element_rect(height=0.08,
-	                            fill = "lightgray"),
-             axis_text_y = pn.element_blank(),
-             axis_ticks_major_y = pn.element_blank(),
-             axis_ticks_minor_y = pn.element_blank(),
-             axis_title_y = pn.element_blank(),
-             axis_text_x = pn.element_text(size = 6),
-             axis_title_x = pn.element_text(size = 8))
-)            
+	                            fill = "lightgray")))
 ```
 
-The trial size of 10 only has 10 possible values, 0.0, 0.1, ..., 1.0,
-so the histogram (technically a bar chart here) just shows the counts
-of those outcomes. Here, $y = 3$ is the most prevalent result, with
+Although the histograms have different heights and the first one is
+spiky, the key consideration here is that they all have the same
+area, representing the 100,000 simulated values of $y$. The trial size
+of 10 only has 10 possible values, 0.0, 0.1, ..., 1.0, so the
+histogram (technically a bar chart here) just shows the counts of
+those outcomes. Here, $y = 3$ is the most prevalent result, with
 corresponding estimate for $\theta$ of $y / 10 = 0.3$. The trial size
 of 100 looks roughly normal, as it should as a binomial with trials $N
-= 100$. By the time we get to $N = 1,000$ trials, the
-draws for $y$ concentrate near 300, or near the value of
-$0.3$ for $\theta$. As $N$ grows, the central limit theorem tells us
-to expect that the width of these histograms to shrink at a rate of
-$\mathcal{O}(1 / \sqrt{N})$.
+= 100$. By the time we get to $N = 1,000$ trials, the draws for $y$
+concentrate near 300, or near the value of $0.3$ for $\theta$. As $N$
+grows, the central limit theorem tells us to expect that the width of
+these histograms to shrink at a rate of $\mathcal{O}(1 / \sqrt{N})$.
 
 ## Pseudorandom numbers {#prng-seed}
 
 As a probabilistic programming language, Stan relies on random number
 generation. Because Stan runs on traditional digital computers (i.e.,
 von Neumann machines), it cannot truly generate random numbers.
-Instead, it does the next best thing and generates a sequence
-of *pseudorandom numbers*. Specifically, we set a random number
-generation *seed*, which when combined with a pseudorandom number
-generator, generates a sequence of numbers deterministically that have
-many of the properties of truly random numbers.
+Instead, it does the next best thing and uses a *pseudorandom number
+generator* (PRNG) to generate a sequence of numbers deterministically.
+Specifically, we set a random number generation *seed*, which when
+combined with a PRNG, generates a sequence of numbers
+deterministically that have many of the properties of truly random
+numbers. The (free online) book by @devroye1986 is the definitive
+reference for pseudorandom number generation for statistical
+distributions and contains a general introduction to PRNGs.
 
 We can see how random number generators work in Stan by running our
 sampling method with seeds 123, 19876, and 123.  
@@ -572,142 +611,6 @@ Generally, we want our Stan programs to *replicate* similar results
 with different random seeds. Substantially different results from
 different seeds is a red flag that there is something wrong with the
 combination of model and data.
-
-
-## Monte Carlo and Markov chain Monte Carlo methods
-
-In the previous section, we generated a sample of draws by taking each
-value to be an independent coin flip.  The estimates for the true
-probability of heads based on the sample frequency of positive outcomes
-concentrated around the true value as the number of draws increased.
-
-For our applied Bayesian modeling problems, it is not feasible to
-generate independent draws from the posterior distribution.  Instead,
-we base each draw on the previous draw.  A sequence of random
-variables each of which depends only on the previous variable generated is 
-called a *Markov chain*.  That is, a sequence of random variables
-$Y_1, Y_2, \ldots$ makes up a Markov chain if
-$$
-p_{Y_{n+1} | Y_{1}, \ldots Y_N}(y_{n + 1} | y_1, \ldots, y_n)
-=
-p_{Y_{n+1} \mid Y_n}(y_{n+1} \mid y_n)
-$$
-
-We can illustrate with a simple example of three Markov chains, all of
-which have a stationary distribution of
-$\textrm{bernoulli}(0.5)$ and thus the long-term average of all chains
-should approach 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
-take the probabilities of element $Y_{n+1}$ depending on the previous
-element $Y_{n}$ to be
-\begin{align}
-\Pr[Y_{n + 1} &= 1 \mid Y_n = 1] = \theta
-\\
-\Pr[Y_{n + 1} &= 1 \mid Y_n = 0] = 1 - \theta
-\end{align}
-The first line says that if the last number we generated is 1, the
-probability of the next element being 1 is $\theta$.  The second line
-says that if the last number we generated is 0, the probability of the
-next element being 1 is $1 - \theta$, and thus the probability of the
-next element being 0 is $\theta$.  That is, there's a probability of
-$\theta$ of generating the same element as the last element.
-
-Here is a Stan program that generates the first $M$ entries of
-a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
-the same output again.
-
-```{.stan filename="stan/markov-autocorelation.stan"}
-data {
-  int<lower=0> M;
-  real<lower=0, upper=1> rho;  // prob of staying in same state
-}
-generated quantities {
-  array[M] int<lower=0, upper=1> y;  // Markov chain
-  y[1] = bernoulli_rng(0.5);
-  for (m in 2:M) {
-    y[m] = bernoulli_rng(y[m - 1] ? rho : 1 - rho);
-  }    
-}
-```
-The assignment to `y[m]` in this program is equivalent to this longer
-form.
-```stan
-    if (y[m - 1] == 1) {
-      y[m] = bernoulli_rng(rho);
-    } else {
-      y[m] = bernoulli_rng(1 - rho);
-    }
-```
-
-The more concise form exploits two features of Stan.  First, boolean
-expressions are coded as `1` (true) or `0` (false) in Stan, like in
-C++ and Python.  Because `y[m - 1]` is constrained to take on values 0
-or 1, we know that `y[m - 1] == 1` is equivalent to `y[m - 1]`.
-Second, it uses the _ternary operator_, also like in C++.  The
-expression `cond ? e1 : e2` involves three arguments, separated by a
-question mark (`?`) and a colon (`:`); it's value is the value of `e1`
-if `cond` is true and the value of `e2` otherwise.  Unlike an ordinary
-function, the ternary operator only evaluates `e1` if the condition is
-true and only evaluates `e2` if the condition is false.
-
-We can fit the model in Python as we did before and print the first
-100 values simulated for the Markov chain $y$.
-
-```{python}
-model = csp.CmdStanModel(
-               stan_file = '../stan/markov-autocorrelation.stan')
-M = 100 if DRAFT else 1000
-rhos = []
-iterations = []
-draws = []
-estimates = []
-for rho in [0.05, 0.5, 0.95]:
-    data = {'M': M, 'rho': rho}
-    sample = model.sample(data = data, seed = 123, chains = 1,
-                      iter_warmup = 0, iter_sampling = 1,
-                      show_progress = False, show_console = False)
-    y_sim = sample.stan_variable('y')
-    cum_sum = np.cumsum(y_sim)
-    its = np.arange(1, M + 1)
-    ests = cum_sum / its
-    draws.extend(y_sim[0])
-    iterations.extend(its)
-    estimates.extend(ests)
-    rhos.extend(itertools.repeat(str(rho), M))
-df = pd.DataFrame({'draw': draws, 'iteration': iterations,
-                   'estimate': estimates, 'rho': rhos})
-rho05 = np.array(df.query('rho == "0.05"').head(100)['draw'], dtype = 'int')
-rho50 = np.array(df.query('rho == "0.5"').head(100)['draw'], dtype = 'int')
-rho95 = np.array(df.query('rho == "0.95"').head(100)['draw'], dtype = 'int')
-print("Markov chain draw with probability rho of repeating last value:\n")
-print("rho = 0.05:", rho05, "\n")
-print("rho = 0.50:", rho50, "\n")
-print("rho = 0.95:", rho95, "\n")
-```
-
-With a 0.05 probability of staying in the same state, the Markov chain
-exhibits strong anti-correlation in its draws, which tend to bounce
-back and forth between 0 and 1 almost every iteration.  In contrast,
-the 0.95 probability of staying in the same state means the draws have
-long sequences of 0s and 1s.  The 0.5 probability produces independent
-draws from the Markov chain and we see short runs of 0s and 1s.
-
-Next, we will show a running average of the 0 and 1 draws for 1000
-iterations for the three chains.
-```{python}
-mydraw(
-    pn.ggplot(df, pn.aes(x='iteration', y='estimate',
-                  group='rho', color='rho'))
-    + pn.geom_hline(yintercept = 0.5, color = 'black')		  
-    + pn.geom_line()
-    + pn.labs(x = "iteration", y = "estimate")
-)
-```
-The black horizontal line at 0.5 shows the true answer.  It is clear
-that the anti-correlated chain (red) converges much more quickly to
-the true answer of 0.5 and more stably than the independent chain
-(green), which in turn converges much more quickly than the correlated
-chain (blue).
-
 
 
 
@@ -822,6 +725,155 @@ imprecision in most applications; we discuss this important point later when
 contrasting estimation uncertainty and sampling uncertainty in the
 [section on posterior predictive inference](#uncertainty-types) and when considering
 practical guidance on [how long to run Stan](#practical-guidelines).
+
+
+## Markov chain Monte Carlo methods
+
+In the previous sections, we generated a sample of draws by taking a
+sequence of independent draws. We then just averaged results to get
+plug-in estimates for expectations. 
+
+In modern applied Bayesian modeling, it is almost never possible to
+generate independent draws from the posterior distribution and apply
+pure Monte Carlo methods. The only case where it is possible is within
+the highly restrictive exponential family of sampling distributions
+with conjugate priors [@diaconis1979]. Before the MCMC revolution of
+the 1990s, Bayesian inference was largely restricted to conjugate
+priors. Even if the entire model wasn't purely conjugate, conjugate
+priors remained popular due to the use of Gibbs sampling for MCMC,
+either hand-built or coded in in the first probabilistic programming
+language, BUGS [@lunn2012].
+
+The introduction of automatic differentiation opened up the
+possibility of coding the more efficient and scalable Hamiltonian
+Monte Carlo method in Stan.  This has led to the adoption of more
+non-conjugate priors and general priors.  
+
+In Markov chain Monte Carlo methods, we base each draw on the previous draw.  A sequence of random
+variables each of which depends only on the previous variable generated is 
+called a *Markov chain*.  That is, a sequence of random variables
+$Y_1, Y_2, \ldots$ makes up a Markov chain if
+$$
+p_{Y_{n+1} | Y_{1}, \ldots Y_N}(y_{n + 1} | y_1, \ldots, y_n)
+=
+p_{Y_{n+1} \mid Y_n}(y_{n+1} \mid y_n)
+$$
+
+We can illustrate with a simple example of three Markov chains, all of
+which have a stationary distribution of
+$\textrm{bernoulli}(0.5)$ and thus the long-term average of all chains
+should approach 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
+take the probabilities of element $Y_{n+1}$ depending on the previous
+element $Y_{n}$ to be
+\begin{align}
+\Pr[Y_{n + 1} &= 1 \mid Y_n = 1] = \theta
+\\
+\Pr[Y_{n + 1} &= 1 \mid Y_n = 0] = 1 - \theta
+\end{align}
+The first line says that if the last number we generated is 1, the
+probability of the next element being 1 is $\theta$.  The second line
+says that if the last number we generated is 0, the probability of the
+next element being 1 is $1 - \theta$, and thus the probability of the
+next element being 0 is $\theta$.  That is, there's a probability of
+$\theta$ of generating the same element as the last element.
+
+Here is a Stan program that generates the first $M$ entries of
+a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
+the same output again.
+
+```{.stan filename="stan/markov-autocorelation.stan"}
+data {
+  int<lower=0> M;
+  real<lower=0, upper=1> rho;  // prob of staying in same state
+}
+generated quantities {
+  array[M] int<lower=0, upper=1> y;  // Markov chain
+  y[1] = bernoulli_rng(0.5);
+  for (m in 2:M) {
+    y[m] = bernoulli_rng(y[m - 1] ? rho : 1 - rho);
+  }    
+}
+```
+The assignment to `y[m]` in this program is equivalent to this longer
+form.
+```stan
+    if (y[m - 1] == 1) {
+      y[m] = bernoulli_rng(rho);
+    } else {
+      y[m] = bernoulli_rng(1 - rho);
+    }
+```
+
+The more concise form exploits two features of Stan.  First, boolean
+expressions are coded as `1` (true) or `0` (false) in Stan, like in
+C++ and Python.  Because `y[m - 1]` is constrained to take on values 0
+or 1, we know that `y[m - 1] == 1` is equivalent to `y[m - 1]`.
+Second, it uses the _ternary operator_, also like in C++.  The
+expression `cond ? e1 : e2` involves three arguments, separated by a
+question mark (`?`) and a colon (`:`); it's value is the value of `e1`
+if `cond` is true and the value of `e2` otherwise.  Unlike an ordinary
+function, the ternary operator only evaluates `e1` if the condition is
+true and only evaluates `e2` if the condition is false.
+
+We can simulate these models in Python and print the first
+100 values simulated for the Markov chain $y$.
+
+```{python}
+model = csp.CmdStanModel(
+               stan_file = '../stan/markov-autocorrelation.stan')
+M = 100 if DRAFT else 1000
+rhos = []
+iterations = []
+draws = []
+estimates = []
+for rho in [0.05, 0.5, 0.95]:
+    data = {'M': M, 'rho': rho}
+    sample = model.sample(data = data, seed = 123, chains = 1,
+                      iter_warmup = 0, iter_sampling = 1,
+                      show_progress = False, show_console = False)
+    y_sim = sample.stan_variable('y')
+    cum_sum = np.cumsum(y_sim)
+    its = np.arange(1, M + 1)
+    ests = cum_sum / its
+    draws.extend(y_sim[0])
+    iterations.extend(its)
+    estimates.extend(ests)
+    rhos.extend(itertools.repeat(str(rho), M))
+df = pd.DataFrame({'draw': draws, 'iteration': iterations,
+                   'estimate': estimates, 'rho': rhos})
+rho05 = np.array(df.query('rho == "0.05"').head(100)['draw'], dtype = 'int')
+rho50 = np.array(df.query('rho == "0.5"').head(100)['draw'], dtype = 'int')
+rho95 = np.array(df.query('rho == "0.95"').head(100)['draw'], dtype = 'int')
+print("Markov chain draw with probability rho of repeating last value:\n")
+print("rho = 0.05:", rho05, "\n")
+print("rho = 0.50:", rho50, "\n")
+print("rho = 0.95:", rho95, "\n")
+```
+
+With a 0.05 probability of staying in the same state, the Markov chain
+exhibits strong anti-correlation in its draws, which tend to bounce
+back and forth between 0 and 1 almost every iteration.  In contrast,
+the 0.95 probability of staying in the same state means the draws have
+long sequences of 0s and 1s.  The 0.5 probability produces independent
+draws from the Markov chain and we see short runs of 0s and 1s.
+
+Next, we will show a running average of the 0 and 1 draws for 1000
+iterations for the three chains.
+```{python}
+mydraw(
+    pn.ggplot(df, pn.aes(x='iteration', y='estimate',
+                  group='rho', color='rho'))
+    + pn.geom_hline(yintercept = 0.5, color = 'black')		  
+    + pn.geom_line()
+    + pn.labs(x = "iteration", y = "estimate")
+)
+```
+The black horizontal line at 0.5 shows the true answer.  It is clear
+that the anti-correlated chain (red) converges much more quickly to
+the true answer of 0.5 and more stably than the independent chain
+(green), which in turn converges much more quickly than the correlated
+chain (blue).
+
 
 
 # Hints for Python programmers
@@ -3840,23 +3892,64 @@ can during inference.  Not doing so leaves useful information on the table.
 
 # Further reading
 
+## Scientific programming in Python
+
+A good introduction to Python for data science applications is
+@vanderplas2023. The current edition is available open access
+from the [GitHub repository for the *Python Data Science
+Handbook*](https://jakevdp.github.io/PythonDataScienceHandbook/).
+
+For intermediate Python programming, a standard
+reference is @ramalho2022.  The current edition is
+available from the [GitHub repository for *Fluent
+Python*](https://github.com/fluentpython/book-site). 
+
+
+## Random number generation
+
+The standard reference for pseudorandom number generation is still the
+book by @devroye1986.  It starts from scratch with an overview of
+uniform pseudorandom number generation and proceeds through advanced
+multivariate techniques.  The author has provided a free online pdf on the
+[home page of *Non-Uniform Random Variate Generation*](http://www.nrbook.com/devroye/).
+
 ## Bayesian statistics
 
-For reading on Bayesian statistics, I would highly recommend the
-two-book sequence of @mcelreath2023, followed by @gelman2013bayesian;
-the latter is [available as a free pdf from the
-authors](http://www.stat.columbia.edu/~gelman/book/).
+For an introduction to Bayesian statistics, I would highly recommend
+starting with the book by @mcelreath2023. The second edition is
+available as a free online pdf from the [GitHub repository
+for *Statistical
+Rethinking*](https://github.com/Booleans/statistical-rethinking/blob/master/Statistical%20Rethinking%202nd%20Edition.pdf).
+
+For more advanced Bayesian statistics and more on computation, the
+third edition of the classic by @gelman2013bayesian. The third edition
+is available as a free pdf from the [home page for *Bayesian Data
+Analysis 3*](http://www.stat.columbia.edu/~gelman/book/).
+
+## Markov chain Monte Carlo
+
+A good single-source for learning about MCMC methods is the handbook
+edited by @brooks2011. The key chapters on basic MCMC theory,
+convergence monitoring, and Hamiltonian Monte Carlo are available for
+free from the [sample chapters page of the *Handbook of Markov Chain
+Monte
+Carlo*](https://www.mcmchandbook.net/HandbookSampleChapters.html).
+
+We can also recommend the paper by @roberts2004 as a solid
+mathematical foundation for MCMC that is about the same mathematical
+level as the appendices of this introduction.
 
 ## Stan
 
-The reference Stan paper is @carpenter2015, but there is no point in
-reading that paper if you have read this.  It's better to skip
-directly to the *Stan User's Guide* (@stan2023users), which contains much more
-information on modeling in Stan than this introduction.  For full
-details on Stan's programming language and execution, see the
-*Stan Reference Manual* (@stan2023); for information on the library of
+The reference Stan paper is by our original development team
+[@carpenter2015], but there is no point in reading that paper if you
+have read this. It's better to skip directly to the *Stan User's
+Guide* [@stan2023users], which contains much more information on
+modeling in Stan than this introduction. For full details on Stan's
+programming language and execution, see the
+*Stan Reference Manual* [@stan2023]; for information on the library of
 special mathematical and statistical functions, see the *Stan
-Functions Reference* (@stan2023funs).
+Functions Reference* [@stan2023funs].
 
 There is also a wealth of information available in the form of [Stan
 case studies](https://mc-stan.org/users/documentation/case-studies)
@@ -3868,9 +3961,11 @@ are distributed in the form of reproducible notebooks.
 
 The paper that kicked off the Stan project's focus on workflow is
 @gabry2019; the current state of our thinking is @gelman2020workflow.
+Many of the Stan developers are working on turning the paper into a
+book; the current state is available from the public [GitHub
+repository for *Bayesian Workflow*](https://github.com/jgabry/bayes-workflow-book).
 
-
-# A Probability theory {.unnumbered}
+# A. Probability theory {.unnumbered}
 
 This brief overview of the main definitions of probability theory was
 greatly influenced by @anderson1979, Appendix A, "Brief Review of
@@ -3991,7 +4086,7 @@ $$
 $$
 Probabilities for other events are defined by countable additivity and
 complementation.  In general, an event will have a probability equal
-to its area.  Thus the entire sample space $\Omega$ has a probablity
+to its area.  Thus the entire sample space $\Omega$ has a probability
 of 1 because it is a unit square with area is 1.  This construction
 works with the volumes of balls in three dimensions and the
 hypervolumes of hyperballs in higher dimensions.
@@ -4058,7 +4153,7 @@ $$
 
 
 
-### Mutual indepdedence
+### Mutual independence
 
 A sequence of events $A_0, A_1, \ldots, A_N$ is said to be *mutually
 independent* if $N = 1$, or if 
@@ -4102,7 +4197,7 @@ random variable $X$ is just a deterministic function, its possible
 values are assigned probabilities by the measure, specifically,
 $\Pr[X = -2] = 0.3$ abd $\Pr[X = 10] = 0.7$.
 
-*Example 2, cont.* Recal the measure over $\Omega = (0, 1)$ that takes
+*Example 2, cont.* Recall the measure over $\Omega = (0, 1)$ that takes
 the probability of a subinterval to be equal to its length.  We can
 define a random variable $X:\Omega \rightarrow \mathbb{R}$ by setting
 $X(\omega) = \log \omega$.  We can also define a random variable $Y$
@@ -4123,7 +4218,7 @@ where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega)
 of the relevant events $X \leq x$ must be measurable in order
 for $X$ to be a random variable.
 
-### Probability density funtion {.unnumbered}
+### Probability density function {.unnumbered}
 
 If the cumulative distribution function $F_X$ for a random variable
 $X$ is continuous and differentiable, we define its *probability
@@ -4169,7 +4264,7 @@ mydraw(
     pn.ggplot(df, pn.aes(x='x', y='y')) +
     pn.geom_line() +
     pn.facet_wrap('~ type', scales = 'free_y') +
-    pn.labs(x='x', y='value', title='cumulative distribution function and probability desnity function of X ~ normal(0, 1)') +
+    pn.labs(x='x', y='value', title='cumulative distribution function and probability density function of X ~ normal(0, 1)') +
     pn.theme(figure_size=(10, 4),
              panel_spacing=0.5)
 )
@@ -4289,7 +4384,7 @@ and we observe that $Y = y$.  The _conditional
 expectation_ of $Z$ given $Y = y$ is
 $$
 \mathbb{E}[Z \mid Y = y]
-= \int_{Z} z \cdot p(z \mid y) \, \textrm{d}z.
+= \int_{Z} z \cdot p_{Z \mid Y}(z \mid y) \, \textrm{d}z.
 $$
 That is, we take a weighted average of the value of $Z$ with weights
 determined by the conditional density $p_{Z \mid Y}(z \mid y)$.
@@ -4300,13 +4395,20 @@ Suppose we have a random variable $Z$ and a real-valued function
 $f:\textrm{supp}(Z) \rightarrow \mathbb{R}^N$.  We can then define
 a new random variable $W = f(Z)$.  To calculate the expectation of $W$
 in terms of the density for $Z$, we use the so-called *law of the
-unconscious statistician*, which tells us
-$$
-\mathbb{E}[W] = \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z.
-$$
+unconscious statistician*, which tells us we can simplify the change
+of variables back to a direct average over $Z$,
+\begin{align}
+\mathbb{E}[W]
+&= \int_W w \cdot p_W(w) \, \textrm{d}w.
+\\[4pt]
+&= \int_W w \cdot p_Z(f^{-1}(w)) \cdot (f^{-1})'(w) \, \textrm{d}w.
+\\[4pt]
+&= \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z,
+\end{align}
+where we have written $f^{-1}$ for the inverse transfrom form $W$
+back to $Z$ and $(f^{-1})'$ for its derivative.
 
-
-We define the expectation of $f(Z)$ as
+We define the expectation of a function applied to $Z$, such as $f(Z)$, as
 $$
 \mathbb{E}[W] = \mathbb{E}[f(Z)] = \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z.
 $$
@@ -4392,11 +4494,34 @@ $\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
 # B. Bayesian statistics {.unnumbered}
 
 In this appendix, we provide a concise mathematical overview of
-Bayesian statistics.
+Bayesian statistics. Bayesian statistics is largely concerned with
+estimating quantities of interest based on a joint probability model of
+the data and parameters, given some observed data. It is also
+concerned with quantifying our uncertainty in these estimates.
+Quantities of interest are typically parameter values and deviations,
+event probability estimates, and forecasts/backcasts.
 
 ## B.1 Bayes's theorem {.unnumbered}
 
-@bayes1763 formalized his approach in the following theorem.
+@bayes1763 formalized his approach in the following theorem which was
+named after him.  The basic idea is this, if we have parameters and
+data, we can calculate the distribution of the parameters given the
+data knowing on the distribution of the data given the parameters and
+the prior.  Using names, the first step of Bayes's theorem for
+densities is 
+\begin{align}
+\underbrace{p(\textrm{params} \mid \textrm{data})}_{\textrm{posterior}}
+&=
+\underbrace{p(\textrm{data} \mid \textrm{params})}_{\textrm{sampling}}
+\cdot
+\underbrace{p(\textrm{params})}_{\textrm{prior}}
+\, / \,
+\underbrace{p(\textrm{data})}_{\textrm{evidence}}.
+\\[4pt]
+\end{align}
+In general discussions, we typically use the variable $y$ for data and
+$\theta$ for model parameters.  The second step of Bayes's theorem
+replaces the evidence by marginalizing data out of the numerator.
 
 ::: {#thm-line}
 ### Bayes's Theorem
@@ -4437,12 +4562,13 @@ $\blacksquare$
 
 Bayes's theorem allows us to solve the so-called _inverse problem_ of
 inferring the posterior $p(\theta \mid y)$ when all we have is the
-sampling distribution $p(y \mid \theta)$, the prior $p(\theta)$, and
-some observed data $y$.
+sampling distribution $p(y \mid \theta),$ the prior $p(\theta)$, and
+data $y$.
 
-In most casses, Stan programs only require densities defined up to a
-normalizing constant.   This allows us to go a step further and drop
-the denominator $p(y)$, which does not depend on $\theta$.
+In most casses, Stan programs do not require normalized log densities.
+This allows us to go a step further and drop
+the denominator $p(y)$, which does not depend on $\theta$ and write
+Bayes's rule up to a proportion as
 $$
 p(\theta \mid y)
 \ \propto \
@@ -4450,11 +4576,10 @@ p(y \mid \theta) \cdot p(\theta).
 $$
 
 This lets us proceed with only an unnormalized sampling density $p(y
-\mid \theta)$ and unnormalized prior $p(\theta)$.  For some
-applications to model comparison we will need a normalizing sampling
-distribution $p(y \mid \theta)$ in order to make and compare
-probabilistic predictions.
-
+\mid \theta)$ and unnormalized prior $p(\theta)$.  About the only time
+that a normalizing constant is required is for comparing two models
+prior predictive distributions, which is not something we would
+recommend doing.
 
 ## B.2 Bayesian inference {.unnumbered}
 
@@ -4487,7 +4612,7 @@ parameters $\theta$ is
 &= \int_{\Theta} \theta \cdot p(\theta \mid y) \, \textrm{d}\theta.
 \end{align}
 
-The posterior mean as a parameter estimate minimizes expected square
+The posterior mean is the value that minimizes expected square
 error in the estimates if the model is well specified in the sense of
 representing the true data-generating process.  Squared error is the squared
 $\textrm{L}_2$ norm of the difference between the estimate and the true
@@ -4519,20 +4644,22 @@ space.  For example, the condition $\theta > 0.5$ defines the
 event $A = \left\{ \theta \in \Theta : \theta > 0.5 \right\}$.
 
 The probability of an event conditioned on data is just another
-posterior expectation, this time of an indicator variable.
-
+posterior expectation, this time of
 \begin{align}
 \textrm{Pr}[A \mid y]
 &= \mathbb{E}[\textrm{I}[\Theta \in A] \mid y]
 \\[6pt]
-&= \int_{\Theta} \textrm{I}(\theta \in A) \cdot p(\theta \mid y) \, \textrm{d}\theta.
+&= \int_{\Theta} \textrm{I}(\theta \in A) \cdot p(\theta \mid y) \, \textrm{d}\theta,
 \end{align}
-
+where $\textrm{I}$ is a function defined over boolean values.
 The expression $\textrm{I}(\theta \in A)$ takes on value 1 if $\theta
 \in A$ and value 0 otherwise.  We write $\textrm{I}[\Theta \in A]$
 using square brackets because a random variable is a function, whereas
 we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
-is a value.
+is a value; see the Appendix [section on random
+variables](#a.4-random-variables-cdfs-pdfs-and-pmfs). 
+
+
 
 
 ### Posterior predictive inference {.unnumbered}
@@ -4557,37 +4684,41 @@ p(\tilde{y} \mid y)
 # C. Markov chain Monte Carlo {.unnumbered}
 
 Stan performs asymptotically exact, full Bayesian inference using
-Markov chain Monte Carlo (MCMC).  MCMC starts from an initial value
+Markov chain Monte Carlo (MCMC). MCMC starts from an initial value
 $\theta^{(0)}$, which can be random, user provided, or a mixture of
-both, and then generates a sequence of values
-$\theta^{(1)}, \theta^{(2)}, \ldots, \theta^{(m)}, \ldots$ forming a _Markov chain_.  
-A sequence forms a Markov chain if each value is generated conditioned on
-only the previous value, so that
-
+both, and then generates a sequence of values $\theta^{(1)},
+\theta^{(2)}, \ldots, \theta^{(m)}, \ldots$ forming a _Markov chain_.
+A sequence forms a Markov chain if each value is generated conditioned
+on only the previous value, so that
 $$
-\theta^{(m + 1)} \sim q(\theta \mid \theta^{(m)}.
+p(\theta^{(m + 1)} \mid \theta^{(1)}, \ldots, \theta^{(M)})
+= p(\theta^{(m + 1)} \mid \theta^{(m)}).
 $$
-
+We call the distribution $p(\theta^{(m + 1)} \mid \theta^{(m)})$
+the *transition kernel* of the Markov chain.
 Because of this dependency, the sequence of random variables making up
 the Markov chain exhibit a degree of _autocorrelation_, meaning that
-draw $\theta^{(m)}$ is correlated with draw $\theta^{(m+1)}$.
+$\theta^{(m)}$ is correlated with $\theta^{(m+1)}$.
 
 We typically assume some mild conditions on the Markov chain
-transition.  First, it must be _ergodic_ in the sense of never getting
-stuck in such a way it can't visit the rest of the parameter space.
-Second, it must be _aperiodic_ in the sense of not cycling regularly
-through disjoint regions of the parameter space.  Third, it needs to preserve
-the target density in the sense that if  $\theta^{(m)} \sim
-p(\theta \mid y)$ has the posterior as its marginal distribution, then
-$\theta^{(m+1)} \sim p(\theta \mid y)$ also follows the posterior
-distribution.  
+transition transition kernel. First, it must be _ergodic_ in the sense
+of never getting stuck in such a way it can't visit the rest of the
+parameter space. Second, it must be _aperiodic_ in the sense of not
+cycling regularly through disjoint regions of the parameter space.
+Third, it needs to preserve the target density in the sense that if
+$\theta^{(m)} \sim p(\theta \mid y)$ has the posterior as its marginal
+distribution, then $\theta^{(m+1)} \sim p(\theta \mid y)$ also follows
+the posterior distribution.
 
-If the initial value $\theta^{(0)}$ is drawn from the posterior,
+Suppose the initial value $\theta^{(0)}$ is drawn from the posterior,
 $$
-\theta^{(0)} \sim p(\theta \mid y),
+\theta^{(0)} \sim p(\theta \mid y).
 $$
-then each value in the Markov chain will be marginally distributed
-according to the posterior,
+The notation here indicates that we apply random sampling to draw a
+value for $\theta$ from the distribution $p(\theta \mid y)$ (for known
+data $y$) and assign it to $\theta^{(0)}$.  With the initial state
+drawn from the posterior, each value in the Markov chain will be
+marginally distributed according to the posterior, which we write as
 $$
 \theta^{(1)}, \ldots, \theta^{(M)}
 \sim p(\theta \mid y).
@@ -4599,20 +4730,23 @@ chain dependencies.  In the situation where $\theta^{(0)}$ is not a
 draw from the posterior $p(\theta \mid y)$, then as the chain
 progresses, it will converge to the right distribution in the sense
 that in the limit as $m \rightarrow \infty$, the draws approach the
-corect distribution $\theta^{(m)} \sim p(\theta \mid y)$. 
+corect distribution, so that
+$$
+\lim_{m \rightarrow \infty} p(\theta^{(m+1)} \mid \theta^{(m)})
+= p(\theta^{(m+1)} \mid y).
+$$
 
-Now suppose we have a posterior sample of draws $\theta^{(1)}, \ldots,
-\theta^{(M)}$. We can estimate expectations by simply plugging in
-values of $\theta^{(m)}$ and averaging.  If our chain satisfies the
-mild conditions above, we know that we get the right answer asymptotically,
-
+Suppose we have a posterior sample of draws $\theta^{(1)}, \ldots,
+\theta^{(M)}$. With this sample, we can estimate expectations by
+simply plugging in values of $\theta^{(m)}$ and averaging. If our
+chain satisfies the mild conditions above, we know that we get the
+right answer asymptotically,
 \begin{align}
 \mathbb{E}\!\left[f(\theta) \mid y \right]
 &= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta
 \\[6pt]
 &= \lim_{M \rightarrow \infty} \ \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right).
 \end{align}
-
 With only finite time in practice, we use the initial segment of the
 chain to estimate expectations,
 $$
@@ -4647,12 +4781,15 @@ Pre-asymptotically, this result holds approximately and will be used
 to estimate the distribution of estimation errors.
 
 Because draws in MCMC can be correlated (or even anti-correlated), we
-need the MCMC CLT to generalize the central limit theorem to the case
-of correlated variables. Here, we can estimate an _effective sample
-size_ (ESS), which is the number of independent draws that provide the same
-error distribution.  If $M^{\textrm{eff}}$ is the effective sample size of the
-Markov chain $\theta^{(1)}, \ldots, \theta^{(M)}$, then the error will
-be distributed approximately as
+need the MCMC central limit theorem to generalize the central limit
+theorem to the case of correlated variables; @geyer2011 and
+@roberts2004 provide precise definitions of the theorem.
+
+Here, we can estimate an _effective sample size_ (ESS), which is the
+number of independent draws that provide the same error distribution.
+If $M^{\textrm{eff}}$ is the effective sample size of the Markov chain
+$\theta^{(1)}, \ldots, \theta^{(M)}$, then the error will be
+distributed approximately as
 
 $$
 \widehat{\theta} - \theta
@@ -4661,7 +4798,7 @@ $$
 
 # D. Installed packages {.unnumbered}
 
-The system and operationg system are as follows.
+The system and operating system are as follows.
 ```{python}
 import sys
 import platform
