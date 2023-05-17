@@ -12,13 +12,13 @@ format:
     fontcolor: black
     monobackgroundcolor: white
     monofont: "Menlo, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace"
-    fontsize: 14pt
-    linestretch: 1.5
+    fontsize: 13pt
+    linestretch: 1.4
     number-sections: true
     number-depth: 2
     toc: true
     toc-location: right
-    code-fold: true
+    code-fold: false
     code-copy: true
     cap-location: bottom
     format-links: false
@@ -327,31 +327,40 @@ evidence.
 
 
 
-# Stan for forward simulation
+# Stan example: forward-simulating clinical trials
 
-We're first going to consider simple binomial sampling in order to
-introduce Stan programs and how they're called and to develop some
-intuitions about estimation based on binary outcomes.
+By *forward simulation*, we mean running a simulation of a scientific
+process forward from the parameter values to simulated data. For
+example, consider a simple clinical trial with $N$ subjects and a
+probability $\theta \in (0, 1)$ of a positive outcome. Given $\theta$
+and $N$, we can simulate the number of patients $y \in 0{:}N$ with a
+successful outcome according to a binomial distribution (which we
+define below).
 
-Let's say we have 100 trials, each with a 30% chance of success. The
-30% might represent a chance of rain and the result the number of days
-out of 100 that it actually rained; it might represent the chance of a
-drug improving a patient's condition with the result being the number
-of patients who improve; or, it might represent the chance of a
-successful penalty kick from a given position on a field, with the
-result representing the number of goals in 100 attempts.
+The *inverse problem* is that of estimating the probability of success
+$\theta,$ given an observation of $y$ successes out of $N$ subjects.
+For example, we might have $N = 100$ subjects in the trial, $y = 32$
+of whom had a positive outcome from the trial. A simple estimate of
+$\theta$ in this case would be 0.32.  We return to estimation and
+uncertainty quantification in later sections.
+
+Let's say we have $N = 100$ subjects in our clinical trial and the
+success rate is $\theta = 0.3$. We can simulate a result $y$ from the
+clinical trial by randomly generating the number of subjects with a
+successful outcome. Although this could be done by simulating the
+binary outcome for each patient, it wouldn't be an efficient way to
+sample from a binomial distribution.
 
 In statistical sampling notation, we write
 $$
 Y \sim \textrm{binomial}(N, \theta)
 $$
-to indicate that the random variable $Y$ has a binomial distribution
-with $N \in \mathbb{N}$ trials, each with probability $\theta \in [0, 1]$
-of success. The value of the variable $Y$ will be the number of
-successes in $N$ independent trials. The
-probability mass function function for $Y$, written $p_Y$, is defined
-for $y \in 0{:}N$ by
-by
+to indicate that there are $N \in \mathbb{N}$ patients with
+probability $\theta \in (0, 1)$ of a successful outcome, with $Y \in 0{:}N$
+representing the number of successful outcomes out of $N$ patients.
+
+The probability mass function function for $Y$, written $p_Y$, is
+defined for $N \in \mathbb{N}$, $\theta \in (0, 1)$, and $y \in 0{:}N$ by
 \begin{align}
 p_Y(y \mid N, \theta)
 &= \textrm{binomial}(y \mid N, \theta)
@@ -3942,8 +3951,8 @@ and therefore
 $$
 \Pr[\{ 0 \}] = 1 - \Pr[\{ 1 \}].
 $$
-If we think of the sample space as representing
-a boolean outcome of a football match (1 for the home team winning, 0
+If we take the sample space to represent the 
+boolean outcome of a football match (1 for the home team winning, 0
 for the visiting team winning), then $\Pr[\{ 1 \}]$ is the probability
 that the home team wins and $\Pr[\{ 0 \}]$ is the probability that the
 visiting team wins.
@@ -3954,7 +3963,8 @@ $$
 \Pr[(a, b)] = b - a.
 $$
 This measure can then be extended to unions of non-intersecting
-intervals by countable additivity and to complements by noting that it follows from countable additivity that
+intervals by countable additivity.  Because $A^\complement \cup A =
+\Omega$, it follows from countable additivity that
 $$
 \Pr[A^{\complement}] = 1 - \Pr[A].
 $$
@@ -3963,23 +3973,28 @@ a)] = 0$.  That is, points do not have non-zero probability mass in continuous
 measures. 
 
 *Example 3, cont.* Suppose we have a product $\sigma$-algebra $(0, 1)
-\times (0, 1)$, i.e., a unit square.  We can define a basis for our
-measure in terms of open discs in $(0, 1)^2$ as
+\times (0, 1)$, i.e., an open unit square.  We can define a basis for our
+measure in terms of events defined by open discs,
 $$
 \textrm{D}([x \quad y], r) = \left\{
-[x' \quad y'] : \bigg|\bigg| \, [x' \quad y'] - [x \quad y]\, \bigg|\bigg| < r
+[x' \quad y'] : \sqrt{(x' - x)^2 + (y' - y)^2} < r
 \right\},
 $$
-where $||v|| = \sqrt{v^{\top} \cdot v}$ is the 2-norm.  We define a
-measure $\Pr$ by assigning discs probability equal to their area,
+that fall within the unit square, i.e.,
+$$
+x - r, x+r, y - r, y + r \in (0, 1).
+$$
+For discs within the unit square, we define their probability measure
+by 
 $$
 \Pr[\textrm{D}([x \quad y], r)] = \pi \cdot r^2,
 $$
-assuming the disc falls entirely within the unit square( i.e., $x - r,
-x+r, y - r, y + r \in (0, 1)$.  Probabilities for other
-events are defined using the rules for complements and finite unions.
-This construction works with the volumes of balls in three dimensions
-and the hypervolumes of hyperballs in higher dimensions.
+Probabilities for other events are defined by countable additivity and
+complementation.  In general, an event will have a probability equal
+to its area.  Thus the entire sample space $\Omega$ has a probablity
+of 1 because it is a unit square with area is 1.  This construction
+works with the volumes of balls in three dimensions and the
+hypervolumes of hyperballs in higher dimensions.
 
 
 ## A.2 Joint and conditional probability {.unnumbered}
@@ -4093,8 +4108,7 @@ define a random variable $X:\Omega \rightarrow \mathbb{R}$ by setting
 $X(\omega) = \log \omega$.  We can also define a random variable $Y$
 over the same measure by setting $Y(\omega) = 0$ if $\omega < 0.2$ and
 $Y(\omega) = 1$ otherwise.  The variable $X$ has uncountably many
-possible values, whereas the value $Y$ only has finitely many possible
-values. 
+possible values, whereas $Y$ only has finitely many.
 
 ### Cumulative distribution function {.unnumbered}
 
