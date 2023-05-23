@@ -94,9 +94,7 @@ To access Stan, we use the Python package
 [CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html).
 
 For numerical and statistical computation in Python, we use
-[NumPy](https://numpy.org/).  Although we do not use it here,
-[SciPy](https://scipy.org/) extends NumPy with more advanced
-scientific computing and statistical algorithms.
+[NumPy](https://numpy.org/).
 
 For plotting, we use the Python package
 [plotnine](https://plotnine.readthedocs.io/).  plotnine is a Python
@@ -127,6 +125,7 @@ import cmdstanpy as csp
 csp.utils.get_logger().setLevel(logging.ERROR)
 
 import numpy as np
+import statistics as stat
 import pandas as pd
 import plotnine as pn
 import patchworklib as pw
@@ -4006,14 +4005,15 @@ non-trivial $\sigma$-algebra has a binary sample space $\Omega = \{ 0,
 1 \}$, with measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1
 \}, \{ 0, 1 \} \right\}$.
 
-*Example 2(a)*: A simple continuous example takes a sample space $\Omega
-= (0, 1)$ and defines $\mathcal{S}$ to be the smallest
+*Example 2(a)*: A simple continuous example takes a sample space
+$\Omega = (0, 1)$ and defines $\mathcal{S}$ to be the smallest
 $\sigma$-algebra containing the open intervals $(a, b) \subseteq
-\Omega$ and closed under complements and countable unions.  The
-resulting $\sigma$-algebra (which can be shown to exist), contains all
-of the singletons, because $\{ a \} = ((0, a) \cup (a,
-1))^{\complement}.$ The smallest $\sigma$-algebra containing the open
-sets of a sample space is called a *Borel algebra*.
+\Omega$ (i.e., $0 < a < b < 1$) and closed under complements and countable unions.  
+The resulting $\sigma$-algebra (which can be
+shown to exist), contains all of the singletons, because $\{ a \} =
+((0, a) \cup (a, 1))^{\complement}.$ The smallest $\sigma$-algebra
+containing the open sets of a sample space is called a *Borel
+algebra*.
 
 *Example 2(b)*: Another example of a Borel algebra is the closure of
 the open intervals over the entire real line, $\Omega = \mathbb{R}$.
@@ -4023,7 +4023,6 @@ $\sigma$-algebras over $\Omega_1$ and $\Omega_2$, then
 the product space $\mathcal{S} = \left\{ A_1 \times A_2 : A_1 \in \mathcal{S}_1 \
 \textrm{and} \ A_2 \in \mathcal{S}_2 \right\}$ is a $\sigma$-algebra
 over $\Omega = \Omega_1 \times \Omega_2.$
-
 
 
 ### Measures and probability spaces
@@ -4043,9 +4042,9 @@ $$
 $$
 
 An element $A \in \mathcal{S}$ is said to be a *measurable set*.  The
-sample space $\Omega$ with a measure $\Pr$ over the $\sigma$-algebra
-$\mathcal{S}$ together make up a *probability space* $(\Omega,
-\mathcal{S}, \Pr)$.
+sample space $\Omega$ with a probability measure $\Pr$ over the
+$\sigma$-algebra $\mathcal{S}$ together make up a *probability space*
+$(\Omega, \mathcal{S}, \Pr)$.
 
 *Example 1, continued*:  We can define a
 measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
@@ -4064,6 +4063,8 @@ and therefore
 $$
 \Pr[\{ 0 \}] = 1 - \Pr[\{ 1 \}].
 $$
+For example, if $\Pr[\{ 0 \}] = p$ then $\Pr[\{ 1 \}] = 1 - p.$
+
 If we take the sample space to represent the 
 boolean outcome of a football match (1 for the home team winning, 0
 for the visiting team winning), then $\Pr[\{ 1 \}]$ is the probability
@@ -4105,73 +4106,109 @@ $$
 $$
 This has the desired property that
 $$
-\lim_{a \rightarrow -\infty}_{\ b \rightarrow \infty}
+\lim_{\begin{array}{c}a \rightarrow -\infty \\ b \rightarrow \infty\end{array}}
 \textrm{logit}^{-1}(b) - \textrm{logit}^{-1}(a)
 = 1 - 0 = 1.
 $$
 
-*Example 3, cont.* Suppose we have a product $\sigma$-algebra $(0, 1)
-\times (0, 1)$, i.e., an open unit square.  We can define a basis for our
-measure in terms of events defined by open discs,
+*Example 3, cont.* Suppose we have a product $\sigma$-algebra over the open unit square $\Omega = (0, 1)^2$ (i.e.,$(0, 1) \times (0, 1)$).  
+We can define a basis for a probability measure using
+open discs for $x \in (0, 1)^2$,
 $$
-\textrm{D}([x \quad y], r) = \left\{
-[x' \quad y'] : \sqrt{(x' - x)^2 + (y' - y)^2} < r
-\right\},
+\textrm{D}(x, r) = \left\{
+x' : ||x|| < r \right\}.
 $$
-that fall within the unit square, i.e.,
+The probability
+of a disc in the unit square (i.e., $D(x, r) \subset \Omega$) is given by its area,
 $$
-x - r, x+r, y - r, y + r \in (0, 1).
+\Pr[\textrm{D}(x, r)] = \pi \cdot r^2.
 $$
-For discs within the unit square, we define their probability measure
-by 
-$$
-\Pr[\textrm{D}([x \quad y], r)] = \pi \cdot r^2,
-$$
-Probabilities for other events are defined by countable additivity and
-complementation.  In general, an event will have a probability equal
-to its area.  Thus the entire sample space $\Omega$ has a probability
-of 1 because it is a unit square with area is 1.  This construction
-works with the volumes of balls in three dimensions and the
-hypervolumes of hyperballs in higher dimensions.
+Probabilities for other measurable sets are defined by countable
+additivity and complementation.  In this probability space, a
+measurable subset of $(0, 1)^2$ has a probability equal to its area
+(i.e., it's a Lebesgue measure like Example 2(a)).  Thus the entire sample space
+$\Omega$ has a probability of 1 because it is a unit square with unit area.
+This construction works with the volumes of balls in three
+dimensions and the hypervolumes of hyperballs in higher dimensions.
 
 
 ## A.2 Joint and conditional probability {.unnumbered}
 
+In this section, we will presuppose a fixed probability space
+$(\Omega, \mathcal{S}, \Pr)$.  We can think of a measurable set $A
+\in \mathcal{S}$ as an *event*, by which we mean something that does
+or does not occur with a probability defined by the event's measure
+$\Pr[A]$.  That is, if we think of there being some $\omega \in
+\Omega$ that corresponds to the real world, then an event $A \in
+\mathcal{S}$ occurs if $\omega \in S$.
+
 ### Joint probability
 
-If $A$ and $B$ are events, we define the *joint probability* of $A$
-and $B$, written $\Pr[A, B]$, by
+If $A$ and $B$ are events (i.e., $A, B \in \mathcal{S}$), we define the
+*joint probability* of $A$ and $B$, written $\Pr[A, B]$ and understood
+as the probability that events $A$ and $B$ both occur, by
 $$
 \Pr[A, B] = \Pr[A \cap B].
 $$
 This notation extends to any number of events, with $\Pr[A, B, C] =
 \Pr[A \cap B \cap C]$ and so on.
 
+In the context of joint probability $\Pr[A, B]$, we refer to $\Pr[A]$
+as the *marginal probability* (of $A$).  If $A_1, A_2, \ldots$ are
+said to be *mutually disjoint* if $i \neq j$ implies $A_i \cap A_j =
+\emptyset.$  A $partition$ of the set $B$ is a countable sequence of
+mutually disjoin sets $B_1, B_2, \ldots$ such that $B = \bigcup_n B_n.$
+
+The *law of total probabiltiy* states that if $B_1, B_2, \ldots$ is a
+partition of $B$, then
+$$
+\Pr[A, B] = \sum_n \Pr[A, B_n].
+$$
+This result follows directly from countable additivity, and has an
+immediate consequence that if $B_1, B_2, \ldots$ is a partition of
+$\Omega,$ then
+$$
+\Pr[A] = \Pr[A \cap \Omega] = \Pr[A, \Omega] = \sum_n \Pr[A, B_n].
+$$
+
 ### Conditional probability
 
 If $\Pr[B] \neq 0$, we define the *conditional probability* of $A$ given
-$B$ by
+$B$, which is understood as the probability of $A$ occurring if $B$
+occurs, by 
 $$
 \Pr[A \mid B] = \frac{\Pr[A, B]}{\Pr[B]}.
 $$
 
+The *chain rule* for probability follows immediately,
+$$
+\Pr[A, B] = \Pr[A \mid B] \cdot \Pr[B].
+$$
+
 ### Bayes's rule
 
-If $\Pr[B] \neq 0$ and events $A_0, A_1, A_2, \cdots$ partition the sample
-space (i.e., a mutually disjoint sequence of events that are
-pairwise disjoint and $\bigcup_{n \in \mathbb{N}}
-A_n = \Omega$), then
+Bayes's rule allows us to derive a conditional probabilty $\Pr[A \mid
+B]$ given the inverse probability $\Pr[B \mid A]$ and $\Pr[A]$.
+
+If $\Pr[B] \neq 0$ and the sequence $A_0, A_1, A_2, \cdots$ is a partition of
+$A$ (either finite or countably infinite), then
 \begin{align}
 \Pr[A \mid B]
-&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
-        {\Pr[B]}
+&= \frac{\Pr[A, B]}
+        {\Pr[B]} \qquad \qquad \qquad \qquad & \textrm{[def.\ of conditional prob]}
 \\[4pt]
 &= \frac{\Pr[B \mid A] \cdot \Pr[A]}
-        {\sum_{n \in \mathbb{N}} \Pr[B, A_n]}
+        {\Pr[B]} & \textrm{[chain rule]}
 \\[4pt]
 &= \frac{\Pr[B \mid A] \cdot \Pr[A]}
-        {\sum_{n \in \mathbb{N}} \Pr[B \mid A_n] \cdot \Pr[A_n]}.
+        {\sum_n \Pr[B, A_n]} &
+	\textrm{[law of total probability]}
+\\[4pt]
+&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
+        {\sum_n \Pr[B \mid A_n] \cdot \Pr[A_n]}
+	& \textrm{[chain rule]}.
 \end{align}
+
 
 
 ## A.3 Independent events {.unnumbered}
@@ -4185,24 +4222,41 @@ A pair of events $A$ and $B$ are said to be *independent* if
 $$
 \Pr[A, B] = \Pr[A] \cdot \Pr[B].
 $$
+When $A$ and $B$ are independent, the occurence of $A$ doesn't give us
+any information about $B$, and vice-versa, so that
+$$
+\Pr[A \mid B] = \Pr[A]
+\qquad \qquad
+\Pr[B \mid A] = \Pr[B].
+$$
 
 ### Conditional independence
 
 A pair of events $A$ and $B$ are said to be *conditionally
-independent* given an event $C$ if
+independent* given an event $C$ with $\Pr[C] > 0$ if
 $$
 \Pr[A, B \mid C] = \Pr[A \mid C] \cdot \Pr[B \mid C].
 $$
-
+As with independence, if $A$ and $B$ are conditionally indpendent
+given $C$, then $A$ doesn't provide any information about the
+occurrence of $B$ if $C$ occurs,
+$$
+\Pr[A \mid B, C] = \Pr[A \mid C]
+\qquad \qquad
+\Pr[B \mid A, C] = \Pr[B \mid C].
+$$
 
 
 ### Mutual independence
 
 A sequence of events $A_0, A_1, \ldots, A_N$ is said to be *mutually
-independent* if $N = 1$, or if 
+independent* if $N = 1$, or if
+
 * $\Pr\!\left[\bigcap_{n = 1}^N A_n\right] = \prod_{n=1}^N \Pr[A_n],$ and
+
 * every proper subsequence $A_m, A_{m+1}, \ldots, A_{M}$ is mutually
 independent,
+
 where a proper subsequence is one in which $m \neq 0$ or $M \neq N$.
 
 Conditional mutual independence is defined the same way.
@@ -4212,10 +4266,10 @@ Conditional mutual independence is defined the same way.
 ## A.4 Random variables, cdfs, pdfs, and pmfs {.unnumbered}
 
 A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$
-where for every $x \in \mathbb{R}$, the set $\{ \omega : X(\omega)
-\leq x \}$ is measurable (i.e., in the $\sigma$-algebra of the
-underlying probability space).  As a deterministic function, a random
-variable is neither a variable nor in and of itself random.
+such that for every $x \in \mathbb{R}$, the set $\{ \omega : X(\omega)
+\leq x \} \in \mathcal{S}$ (i.e., it is is measurable).  As a
+deterministic function, a random variable is neither a variable nor in
+and of itself random.
 
 A random variable gets its randomness from the underlying probability
 space over which it operates.  Specifically, a random variable is the
@@ -4272,19 +4326,15 @@ $$
 for $x \in \mathbb{R}$.
 
 ```{python}
-import scipy as sp
-
 # Define the standard normal distribution
-mu = 0
-sigma = 1
-dist = sp.stats.norm(loc=mu, scale=sigma)
+std_normal = stat.NormalDist()
 
 # Generate x values
 x = np.linspace(-6, 6, 100)
 
 # Generate y values for PDF and CDF
-pdf_y = dist.pdf(x)
-cdf_y = dist.cdf(x)
+pdf_y = [std_normal.pdf(x_n) for x_n in x]
+cdf_y = [std_normal.cdf(x_n) for x_n in x]
 
 # Create a dataframe for PDF and CDF
 df_pdf = pd.DataFrame({
@@ -4544,7 +4594,7 @@ concerned with quantifying our uncertainty in these estimates.
 Quantities of interest are typically parameter values and deviations,
 event probability estimates, and forecasts/backcasts.
 
-## B.1 Bayes's theorem {.unnumbered}
+## B.1 Bayes's rule for densities {.unnumbered}
 
 @bayes1763 formalized his approach in the following theorem which was
 named after him.  The basic idea is this, if we have parameters and
