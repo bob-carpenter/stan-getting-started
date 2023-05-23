@@ -742,7 +742,7 @@ data {
 transformed data {
   array[D] real one_D = rep_array(1, D);
 }
-generated quantitied {
+generated quantities {
   array[D] real y = uniform_rng(-1, one_D));
   int<lower=0, upper=1> inside = norm2(y) < 1;
 }
@@ -4216,7 +4216,7 @@ said to be *mutually disjoint* if $i \neq j$ implies $A_i \cap A_j =
 \emptyset.$  A $partition$ of the set $B$ is a countable sequence of
 mutually disjoin sets $B_1, B_2, \ldots$ such that $B = \bigcup_n B_n.$
 
-The *law of total probabiltiy* states that if $B_1, B_2, \ldots$ is a
+The *law of total probability* states that if $B_1, B_2, \ldots$ is a
 partition of $B$, then
 $$
 \Pr[A, B] = \sum_n \Pr[A, B_n].
@@ -4244,7 +4244,7 @@ $$
 
 ### Bayes's rule
 
-Bayes's rule allows us to derive a conditional probabilty $\Pr[A \mid
+Bayes's rule allows us to derive a conditional probability $\Pr[A \mid
 B]$ given the inverse probability $\Pr[B \mid A]$ and $\Pr[A]$.
 
 If $\Pr[B] \neq 0$ and the sequence $A_0, A_1, A_2, \cdots$ is a partition of
@@ -4294,7 +4294,7 @@ independent* given an event $C$ with $\Pr[C] > 0$ if
 $$
 \Pr[A, B \mid C] = \Pr[A \mid C] \cdot \Pr[B \mid C].
 $$
-As with independence, if $A$ and $B$ are conditionally indpendent
+As with independence, if $A$ and $B$ are conditionally independent
 given $C$, then $A$ doesn't provide any information about the
 occurrence of $B$ if $C$ occurs,
 $$
@@ -4307,17 +4307,15 @@ $$
 ### Mutual independence
 
 A sequence of events $A_0, A_1, \ldots, A_N$ is said to be *mutually
-independent* if $N = 1$, or if
+independent* if 
 
 * $\Pr\!\left[\bigcap_{n = 1}^N A_n\right] = \prod_{n=1}^N \Pr[A_n],$ and
 
 * every proper subsequence $A_m, A_{m+1}, \ldots, A_{M}$ is mutually
-independent,
-
-where a proper subsequence is one in which $m \neq 0$ or $M \neq N$.
+independent, where a proper subsequence is one in which $m \neq 0$ or
+$M \neq N$ (i.e., it is not the whole sequence).
 
 Conditional mutual independence is defined the same way.
-
 
 
 ## A.4 Random variables, cdfs, pdfs, and pmfs {.unnumbered}
@@ -4325,13 +4323,9 @@ Conditional mutual independence is defined the same way.
 A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$
 such that for every $x \in \mathbb{R}$, the set $\{ \omega : X(\omega)
 \leq x \} \in \mathcal{S}$ (i.e., it is is measurable).  As a
-deterministic function, a random variable is neither a variable nor in
-and of itself random.
-
-A random variable gets its randomness from the underlying probability
-space over which it operates.  Specifically, a random variable is the
-kind of object that produces a real value for every possible way the
-world can be (i.e., for every $\omega \in \Omega$).
+deterministic function, a random variable is neither a variable nor,
+in and of itself, random.  Its "randomness" derives from the
+probabilities assigned by the probability measure $\Pr$.
 
 Regular functions can be naturally extended to operate on random
 variables by applying them elementwise.  For example, $(X + Y):\Omega
@@ -4342,28 +4336,30 @@ $$
 $$
 
 *Example 1, cont.* Recall the measure over $\Omega = \{ 0, 1 \}$ with
-$\Pr[\{ 1 \}] = p$ and $\Pr[\{ 0 \}] = 1 - p$.  Let's fix $p = 0.3$
-for concreteness.  We can define a random
-variable $X:\Omega \rightarrow \mathbb{R}$ by $X(0) = -2$ and $X(1) =
-10$.  This random variable represents the payoff of a 2 dollar bet
-placed on a successful outcome of $X$ at 5:1 odds.  Although the
-random variable $X$ is just a deterministic function, its possible
-values are assigned probabilities by the measure, specifically,
-$\Pr[X = -2] = 0.3$ abd $\Pr[X = 10] = 0.7$.
+$\Pr[\{ 1 \}] = p$ and $\Pr[\{ 0 \}] = 1 - p$.  Let's fix $p = 0.3$ to
+define the underlying measure concretely.  Over this probability
+space, we can define a random variable $X:\Omega \rightarrow
+\mathbb{R}$ by $X(0) = -2$ and $X(1) = 10$.  This random variable
+represents the payoff of a 2 dollar bet placed on a successful outcome
+of $X$ at 5:1 odds.  Although the random variable $X$ is just a
+deterministic function, its possible values are assigned probabilities
+by the measure, specifically, $\Pr[X = -2] = 0.3$ abd $\Pr[X = 10] =
+0.7$.
 
 *Example 2, cont.* Recall the measure over $\Omega = (0, 1)$ that takes
 the probability of a subinterval to be equal to its length.  We can
 define a random variable $X:\Omega \rightarrow \mathbb{R}$ by setting
-$X(\omega) = \log \omega$.  We can also define a random variable $Y$
+$X(\omega) = \log \omega$.  We can define another random variable $Y$
 over the same measure by setting $Y(\omega) = 0$ if $\omega < 0.2$ and
 $Y(\omega) = 1$ otherwise.  The variable $X$ has uncountably many
 possible values, whereas $Y$ only has finitely many.
 
 ### Cumulative distribution function {.unnumbered}
 
-Given a random variable $X$, its *cumulative distribution function*
-(cdf) $F_X:\mathbb{R} \rightarrow [0, 1]$ is defined for $x \in
-\mathbb{R}$ by
+Given a random variable $X$ defined over a probability space $(\Omega,
+\mathcal{S}, \Pr),$ its *cumulative distribution function* (cdf)
+$F_X:\mathbb{R} \rightarrow [0, 1]$ is defined for $x \in \mathbb{R}$
+by
 $$
 F_X(x) = \Pr[X \leq x],
 $$
@@ -4378,45 +4374,37 @@ If the cumulative distribution function $F_X$ for a random variable
 $X$ is continuous and differentiable, we define its *probability
 density function* (pdf) $p_X:\mathbb{R} \rightarrow (0, \infty)$ by
 $$
-p_X(x) = \frac{\textrm{d}}{\textrm{d}u} F_X(u) \bigg|_{u = x},
+p_X(x) = F_X'(x),
 $$
-for $x \in \mathbb{R}$.
+for $x \in \mathbb{R},$ where $F_X'$ is the derivative of the cdf.
+Thus the unit of measure for the cdf is probability, whereas the unit
+of measure for the pdf is change in probability.
+
+Even though the cdf is the primitive construction theoretically, in
+practice we often define pdfs and want to go back to the cdf, which is
+given by integration,
+$$
+F_X(x) = \int_{-\infty}^x \, p_X(x) \, \textrm{d}x.
+$$
 
 ```{python}
-# Define the standard normal distribution
 std_normal = stat.NormalDist()
-
-# Generate x values
 x = np.linspace(-6, 6, 100)
-
-# Generate y values for PDF and CDF
 pdf_y = [std_normal.pdf(x_n) for x_n in x]
 cdf_y = [std_normal.cdf(x_n) for x_n in x]
-
-# Create a dataframe for PDF and CDF
 df_pdf = pd.DataFrame({
-    'x': x,
-    'y': pdf_y,
-    'type': 'PDF p_X'
+    'x': x, 'y': pdf_y, 'type': 'PDF p_X'
 })
-
 df_cdf = pd.DataFrame({
-    'x': x,
-    'y': cdf_y,
-    'type': 'CDF F_X'
+    'x': x, 'y': cdf_y, 'type': 'CDF F_X'
 })
-
-# Concatenate the dataframes
 df = pd.concat([df_pdf, df_cdf])
-
-# Plot
 mydraw(
     pn.ggplot(df, pn.aes(x='x', y='y')) +
     pn.geom_line() +
     pn.facet_wrap('~ type', scales = 'free_y') +
-    pn.labs(x='x', y='value', title='cumulative distribution function and probability density function of X ~ normal(0, 1)') +
-    pn.theme(figure_size=(10, 4),
-             panel_spacing=0.5)
+    pn.labs(x='x', y='value', title='cdf and pdf of X ~ normal(0, 1)') +
+    pn.theme(figure_size=(10, 4), panel_spacing=0.5)
 )
 ```
 
@@ -4429,6 +4417,24 @@ F_X(x) = 1 - F_X(-x).
 $$
 The function $1 - F_X(x)$ is known as the _complementary cumulative
 distribution function_ and it's used to improve numerical stability.
+
+#### Change of variables
+
+Suppose I have a univariate random variable $X:\Omega \rightarrow
+\mathbb{R}$ and a function $f:\mathbb{R} \rightarrow \mathbb{R}$.
+Then I can define a new random variable $Y = f(X)$ by $Y(\omega) =
+f(X(\omega))$ for a point $\omega \in \Omega$ in the sample space.
+
+If the function $f$ is a differentiable, monotonic (up or down),
+bijection, then the standard *change of variables* formula,
+the density function for $Y$ will be
+$$
+p_Y(y) = p_X(f^{-1}(y)) \cdot (f^{-1})'(y),
+$$
+where $f^{-1}$ is the inverse of $f$ and $(f^{-1})'$ is the derivative
+of the inverse of $f$. 
+
+
 
 
 ### Probability mass function {.unnumbered}
@@ -4461,50 +4467,37 @@ nor continuous.
 support = np.arange(2, 13)
 probs = [0, 1/36, 2/36, 3/36, 4/36, 5/36, 6/36, 5/36, 4/36, 3/36, 2/36, 1/36]
 cdf_values = np.cumsum(probs)
-
-# Create a dataframe
 df = pd.DataFrame({
-    'n': support,
-    'cdf': cdf_values[1:12],
-    'cdf_low': cdf_values[0:11],
+    'n': support,  'cdf': cdf_values[1:12], 'cdf_low': cdf_values[0:11],
 })
-
 plot1 = (pn.ggplot(df, pn.aes(x='n', y='cdf')) +
     pn.geom_point(size=2) +
     pn.scale_x_continuous(breaks=np.arange(2, 13)) +
     pn.labs(x='n', y='Pr[X <= n]') +
     pn.theme(strip_margin_x=5.0) +
     pn.scale_x_continuous(limits=(1,13),
-                          breaks=support,
-                          expand=(0, 0)) +
+         breaks=support, expand=(0, 0)) +
     pn.ggtitle('cdf'))
 for n in range(0,12):
     plot1 += pn.geom_segment(pn.aes(x = n + 1,
-                                   y = cdf_values[n],
-                                   xend = n + 2 - 0.075,
-                                   yend = cdf_values[n]))
-plot1 += pn.geom_point(pn.aes(x='n', y='cdf_low'),
-                      size=2, stroke=0.5, fill='none',
-		      shape='o', color='black')
-		      
+               y = cdf_values[n], xend = n + 2 - 0.075,
+               yend = cdf_values[n]))
+    plot1 += pn.geom_point(pn.aes(x='n', y='cdf_low'),
+               size=2, stroke=0.5, fill='none',
+	       shape='o', color='black')
 df2 = pd.DataFrame({
-    'n': support,
-    'probs': probs[1:]
+    'n': support, 'probs': probs[1:]
 })
 plot2 = (pn.ggplot(df2, pn.aes(x='n', y='probs'))
          + pn.geom_bar(stat='identity', color='black', fill='white')
          + pn.scale_x_continuous(breaks=support)
          + pn.scale_y_continuous(breaks=np.arange(1, 7) / 36,
-                                 labels=['1/36', '2/36', '3/36',
-                                         '4/36', '5/36', '6/36'])
+               labels=['1/36', '2/36', '3/36', '4/36', '5/36', '6/36'])
          + pn.ggtitle('pmf'))
-
-g1 = pw.load_ggplot(plot1, figsize=(3.25, 3))
-g2 = pw.load_ggplot(plot2, figsize=(3.25, 3))
-g12 = (g1 | g2)
+g12 = (pw.load_ggplot(plot1, figsize=(3.25, 3))
+      | pw.load_ggplot(plot2, figsize=(3.25, 3)))
 g12.savefig()
 ```
-
 
 ## A.5 Expectations {.unnumbered}
 
