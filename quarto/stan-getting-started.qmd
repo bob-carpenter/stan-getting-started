@@ -90,7 +90,8 @@ Everything is open source, with licenses:
 
 For scripting language, we use [Python 3](https://www.python.org/downloads/).
 
-To access Stan, we use the Python package [CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html).
+To access Stan, we use the Python package
+[CmdStanPy](https://mc-stan.org/cmdstanpy/installation.html).
 
 For numerical and statistical computation in Python, we use
 [NumPy](https://numpy.org/).  Although we do not use it here,
@@ -192,7 +193,7 @@ more formal definitions of exactly what Stan is computing.
 If you're looking for a gentle introduction to Bayesian statistics, I
 highly recommend *Statistical Rethinking* [@mcelreath2023].  For a
 more advanced introduction, try *Bayesian Data Analysis*
-[@gelman2013bayesian], which is available from the authors as a [free
+[@gelman2013], which is available from the authors as a [free
 pdf](http://www.stat.columbia.edu/~gelman/book/).
 
 ## Markov chain Monte Carlo methods
@@ -279,7 +280,7 @@ inferences based on their chosen philosophical approach.
 We are going to follow a more pragmatic approach to Bayesian
 statistics that views model building as more of an engineering
 discipline than a philosophical exercise. This perspective is laid out
-in detail in @gelman2013bayesian and refined in
+in detail in @gelman2013 and refined in
 @gelman2020workflow. The pragmatic approach feels more like modern
 machine learning than statistics, with its emphasis on predictive
 calibration (which is itself a frequentist notion when applied to
@@ -1073,7 +1074,7 @@ processes), but have to approximate others (e.g., Dirichlet processes).
 
 ### The Bayesian process
 
-@gelman2013bayesian summarize the process of developing a Bayesian model
+@gelman2013 summarize the process of developing a Bayesian model
 for an applied problem as follows,
 
 1. _Define a joint _probability model_ over all of the observables and
@@ -1161,7 +1162,7 @@ The good news is that most applications of Bayesian statistics do not
 require us to solve the integral presented in the denominator of
 Bayes's rule, even numerically.  One case where we need normalizing
 constants is to evaluate Bayes factors for model comparison, but like
-@gelman2013bayesian, we prefer other means of evaluating models like
+@gelman2013, we prefer other means of evaluating models like
 posterior predictive checks or cross-validation, both of which are beyond the
 scope of this getting-started tutorial.
 
@@ -3924,7 +3925,7 @@ for *Statistical
 Rethinking*](https://github.com/Booleans/statistical-rethinking/blob/master/Statistical%20Rethinking%202nd%20Edition.pdf).
 
 For more advanced Bayesian statistics and more on computation, the
-third edition of the classic by @gelman2013bayesian. The third edition
+third edition of the classic by @gelman2013. The third edition
 is available as a free pdf from the [home page for *Bayesian Data
 Analysis 3*](http://www.stat.columbia.edu/~gelman/book/).
 
@@ -3991,6 +3992,11 @@ properties,
 * *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
 then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
 
+Because $\emptyset \in \mathcal{S}$, its complement $\Omega =
+\emptyset^{\complement} \in \mathcal{S}$.  For applied statistics, we
+can restrict our attention to sample spaces $\Omega \subseteq
+\mathbb{R}^N$.
+
 *Example 1*: The power set of any non-empty set forms a complete
 atomic boolean algebra under union, intersection, and complementation,
 and is hence a $\sigma$-algebra. The simplest $\sigma$-algebra has a
@@ -4000,21 +4006,31 @@ non-trivial $\sigma$-algebra has a binary sample space $\Omega = \{ 0,
 1 \}$, with measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1
 \}, \{ 0, 1 \} \right\}$.
 
-*Example 2*: A second simple example can be defined over the real
-interval $(0, 1)$ as the smallest set including all of the
-open intervals $(a, b) \subset (0, 1)$ and closed under
-complements and countable unions.  A $\sigma$-algebra
-defined by closing open sets this way is called a *Borel algebra*.
+*Example 2(a)*: A simple continuous example takes a sample space $\Omega
+= (0, 1)$ and defines $\mathcal{S}$ to be the smallest
+$\sigma$-algebra containing the open intervals $(a, b) \subseteq
+\Omega$ and closed under complements and countable unions.  The
+resulting $\sigma$-algebra (which can be shown to exist), contains all
+of the singletons, because $\{ a \} = ((0, a) \cup (a,
+1))^{\complement}.$ The smallest $\sigma$-algebra containing the open
+sets of a sample space is called a *Borel algebra*.
 
-*Example 3*: If $\Omega_1, \mathcal{S}_1$ and $\Omega_2,
-\mathcal{S}_2$ are $\sigma$-algebras, then so is the product algebra
-$\Omega_1 \times \Omega_2, \left\{ A_1 \times A_2 : A_1 \in \mathcal{S}_1 \
-\textrm{and} \ A_2 \in \mathcal{S}_2 \right\}$.
+*Example 2(b)*: Another example of a Borel algebra is the closure of
+the open intervals over the entire real line, $\Omega = \mathbb{R}$.
+
+*Example 3*: If $\mathcal{S}_1$ and $\mathcal{S}_2$ are
+$\sigma$-algebras over $\Omega_1$ and $\Omega_2$, then
+the product space $\mathcal{S} = \left\{ A_1 \times A_2 : A_1 \in \mathcal{S}_1 \
+\textrm{and} \ A_2 \in \mathcal{S}_2 \right\}$ is a $\sigma$-algebra
+over $\Omega = \Omega_1 \times \Omega_2.$
+
+
 
 ### Measures and probability spaces
 
-A _measure_ over $\mathcal{S}$ is a function $\Pr: \mathcal{S}
-\rightarrow [0, 1]$ such that for all $A, B_n \in \mathcal{S},$
+A _measure_ over a $\sigma$-algebra $\mathcal{S}$ is a
+function $\Pr: \mathcal{S} \rightarrow [0, 1]$ such that for all $A,
+B_n \in \mathcal{S},$
 
 * *empty set zero probability*: $\Pr[\emptyset] = 0$,
 * *full set unit probability*: $\Pr[\Omega] = 1$,
@@ -4031,7 +4047,7 @@ sample space $\Omega$ with a measure $\Pr$ over the $\sigma$-algebra
 $\mathcal{S}$ together make up a *probability space* $(\Omega,
 \mathcal{S}, \Pr)$.
 
-*Example 1, cont.* Continuing Example 1 from above, we can define a
+*Example 1, continued*:  We can define a
 measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
 \}$ and measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1 \},
 \{ 0, 1 \} \right\}$.  This involves assigning probabilities to all of the
@@ -4054,20 +4070,45 @@ for the visiting team winning), then $\Pr[\{ 1 \}]$ is the probability
 that the home team wins and $\Pr[\{ 0 \}]$ is the probability that the
 visiting team wins.
 
-*Example 2, cont.* Continuing example 2 from above, we can define a
-measure over intervals $(a, b) \subseteq (0, 1)$ by
+*Example 2(a), cont.*  We can define the *Lebesgue measure*
+over intervals $(a, b) \subseteq (0, 1)$ by
 $$
 \Pr[(a, b)] = b - a.
 $$
-This measure can then be extended to unions of non-intersecting
-intervals by countable additivity.  Because $A^\complement \cup A =
+For example, this yields the expected
+$$
+\Pr[\Omega] = \Pr[(0, 1)] = 1 - 0 = 1.
+$$
+The probability for unions of non-intersecting
+intervals is defined by countable additivity.  Because $A^\complement \cup A =
 \Omega$, it follows from countable additivity that
 $$
 \Pr[A^{\complement}] = 1 - \Pr[A].
 $$
-If $a = b$, we have a singleton event $(a, a) = \{ a \}$ with $\Pr[(a,
-a)] = 0$.  That is, points do not have non-zero probability mass in continuous
-measures. 
+Singleton sets have measure zero, because
+$$
+\Pr[\{ a \}] = \Pr[(a, a)] = a - a = 0.
+$$  
+
+*Example 2(b), cont.*  The Lebesgue measure over $\Omega = \mathbb{R}$ does not
+form a probability space, because the measure of the whole space $\mathbb{R}$ is not
+finite. We can define a measure over $\Omega = \mathbb{R}$ by
+defining the probability of an interval to be
+$$
+\Pr[(a, b)] = \textrm{logit}^{-1}(b) - \textrm{logit}^{-1}(a),
+$$
+where for $u \in (0, 1)$ and $v \in \mathbb{R},$
+$$
+\textrm{logit}(u) = \log \frac{u}{1 - u}
+\qquad \qquad
+\textrm{logit}^{-1}(v) = \frac{\exp(v)}{1 + \exp(v)}.
+$$
+This has the desired property that
+$$
+\lim_{a \rightarrow -\infty}_{\ b \rightarrow \infty}
+\textrm{logit}^{-1}(b) - \textrm{logit}^{-1}(a)
+= 1 - 0 = 1.
+$$
 
 *Example 3, cont.* Suppose we have a product $\sigma$-algebra $(0, 1)
 \times (0, 1)$, i.e., an open unit square.  We can define a basis for our
