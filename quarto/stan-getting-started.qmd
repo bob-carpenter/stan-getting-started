@@ -2,7 +2,7 @@
 title: "Getting Started with Stan"
 subtitle: "in Python with CmdStanPy and plotnine"
 author: "Bob Carpenter"
-date: "May 2023"
+date: "last-modified"
 format:
   html:
     theme: cosmo # united is darker
@@ -64,11 +64,10 @@ Similarly, we will use matrix notation to express models, and we will
 avoid advanced topics in linear algebra that are at the heart of some
 of Stan's internals.
 
-We include two appendices as both background and summary, with
-rigorous definitions of the mathematics used in this introduction.
-Those who are more mathematically inclined and want to brush up on
-probability theory and Bayesian statistics, may wish to start with the
-appendices.
+We include two appendices as both background and summary of notation,
+with rigorous definitions of the mathematics used in this
+introduction.  Those who are more mathematically inclined may wish to
+start with the appendices.
 
 * Appendix A: [Probability theory](#a.-probability-theory)
 * Appendix B: [Bayesian statistics](#b.-bayesian-statistics)
@@ -727,6 +726,64 @@ imprecision in most applications; we discuss this important point later when
 contrasting estimation uncertainty and sampling uncertainty in the
 [section on posterior predictive inference](#uncertainty-types) and when considering
 practical guidance on [how long to run Stan](#practical-guidelines).
+
+### Random points are far away in high dimensions
+
+Suppose we wanted to sample points in the unit disc?  One thing we
+could do is sample points in the unit square until we draw one that is
+in the unit disc.  In two dimensions, this is fairly efficient, with
+79% of the points falling in the circle.  But what will happen in
+higher dimensions?  Let's write some Stan code and see.
+
+```{.stan filename="stan/unit-hypersphere.stan"}
+data {
+  int<lower=0> D;
+}
+transformed data {
+  array[D] real one_D = rep_array(1, D);
+}
+generated quantitied {
+  array[D] real y = uniform_rng(-1, one_D));
+  int<lower=0, upper=1> inside = norm2(y) < 1;
+}
+```
+In this case, we take a natural number `D` as input for the
+dimensionality of the hypercube.  We have introduced a block
+for transformed data, and declared a variable `one_D` to be a size `D`
+array of 1 values.  The transformed data block is executed once
+as data is read in and its values are constant outside of the
+transformed data block.  In the generated quantities block, we use the
+array of 1 values to assign `y` to an array of values, each of which
+is independently generated from a $\textrm{uniform}(-1, 1)$
+distribution.  This means `y` will be uniformly distributed within the
+hypercube $[-1, 1]^D$.  The integer `inside` will be set to 1 if
+`y` falls within the unit hypersphere centered at the origin (i.e.,
+circumscribed within the unit hypercube).
+
+By construction, the distance from the origin to the side of the hypercube
+and hence the radius of the inscribed hypersphere remain constant at
+1. In contrast, the distance from the origin to a corner is $\sqrt{D}
+= \sqrt{\underbrace{1 + 1 + \cdots 1}_{d \ \textrm{times}}$ in $D$
+dimensions.  Now let's see what happens to the proportion of volume in
+the inscribed hypersphere as the dimensionality grows.
+
+```{python}
+M = 100 if DRAFT else 10_000
+model = csp.CmdStanModel(stan_file = '../stan/unit-hypersphere.stan')
+in_probs = np.repeat(1.0, 13)
+for D in range(1, 13):
+    sample = model.sample(chains=1, iter_warmup = 0, iter_sampling = M,
+                          data = {'D' : D}, show_progress = False,
+			  show_console = False, seed = 123)
+    inside_draws = sample.stan_variable('inside')
+    in_probs[D] = np.sum(inside_draws) / M
+
+mydraw(pn.ggplot(pd.DataFrame({'D':np.arange(1, 13), 'prob in hypersphere':in_probs[1:]}),
+                 pn.aes(x = 'D', y='prob in hypersphere'))
+       + pn.geom_line()
+       + pn.geom_point(size=1)
+       + pn.scale_x_continuous(breaks = [0, 2, 4, 6, 8, 10, 12]))
+```
 
 
 ## Markov chain Monte Carlo methods
