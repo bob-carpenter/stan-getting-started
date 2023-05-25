@@ -4320,39 +4320,115 @@ Conditional mutual independence is defined the same way.
 
 ## A.4 Random variables, cdfs, pdfs, and pmfs {.unnumbered}
 
-A *random variable* is a function $X:\Omega \rightarrow \mathbb{R}$
-such that for every $x \in \mathbb{R}$, the set $\{ \omega : X(\omega)
-\leq x \} \in \mathcal{S}$ (i.e., it is is measurable).  As a
-deterministic function, a random variable is neither a variable nor,
-in and of itself, random.  Its "randomness" derives from the
-probabilities assigned by the probability measure $\Pr$.
+### Random variables
 
-Regular functions can be naturally extended to operate on random
-variables by applying them elementwise.  For example, $(X + Y):\Omega
-\rightarrow \mathbb{R}$ is a random variable whose value in a state
-$\omega \in \Omega$ is given by
-$$
-(X + Y)(\omega) = X(\omega) + Y(\omega).
-$$
+Given a probability space $(\Omega, \mathcal{S}, \Pr)$, a *random
+variable* over this space is a function $X:\Omega \rightarrow
+\mathbb{R}$ such that for every $x \in \mathbb{R}$, the set $\{ \omega
+: X(\omega) \leq x \} \in \mathcal{S}$ (i.e., it is is measurable).
+A random variable is a deterministic function, and as such is neither
+a variable nor random by itself.  The name derives because we often
+use simple variables like $X$ to refer to random variables in
+notation and because it derives its random structure from the
+underlying probabilty measure $\Pr,$ as we show in the rest of this
+section.
 
-*Example 1, cont.* Recall the measure over $\Omega = \{ 0, 1 \}$ with
-$\Pr[\{ 1 \}] = p$ and $\Pr[\{ 0 \}] = 1 - p$.  Let's fix $p = 0.3$ to
-define the underlying measure concretely.  Over this probability
+Given a random variable $X$, we define its range as usual for a
+function, 
+$$
+\textrm{range}(X) = \{ X(\omega) : \omega \in \Omega \}.
+$$
+It is conventional to overload the membership operator and
+write $x \in X$ for a random variable $X$ if $x \in
+\textrm{range}(X)$.  
+
+*Example 1, cont.*  Our first example has a finite sample space,
+$\Omega = \{  0, 1 \}.$   Over this sample
 space, we can define a random variable $X:\Omega \rightarrow
-\mathbb{R}$ by $X(0) = -2$ and $X(1) = 10$.  This random variable
-represents the payoff of a 2 dollar bet placed on a successful outcome
-of $X$ at 5:1 odds.  Although the random variable $X$ is just a
-deterministic function, its possible values are assigned probabilities
-by the measure, specifically, $\Pr[X = -2] = 0.3$ abd $\Pr[X = 10] =
-0.7$.
+\mathbb{R}$ by $X(0) = -2$ and $X(1) = 10$.  In this example, we have
+$\textrm{range}(X) = \{ -2, 10 \}.$ This random variable represents
+the payoff of a 2 dollar bet placed on a outcome $X = 1$ at 5:1 odds.
 
-*Example 2, cont.* Recall the measure over $\Omega = (0, 1)$ that takes
-the probability of a subinterval to be equal to its length.  We can
-define a random variable $X:\Omega \rightarrow \mathbb{R}$ by setting
-$X(\omega) = \log \omega$.  We can define another random variable $Y$
-over the same measure by setting $Y(\omega) = 0$ if $\omega < 0.2$ and
-$Y(\omega) = 1$ otherwise.  The variable $X$ has uncountably many
-possible values, whereas $Y$ only has finitely many.
+*Example 2(a), cont.* In the first part of our second example, we took
+$\Omega = (0, 1)$.  Because $\Omega \subseteq \mathbb{R}$, we can
+define a random variable $X$ to be the identity function, $X(\omega) =
+\omega.$  This variable has a range equal to the sample space,
+$\textrm{range}(X) = \Omega = (0, 1).$
+
+Another random variable $Y$ can be defined over $\Omega = (0, 1)$ by
+$Y(\omega) = \textrm{logit}(\omega)$.  In this case,
+$\textrm{range}(Y) = \mathbb{R}$. A third example is the random
+variable $Z$ defined by $Z(\omega) = \log \omega$, which has
+$\textrm{range}(Z) = (-\infty, 0)$.
+
+We can even have a random variable $T$ over $\Omega = (0, 1)$ with
+a discrete range by defining
+$$
+T(\omega)
+= \begin{cases}
+1 & \textrm{if } \omega < 0.3
+\\
+0 & \textrm{if } \omega \geq 0.3
+\end{cases}
+$$
+The random variable $T$ has $\textrm{range}(T) = \{ 0, 1 \}.$
+
+*Example 2(b), cont.* In the second part of our second example, we
+defined a probability space over the sample space $\Omega =
+\mathbb{R}$.  We can define a random variable $U(\omega) = \omega$
+here, as well, which will have $\textrm{range}(U) = \mathbb{R}.$  We
+can then define another random variable $V$ with $V(\omega) =
+\textrm{logit}^{-1}(\omega),$ which will have $\textrm{range}(V) = (0,
+1)$.  Yet another variable would be $W$ defined by $W(\omega) =
+\omega^2$, which has $\textrm{range}(W) = [0, \infty)$.
+
+### Functions of random variables
+
+One of the ways in which random variables act like regular scalars is
+that we can use them in arithmetic operations and as arguments to
+functions to produce new random variables.  Given a random variable
+$X$ defined over a sample space $\Omega$ and a function 
+a function $f:\textrm{range}(X) \rightarrow \mathbb{R}$, we can define
+a new random variable $Y$ over the same sample space by setting
+$$
+Y(\omega) = f(X(\omega)).
+$$
+This new random variable is conventionally written as $Y = f(X),$
+which is yet another overload of conventional set-theory notation.
+
+Functions of more than one random variable work the same way.  If
+$X_1, \ldots, X_N$ are random variables and $f:\textrm{range}(X_1)
+\times \cdots \times \textrm{range}(X_N) \rightarrow \mathbb{R}$,
+then we write $Y = f(X_1, \ldots, X_N)$ for the random variable
+defined by
+$$
+Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
+$$
+As in the univariate case, we write $Y = f(X_1, \ldots, X_N).$
+
+
+### Multivariate random variables
+
+Although we have only described univariate random variables that take
+values in $\mathbb{R}$, if we take a collection of random variables
+$X_1, \ldots, X_N$ we can combine them into a multivariate random
+variable $X:\Omega \rightarrow \mathbb{R}^N$, by taking
+$$
+X(\omega) = [X_1(\omega) \ \cdots \ X_N(\omega)].
+$$
+In this case, we can write $X = [X_1 \ \cdots \ X_N].$  Multivariate
+random variables can always be decomposed into univariate random
+variables in this way.  And in the same way, we can talk about
+multivariate functions over multivariate random variables and use them
+to define new random variables.  For example, if
+$f:\textrm{range}(X_1) \times \cdots \times \textrm{range}(X_N)
+\rightarrow \mathbb{R}^M,$ then we get a new random variable $Y =
+f(X)$ defined by
+$$
+Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
+$$
+
+
 
 ### Cumulative distribution function {.unnumbered}
 
@@ -4367,6 +4443,66 @@ where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega)
 \leq x \}$.  The cdf of a random variable is well-defined because all
 of the relevant events $X \leq x$ must be measurable in order
 for $X$ to be a random variable.
+
+\textit{Example 1, cont.}: Continuing our very simple example of
+$\Omega = \{ 0, 1 \}$, let's make our measure concrete and suppose
+that $\Pr[\{ 0 \}] = 0.3$ and thus $\Pr[\{ 1 \}] = 0.7.$.  With our
+random variable that takes $X(0) = -2$ and $X(1) = 10$, the resulting
+cdf is
+$$
+F_X(x) =
+\begin{cases}
+0 & \textrm{if } x \in (-\infty, 2)
+\\
+0.3 & \textrm{if } x \in [-2, 10)
+\\
+1.0 & \textrm{if } x \in [10, \infty).
+\end{cases}
+$$
+
+\textit{Example 2(a), cont.} Taking up our example of $\Omega = (0,
+1),$ with $\Pr[(a, b)] = b - a$ for $(a, b) \subseteq (0, 1),$ we see
+that the random variable $X(\omega) = \omega$ has the cdf
+$F_X:\mathbb{R} \rightarrow [0, 1]$ defined by
+$$
+F_X(x)
+= \begin{cases}
+0 & \textrm{if } x \in (-\infty, 0)
+\\
+x & \textrm{if } x \in [0, 1)
+\\
+1 & \textrm{if } x \in [1, \infty).
+\end{cases}
+$$
+For the case of $Y(\omega) = \textrm{logit}(\omega),$ we have
+the cdf $F_Y:\mathbb{R} \rightarrow [0, 1]$ defined by
+$$
+F_Y(y) = \textrm{logit}^{-1}(y),$
+$$
+which is defined over all of $\mathbb{R}$.
+
+\textit{Example 2(b), cont.}  Our second continuous example has
+$\Omega = \mathbb{R}$ and $\Pr[(a, b)] = \textrm{logit}^{-1}(b) -
+\textrm{logit}^{-1}(a).$ Let the random variable $U$ be the identity
+i.e., $U(\omega) = \omega.$ The cdf of $U$ is the function
+$F_U:\mathbb{R} \rightarrow [0, 1]$ defined by $F_U(u) =
+\textrm{logit}^{-1}(u)$.  Note that this is the same cumulative
+distribution function as we had for $Y$ in Example~2(a).  Next, we
+defined a second random variable $V$ such that $V(\omega) =
+\textrm{logit}^{-1}(\omega),$ for which
+$$
+F_V(v)
+= \begin{cases}
+0 & \textrm{if } v \in (-\infty, 0)
+\\
+v & \textrm{if } v \in [0, 1)
+\\
+1 & \textrm{if } v \in [1, \infty).
+\end{cases}
+$$
+Thus we see that $F_V$ in this example has the same cumulative
+distribution as $F_X$ in example 2(a).  
+
 
 ### Probability density function {.unnumbered}
 
@@ -4388,22 +4524,27 @@ F_X(x) = \int_{-\infty}^x \, p_X(x) \, \textrm{d}x.
 $$
 
 ```{python}
-std_normal = stat.NormalDist()
+def logit(x):
+    return np.log(x / (1 - x))
+
+def inv_logit(x):
+    return 1 / (1 + np.exp(-x))
+    
 x = np.linspace(-6, 6, 100)
-pdf_y = [std_normal.pdf(x_n) for x_n in x]
-cdf_y = [std_normal.cdf(x_n) for x_n in x]
+pdf_y = [inv_logit(x_n) * (1 - inv_logit(x_n)) for x_n in x]
+cdf_y = [inv_logit(x_n) for x_n in x]
 df_pdf = pd.DataFrame({
-    'x': x, 'y': pdf_y, 'type': 'PDF p_X'
+    'x': x, 'y': pdf_y, 'type': 'pdf p_X'
 })
 df_cdf = pd.DataFrame({
-    'x': x, 'y': cdf_y, 'type': 'CDF F_X'
+    'x': x, 'y': cdf_y, 'type': 'cdf F_X'
 })
 df = pd.concat([df_pdf, df_cdf])
 mydraw(
     pn.ggplot(df, pn.aes(x='x', y='y')) +
     pn.geom_line() +
     pn.facet_wrap('~ type', scales = 'free_y') +
-    pn.labs(x='x', y='value', title='cdf and pdf of X ~ normal(0, 1)') +
+    pn.labs(x='x', y='value', title='pdf and cdf of X ~ logistic(0, 1)') +
     pn.theme(figure_size=(10, 4), panel_spacing=0.5)
 )
 ```
@@ -4422,12 +4563,15 @@ distribution function_ and it's used to improve numerical stability.
 
 Suppose I have a univariate random variable $X:\Omega \rightarrow
 \mathbb{R}$ and a function $f:\mathbb{R} \rightarrow \mathbb{R}$.
-Then I can define a new random variable $Y = f(X)$ by $Y(\omega) =
-f(X(\omega))$ for a point $\omega \in \Omega$ in the sample space.
+Then I can define a new random variable $Y = f(X)$ by defining
+$$
+Y(\omega) = f(X(\omega))
+$$
+for a point $\omega \in \Omega$ in the sample space.
 
 If the function $f$ is a differentiable, monotonic (up or down),
-bijection, then the standard *change of variables* formula,
-the density function for $Y$ will be
+and one-to-one, then the standard *change of variables* formula for
+densities applies, so that the density function for $Y$ is
 $$
 p_Y(y) = p_X(f^{-1}(y)) \cdot (f^{-1})'(y),
 $$
