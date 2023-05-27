@@ -144,12 +144,10 @@ I'd like to thank Mitzi Morris, Barry Smith, and Brian Ward for
 helpful feedback on earlier drafts. Thanks to [ChatGPT Plus
 4.0](https://en.wikipedia.org/wiki/GPT-4) (May 5 and May 12, 2023
 versions) for extensive help on plotting and data frame construction
-and rewriting some passages I couldn't seem to write clearly. I'd also
+and rewriting some passages I couldn't manage to write clearly. I'd also
 like to thank the entire Stan Development Team and all of our users.
 Stan is an open project and a large team effort and we're always happy
-to help onboard new developers, and we wouldn't be doing it without
-users.
-
+to help onboard new developers and new users.
 
 
 # Introduction
@@ -4053,6 +4051,7 @@ Because $\emptyset \in \mathcal{S}$, its complement $\Omega =
 can restrict our attention to sample spaces $\Omega \subseteq
 \mathbb{R}^N$.
 
+<hr />
 *Example 1*: The power set of any non-empty set forms a complete
 atomic boolean algebra under union, intersection, and complementation,
 and is hence a $\sigma$-algebra. The simplest $\sigma$-algebra has a
@@ -4061,7 +4060,7 @@ $\mathcal{S} = \left\{ \{\}, \{ 0 \} \right\}$. The simplest
 non-trivial $\sigma$-algebra has a binary sample space $\Omega = \{ 0,
 1 \}$, with measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1
 \}, \{ 0, 1 \} \right\}$.
-
+<hr />
 *Example 2(a)*: A simple continuous example takes a sample space
 $\Omega = (0, 1)$ and defines $\mathcal{S}$ to be the smallest
 $\sigma$-algebra containing the open intervals $(a, b) \subseteq
@@ -4071,16 +4070,16 @@ shown to exist), contains all of the singletons, because $\{ a \} =
 ((0, a) \cup (a, 1))^{\complement}.$ The smallest $\sigma$-algebra
 containing the open sets of a sample space is called a *Borel
 algebra*.
-
+<hr />  
 *Example 2(b)*: Another example of a Borel algebra is the closure of
 the open intervals over the entire real line, $\Omega = \mathbb{R}$.
-
+<hr />
 *Example 3*: If $\mathcal{S}_1$ and $\mathcal{S}_2$ are
 $\sigma$-algebras over $\Omega_1$ and $\Omega_2$, then
 the product space $\mathcal{S} = \left\{ A_1 \times A_2 : A_1 \in \mathcal{S}_1 \
 \textrm{and} \ A_2 \in \mathcal{S}_2 \right\}$ is a $\sigma$-algebra
 over $\Omega = \Omega_1 \times \Omega_2.$
-
+<hr />
 
 ### Measures and probability spaces
 
@@ -4103,6 +4102,7 @@ sample space $\Omega$ with a probability measure $\Pr$ over the
 $\sigma$-algebra $\mathcal{S}$ together make up a *probability space*
 $(\Omega, \mathcal{S}, \Pr)$.
 
+<hr />
 *Example 1, continued*:  We can define a
 measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
 \}$ and measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1 \},
@@ -4128,6 +4128,8 @@ for the visiting team winning), then $\Pr[\{ 1 \}]$ is the probability
 that the home team wins and $\Pr[\{ 0 \}]$ is the probability that the
 visiting team wins.
 
+<hr />
+
 *Example 2(a), cont.*  We can define the *Lebesgue measure*
 over intervals $(a, b) \subseteq (0, 1)$ by
 $$
@@ -4147,6 +4149,8 @@ Singleton sets have measure zero, because
 $$
 \Pr[\{ a \}] = \Pr[(a, a)] = a - a = 0.
 $$  
+
+<hr />
 
 *Example 2(b), cont.*  The Lebesgue measure over $\Omega = \mathbb{R}$ does not
 form a probability space, because the measure of the whole space $\mathbb{R}$ is not
@@ -4168,6 +4172,8 @@ $$
 = 1 - 0 = 1.
 $$
 
+<hr />
+
 *Example 3, cont.* Suppose we have a product $\sigma$-algebra over the open unit square $\Omega = (0, 1)^2$ (i.e.,$(0, 1) \times (0, 1)$).  
 We can define a basis for a probability measure using
 open discs for $x \in (0, 1)^2$,
@@ -4188,6 +4194,7 @@ $\Omega$ has a probability of 1 because it is a unit square with unit area.
 This construction works with the volumes of balls in three
 dimensions and the hypervolumes of hyperballs in higher dimensions.
 
+<hr />
 
 ## A.2 Joint and conditional probability {.unnumbered}
 
@@ -4318,7 +4325,11 @@ $M \neq N$ (i.e., it is not the whole sequence).
 Conditional mutual independence is defined the same way.
 
 
-## A.4 Random variables, cdfs, pdfs, and pmfs {.unnumbered}
+## A.4 Random variables {.unnumbered}
+
+In this section we introduce univariate and multivariate random
+variables and show how to define new random variables as functions of
+random variables.
 
 ### Random variables
 
@@ -4338,49 +4349,64 @@ function,
 $$
 \textrm{range}(X) = \{ X(\omega) : \omega \in \Omega \}.
 $$
-It is conventional to overload the membership operator and
-write $x \in X$ for a random variable $X$ if $x \in
-\textrm{range}(X)$.  
+Because $X(\omega) \in \mathbb{R}$, the range is always a subset of
+real numbers. It is conventional to overload the membership operator
+for a random variable $X$ and write write $x \in X$ if $x \in
+\textrm{range}(X)$.
 
-*Example 1, cont.*  Our first example has a finite sample space,
-$\Omega = \{  0, 1 \}.$   Over this sample
-space, we can define a random variable $X:\Omega \rightarrow
-\mathbb{R}$ by $X(0) = -2$ and $X(1) = 10$.  In this example, we have
-$\textrm{range}(X) = \{ -2, 10 \}.$ This random variable represents
-the payoff of a 2 dollar bet placed on a outcome $X = 1$ at 5:1 odds.
+<hr />
 
-*Example 2(a), cont.* In the first part of our second example, we took
+*Example 1, cont.* Our first example has a finite sample space,
+$\Omega = \{ 0, 1 \}.$ Over this sample space, we can define a random
+variable $X:\Omega \rightarrow \mathbb{R}$ by $X(0) = -2$ and $X(1) =
+10$.  This has $\textrm{range}(X) = \{ -2, 10 \}$ and represents the
+payoff of a 2 unit bet placed on the outcome $X = 1$ at 5:1 odds.
+
+<hr />
+
+*Example 2(a), cont.* In this ongoing example, we have
 $\Omega = (0, 1)$.  Because $\Omega \subseteq \mathbb{R}$, we can
-define a random variable $X$ to be the identity function, $X(\omega) =
-\omega.$  This variable has a range equal to the sample space,
-$\textrm{range}(X) = \Omega = (0, 1).$
-
-Another random variable $Y$ can be defined over $\Omega = (0, 1)$ by
-$Y(\omega) = \textrm{logit}(\omega)$.  In this case,
-$\textrm{range}(Y) = \mathbb{R}$. A third example is the random
-variable $Z$ defined by $Z(\omega) = \log \omega$, which has
-$\textrm{range}(Z) = (-\infty, 0)$.
-
-We can even have a random variable $T$ over $\Omega = (0, 1)$ with
-a discrete range by defining
+define a random variable $X$ by the identity function,
+$$
+X(\omega) = \omega,
+$$
+with a range equal to the sample space, $\textrm{range}(X) = (0, 1) =
+\Omega.$  The range of a random variable is not constrained by $\Omega$.
+Consider the random variable $Y$ over $\Omega = (0, 1)$ defined by
+$$
+Y(\omega) = \textrm{logit}(\omega) = \log \frac{\omega}{1 - \omega},
+$$
+which has $\textrm{range}(Y) = \mathbb{R}$.  A third example is the
+random variable $Z$ defined by $Z(\omega) = \log \omega$, which has
+$\textrm{range}(Z) = (-\infty, 0)$.  We can even have a random
+variable $T$ over $\Omega = (0, 1)$ with a discrete range by defining
 $$
 T(\omega)
 = \begin{cases}
-1 & \textrm{if } \omega < 0.3
+1 & \textrm{if } \omega < 0.3, \textrm{ and}
 \\
-0 & \textrm{if } \omega \geq 0.3
+0 & \textrm{if } \omega \geq 0.3,
 \end{cases}
 $$
-The random variable $T$ has $\textrm{range}(T) = \{ 0, 1 \}.$
+so that $\textrm{range}(T) = \{ 0, 1 \}.$
 
-*Example 2(b), cont.* In the second part of our second example, we
-defined a probability space over the sample space $\Omega =
-\mathbb{R}$.  We can define a random variable $U(\omega) = \omega$
-here, as well, which will have $\textrm{range}(U) = \mathbb{R}.$  We
-can then define another random variable $V$ with $V(\omega) =
-\textrm{logit}^{-1}(\omega),$ which will have $\textrm{range}(V) = (0,
-1)$.  Yet another variable would be $W$ defined by $W(\omega) =
-\omega^2$, which has $\textrm{range}(W) = [0, \infty)$.
+<hr />
+
+*Example 2(b), cont.* We previously defined a probability space over the sample
+space $\Omega = \mathbb{R}$.  We can define a random variable $U$ over
+$\Omega$ by the identity function,
+$$
+U(\omega) = \omega,
+$$
+which gives us $\textrm{range}(U) = \mathbb{R}.$  We can define a
+second random variable $V$ by
+$$
+V(\omega) = \textrm{logit}^{-1}(\omega) = \frac{1}{1 + \exp(-\omega)},
+$$
+which has $\textrm{range}(V) = (0, 1)$.  A third example is $W$ defined by
+$W(\omega) = \omega^2$, which has $\textrm{range}(W) = [0, \infty)$. 
+
+<hr />
 
 ### Functions of random variables
 
@@ -4406,29 +4432,24 @@ Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
 $$
 As in the univariate case, we write $Y = f(X_1, \ldots, X_N).$
 
+<hr />
+*Example 2(a), cont.*  Although we have given the random variables $X,$
+$Y,$ and $T$ direct definitions, note that $Y = \textrm{logit}(X),$
+$Z = \textrm{log}(x),$ and $T = \textrm{I}(\omega < 0.3).$
 
-### Multivariate random variables
+<hr />
 
-Although we have only described univariate random variables that take
-values in $\mathbb{R}$, if we take a collection of random variables
-$X_1, \ldots, X_N$ we can combine them into a multivariate random
-variable $X:\Omega \rightarrow \mathbb{R}^N$, by taking
-$$
-X(\omega) = [X_1(\omega) \ \cdots \ X_N(\omega)].
-$$
-In this case, we can write $X = [X_1 \ \cdots \ X_N].$  Multivariate
-random variables can always be decomposed into univariate random
-variables in this way.  And in the same way, we can talk about
-multivariate functions over multivariate random variables and use them
-to define new random variables.  For example, if
-$f:\textrm{range}(X_1) \times \cdots \times \textrm{range}(X_N)
-\rightarrow \mathbb{R}^M,$ then we get a new random variable $Y =
-f(X)$ defined by
-$$
-Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
-$$
+*Example 2(b), cont.* In this example, we have defined $U,$ $V,$ and
+ $W$ as primitive random variables, but we also have $V =
+ \textrm{logit}^{-1}(U)$ and $W = \textrm{U}^2.$
 
+<hr />
 
+## A.5 Cdfs, pdfs, and pmfs {.unnumbered}
+
+In this section, we introduce cumulative distribution functions
+(cdfs), probability density functions (pdfs), and probability mass
+functions (pmfs).
 
 ### Cumulative distribution function {.unnumbered}
 
@@ -4444,9 +4465,11 @@ where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega)
 of the relevant events $X \leq x$ must be measurable in order
 for $X$ to be a random variable.
 
-\textit{Example 1, cont.}: Continuing our very simple example of
+<hr />
+
+*Example 1, cont.*: Continuing our minimal descrite example with
 $\Omega = \{ 0, 1 \}$, let's make our measure concrete and suppose
-that $\Pr[\{ 0 \}] = 0.3$ and thus $\Pr[\{ 1 \}] = 0.7.$.  With our
+that $\Pr[\{ 0 \}] = 0.3$ and thus $\Pr[\{ 1 \}] = 0.7.$  With our
 random variable that takes $X(0) = -2$ and $X(1) = 10$, the resulting
 cdf is
 $$
@@ -4460,7 +4483,9 @@ F_X(x) =
 \end{cases}
 $$
 
-\textit{Example 2(a), cont.} Taking up our example of $\Omega = (0,
+<hr />
+
+*Example 2(a), cont.* Taking up our example of $\Omega = (0,
 1),$ with $\Pr[(a, b)] = b - a$ for $(a, b) \subseteq (0, 1),$ we see
 that the random variable $X(\omega) = \omega$ has the cdf
 $F_X:\mathbb{R} \rightarrow [0, 1]$ defined by
@@ -4474,22 +4499,45 @@ x & \textrm{if } x \in [0, 1)
 1 & \textrm{if } x \in [1, \infty).
 \end{cases}
 $$
+The result for $x \in [0, 1)$ follows because
+$F_X(x) = \Pr[X \leq x] = \Pr[(0, x)] = x,$ with the final equality
+following by how we have defined $\Pr[(a,b)] = b - a$ in this example.
+
 For the case of $Y(\omega) = \textrm{logit}(\omega),$ we have
 the cdf $F_Y:\mathbb{R} \rightarrow [0, 1]$ defined by
-$$
-F_Y(y) = \textrm{logit}^{-1}(y),$
-$$
-which is defined over all of $\mathbb{R}$.
+\begin{align}
+F_Y(y) &= \Pr[Y \leq y]
+\\[4pt]
+&= \Pr[\textrm{logit}^{-1}(Y) \leq \textrm{logit}^{-1}(y)]
+\\[4pt]
+&= \Pr[X \leq \textrm{logit}^{-1}(y)]
+\\[4pt]
+&= \textrm{logit}^{-1}(y).
+\end{align}
 
-\textit{Example 2(b), cont.}  Our second continuous example has
+<hr />
+
+*Example 2(b), cont.* In this example, 
 $\Omega = \mathbb{R}$ and $\Pr[(a, b)] = \textrm{logit}^{-1}(b) -
 \textrm{logit}^{-1}(a).$ Let the random variable $U$ be the identity
 i.e., $U(\omega) = \omega.$ The cdf of $U$ is the function
-$F_U:\mathbb{R} \rightarrow [0, 1]$ defined by $F_U(u) =
-\textrm{logit}^{-1}(u)$.  Note that this is the same cumulative
-distribution function as we had for $Y$ in Example~2(a).  Next, we
-defined a second random variable $V$ such that $V(\omega) =
-\textrm{logit}^{-1}(\omega),$ for which
+$F_U:\mathbb{R} \rightarrow [0, 1]$ defined by
+\begin{align}
+F_U(u) &= \Pr[U \leq u]
+\\[3pt]
+&= \lim_{x \rightarrow -\infty} \, \Pr[U \in (x, u)]
+\\[3pt]
+&= \lim_{x \rightarrow -\infty} \, \textrm{logit}^{-1}(u) -
+\textrm{logit}^{-1}(x)
+\\[3pt]
+&= \textrm{logit}^{-1}(u) - \lim_{x \rightarrow -\infty} \, \textrm{logit}^{-1}(x)
+\\[3pt]
+&= \textrm{logit}^{-1}(u).
+\end{align}
+This is the same cumulative
+distribution function as we had for $Y$ in Example 2(a).  Consider
+a second random variable $V = \textrm{logit}^{-1}(U)$.  The 
+cdf of $V$ is given by
 $$
 F_V(v)
 = \begin{cases}
@@ -4500,9 +4548,23 @@ v & \textrm{if } v \in [0, 1)
 1 & \textrm{if } v \in [1, \infty).
 \end{cases}
 $$
+The middle case follows because
+\begin{align}
+F_V(v) 
+&= \Pr[V \leq v]
+\\[4pt]
+&= \Pr[\textrm{logit}(V) \leq \textrm{logit}(v)]
+\\[4pt]
+&= \Pr[U \leq \textrm{logit}(v)]
+\\[4pt]
+&= \textrm{logit}^{-1}(\textrm{logit}(v))
+\\[3pt]
+&= v.
+\end{align}
 Thus we see that $F_V$ in this example has the same cumulative
 distribution as $F_X$ in example 2(a).  
 
+<hr />
 
 ### Probability density function {.unnumbered}
 
@@ -4516,48 +4578,115 @@ for $x \in \mathbb{R},$ where $F_X'$ is the derivative of the cdf.
 Thus the unit of measure for the cdf is probability, whereas the unit
 of measure for the pdf is change in probability.
 
-Even though the cdf is the primitive construction theoretically, in
-practice we often define pdfs and want to go back to the cdf, which is
-given by integration,
+We know that $\Pr[\Omega] = 1$ and that for any random variable $X,$
+$\Pr[\Omega] = \lim_{x \rightarrow \infty} \, F_X(x) = 1$.
+Furthermore, we know $F_X(x) = \int_{-\infty}^x p_X(x) \textrm{d}x.$  Putting this
+together we have
+
+\begin{align}
+1 &= \lim_{x \rightarrow \infty} F_X(x)
+\\[4pt]
+&= \lim_{x \rightarrow \infty} \int_{-\infty}^x p_X(x) \textrm{d}x
+\\[4pt]
+&= \int_{-\infty}^\infty p_X(x) \textrm{d}x.
+\end{align}
+
+Even though the cdf forms the theoretical foundation for
+distributions, in practice we usually work with pdfs and occasionally
+want to go back to the cdf, which we can do by integration,
 $$
 F_X(x) = \int_{-\infty}^x \, p_X(x) \, \textrm{d}x.
 $$
 
+<hr />
+
+*Example 2(a), cont.* We have a random variable $X$ with cdf $F_X(x) =
+x,$ for $x \in X,$ so the pdf is
+$$
+p_X(x) = F_X'(x) = \frac{\textrm{d}}{\textrm{d}x} x = 1.
+$$
+A constant density indicates the variable has a *uniform
+distribution.*  The uniform distribution has an associated
+function for $\alpha < \beta \in \mathbb{R},$
+$$
+\textrm{uniform}(x \mid \alpha, \beta) = \frac{1}{\beta - \alpha}.
+$$
+If a random variable $X$ has a density $p_X(x) = \textrm{uniform}(x
+\mid \alpha, \beta),$ we write
+$$
+X \sim \textrm{uniform}(\alpha, \beta).
+$$
+In this notation, $\alpha$ and $\beta$ might themselves be random
+variables, which require the notion of conditional density, which we
+define below. 
+
+For our second random variable $Y$, the cdf is $F_Y(y) =
+\textrm{logit}^{-1}(y),$  and so the pdf is 
+$$
+p_Y(y) = F_Y'(y) = \frac{\textrm{d}}{\textrm{d}y} \textrm{logit}^{-1}(y) =
+\textrm{logit}^{-1}(y) \cdot (1 - \textrm{logit}^{-1}(y)).
+$$
+Variable $Y$ has a standard *logistic distribution*, and we write
+$$
+Y \sim \textrm{logistic}(0, 1).
+$$
+The general definition of the logistic distribution's density
+involves parameters $\mu \in \mathbb{R}$ and $\sigma
+\in (0, \infty),$
+$$
+\textrm{logistic}(y \mid \mu, \sigma)
+= \textrm{logit}^{-1}\!\left(\frac{y - \mu}{\sigma}\right)
+\cdot
+\left(1 - \textrm{logit}^{-1}\!\left(\frac{y - \mu}{\sigma}\right)\right).
+$$
+The use of $\mu$ and $\sigma$ in this configuration defines what's
+known as a *location-scale parameterization.*  The *standard
+parameterization* takes the location to be zero and the scale to be
+one.  If $Y \sim \textrm{logistic}(0, 1)$ (i.e., it has a standard
+logistic distribution), then $Z = \mu + \sigma \cdot Y$ is such that
+$Z \sim \textrm{logistic}(\mu, \sigma).$  The parameter $\sigma$ used
+to scale is called a *scale parametrer* and the parameter $\mu$ used
+to translate or shift is called a *location parameter*.
+
+The following code and plot shows the cdf and pdf for the standard
+logistic distribution.
 ```{python}
+#| code-fold: true
 def logit(x):
     return np.log(x / (1 - x))
-
 def inv_logit(x):
     return 1 / (1 + np.exp(-x))
-    
-x = np.linspace(-6, 6, 100)
+
+x = np.linspace(-8, 8, 100)
 pdf_y = [inv_logit(x_n) * (1 - inv_logit(x_n)) for x_n in x]
-cdf_y = [inv_logit(x_n) for x_n in x]
 df_pdf = pd.DataFrame({
     'x': x, 'y': pdf_y, 'type': 'pdf p_X'
 })
+cdf_y = [inv_logit(x_n) for x_n in x]
 df_cdf = pd.DataFrame({
     'x': x, 'y': cdf_y, 'type': 'cdf F_X'
 })
 df = pd.concat([df_pdf, df_cdf])
-mydraw(
-    pn.ggplot(df, pn.aes(x='x', y='y')) +
-    pn.geom_line() +
-    pn.facet_wrap('~ type', scales = 'free_y') +
-    pn.labs(x='x', y='value', title='pdf and cdf of X ~ logistic(0, 1)') +
-    pn.theme(figure_size=(10, 4), panel_spacing=0.5)
-)
+mydraw(pn.ggplot(df, pn.aes(x='x', y='y')) + pn.geom_line()
+    + pn.facet_wrap('~ type', scales = 'free_y')
+    + pn.labs(x='x', y='value', title = 'X ~ logistic(0, 1)')
+    + pn.scale_x_continuous(breaks = [-8, -6, -4, -2, 0, 2, 4, 6, 8])
+    + pn.theme(figure_size=(10, 4), panel_spacing=0.5))
 ```
+The side-by-side plots illustrate how the pdf $p_X$ is the derivative
+of the cdf $F_X.$ The derivative of the cdf, and hence the pdf, is
+maximized at $X = 0,$ and approaches zero as $X \rightarrow \infty$ or
+$X \rightarrow -\infty.$  The chain rule for derivatives cancels the
+outer negation and establishes symmetry, 
+$$
+F_X(x) = 1 - F_X(-x)
+\qquad \qquad
+F_X'(x) = F_X'(-x)
+\qquad \qquad
+p_X(x) = p_X(-x).
+$$
+<hr />
 
-With the plots next to each other, it's easier to see how the pdf is
-the derivative of the cdf---the derivative is maximum at 0.5, and
-approaches zero as values for $X$ move away from zero.  The pdf is
-symmetric around zero because the cdf has the property that
-$$
-F_X(x) = 1 - F_X(-x).
-$$
-The function $1 - F_X(x)$ is known as the _complementary cumulative
-distribution function_ and it's used to improve numerical stability.
 
 #### Change of variables
 
@@ -4606,22 +4735,22 @@ both continuous portions and jumps.  For example, if we define a
 mixture of a discrete and continuous cdf (e.g., for a spike-and-slab
 prior in Bayesian statistics), we get a cdf that is neither discrete
 nor continuous.
-
 ```{python}
+#| code-fold: true
 support = np.arange(2, 13)
 probs = [0, 1/36, 2/36, 3/36, 4/36, 5/36, 6/36, 5/36, 4/36, 3/36, 2/36, 1/36]
 cdf_values = np.cumsum(probs)
 df = pd.DataFrame({
     'n': support,  'cdf': cdf_values[1:12], 'cdf_low': cdf_values[0:11],
 })
-plot1 = (pn.ggplot(df, pn.aes(x='n', y='cdf')) +
-    pn.geom_point(size=2) +
-    pn.scale_x_continuous(breaks=np.arange(2, 13)) +
-    pn.labs(x='n', y='Pr[X <= n]') +
-    pn.theme(strip_margin_x=5.0) +
-    pn.scale_x_continuous(limits=(1,13),
-         breaks=support, expand=(0, 0)) +
-    pn.ggtitle('cdf'))
+plot1 = (pn.ggplot(df, pn.aes(x='n', y='cdf'))
+    + pn.geom_point(size=2)
+    + pn.scale_x_continuous(breaks=np.arange(2, 13))
+    + pn.labs(x='n', y='Pr[X <= n]')
+    + pn.scale_x_continuous(limits=(1,13),
+                            breaks=support, expand=(0, 0))
+    + pn.ggtitle('cdf')
+    + pn.theme(strip_margin_x=5.0))
 for n in range(0,12):
     plot1 += pn.geom_segment(pn.aes(x = n + 1,
                y = cdf_values[n], xend = n + 2 - 0.075,
@@ -4629,9 +4758,7 @@ for n in range(0,12):
     plot1 += pn.geom_point(pn.aes(x='n', y='cdf_low'),
                size=2, stroke=0.5, fill='none',
 	       shape='o', color='black')
-df2 = pd.DataFrame({
-    'n': support, 'probs': probs[1:]
-})
+df2 = pd.DataFrame({ 'n': support, 'probs': probs[1:] })
 plot2 = (pn.ggplot(df2, pn.aes(x='n', y='probs'))
          + pn.geom_bar(stat='identity', color='black', fill='white')
          + pn.scale_x_continuous(breaks=support)
@@ -4642,14 +4769,170 @@ g12 = (pw.load_ggplot(plot1, figsize=(3.25, 3))
       | pw.load_ggplot(plot2, figsize=(3.25, 3)))
 g12.savefig()
 ```
+Because the cdf is defined by $F_X(x) = \Pr[X \leq x],$ for
+a discrete distribution defined over $\mathbb{N},$ its value at $x$ is
+the sum of the probabilities of outcomes *less than or equal to* the
+argument,
+$$
+F_X(x) = \sum_{n = 0}^x p_X(x).
+$$
 
-## A.5 Expectations {.unnumbered}
+### Conditional cdfs, pdfs, and pmfs
+
+#### Conditional cumulative distribution function
+
+If $X:\Omega \rightarrow \mathbb{R}$ is a random variable and
+$A \subseteq \Omega$ is an event with $\Pr[A] > 0,$ the *conditional cumulative
+distribution function* is
+$$
+F_{X \mid A}(x) = \Pr[X \leq x \mid A],
+$$
+where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega) \leq x \}.$
+
+
+#### Conditional probability mass functions
+
+If $X$ is a discrete random variable, the *conditional probability
+mass function* is 
+$$
+p_{X \mid A}(x) = \Pr[X = x \mid A],
+$$
+where $X = x$ picks out the event $\{ \omega \in \Omega : X(\omega) = x \}.$ 
+
+Suppose $Y:\Omega \rightarrow \mathbb{R}$ is a discrete random
+variable (i.e., $\textrm{range}(Y)$ is countable).  It is conventional
+to further overload notation and terminology and define the 
+*conditional probability mass function* $p_{X \mid Y}$ by taking
+$$
+p_{X \mid Y}(x \mid y)
+= \Pr[X = x \mid Y = y].
+$$
+It follows that
+$$
+p_{X \mid Y}(x, y) = \frac{p_{X, Y}(x, y)}{p_Y(y)}.
+$$
+
+#### Conditional probability density functions
+
+If $X$ is continuous, the *conditional probability density function* is
+defined by differentiation,
+$$
+p_{X \mid A}(x) = F_{X \mid A}'(x).
+$$
+
+If $Y$ is also continuous, we will define a limit that provides the
+conditional form.  Let $Y^{y, \epsilon}$ be the event determined by
+the condition $Y \in (y - |\epsilon|, y + |\epsilon|)$ and define
+$$
+p_{X \mid Y}(x \mid y) 
+= \lim_{\epsilon \rightarrow 0} \ p_{X \mid Y^{\mbox{$\scriptstyle y,\epsilon$}}}(x).
+$$
+It follows that
+$$
+p_{X \mid Y}(x \mid y) = \frac{p_{X, Y}(x, y)}{p_Y(y)}.
+$$
+
+#### Mixed pdfs
+
+We can mix conditioning on discrete and continuous random variables,
+as we will do going forward.  These are each defined by the
+appropriate mix of the above operations: equality for discrete
+variables, limits for continuous variables used to condition on the
+right-hand side of the $\mid$, and differentiation for continuous
+outcomes on the left-hand side of the $\mid.$  In all cases, we will
+rely on the fact that we have
+$$
+p_{X \mid Y}(x \mid y) = \frac{p_{X, Y}(x, y)}{p_Y(y)}.
+$$
+
+### Multiple conditioning variables
+
+We can extend all of these constructions used to construct single
+conditional densities $p_{X \mid Y}$ that condition on a single
+variable $Y$ to the general case $p_{X \mid Y_1, \ldots, Y_N}$ in the
+obvious way---we just take multiple limits for the $Y$ to get the cdf
+and then differentiate to get the pdf.  Multiple conditioning
+variables just get carried along on the right-hand side of equations
+as long as they have non-zero probability (discrete) or non-zero
+density (continuous).
+
+
+## A.6 Multivariate random variables {.unnumbered}
+
+Although we have only described univariate random variables that take
+values in $\mathbb{R}$, if we take a collection of random variables
+$X_1, \ldots, X_N$ we can combine them into a multivariate random
+variable $X:\Omega \rightarrow \mathbb{R}^N$, by taking
+$$
+X(\omega) = [X_1(\omega) \ \cdots \ X_N(\omega)].
+$$
+In this case, we can write $X = [X_1 \ \cdots \ X_N].$ The same
+construction may be naturally extended to matrices, tensors, etc.
+
+<hr />
+
+*Example 4.* Consider a sample space $(0, 1)^2$ with a Borel
+$\sigma$-algebra and probability function given by area (i.e., the
+Lebesgue measure), so that if $A \subseteq (0,1)^2,$ we have $\Pr[A] =
+\int_{(0,1)^2} \, \textrm{I}(x \in A) \, \textrm{d}x.$ We can define a
+random variable $X$ by $X(\omega) = \pi_1(\omega),$ where $\pi_1$ is
+the *projection function* defined by $\pi_1\!\left((x,y)\strut\right)
+= x,$ and a second random variable $Y$ defined by $Y(\omega) =
+\pi_2(\omega),$ where $\pi_2\!\left((x, y)\strut\right) = y.$ We can
+define a multivariate random variable $Z = [X \quad Y],$ which could
+have also been defined directly by $Z(\omega) = \omega.$
+
+<hr />
+
+### Functions of multivariate random variables
+
+As in the univariate case, we can directly apply real-valued
+multivariate functions to a sequence of random variables to define new
+random variables. For example, if
+$f:\textrm{range}(X_1) \times \cdots \times \textrm{range}(X_N)
+\rightarrow \mathbb{R}^M,$ then we get a new random variable $Y =
+f(X)$ defined by
+$$
+Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
+$$
+
+<hr />
+
+*Example 4, cont.* We can take the random variables $X$ and $Y$ and
+define a new random variable $L = \sqrt{X^2 + Y^2}$ which is the
+Euclidean distance from the origin to the point $(X, Y)$.  We can
+move back and forth between univariate and multivariate functions.
+For example, we could have defined $L$ as a function of the
+multivariate variable $Z$ by $L = \sqrt{Z_1^2 + Z_2^2}.$
+
+<hr />
+
+### Multivariate cdfs and pdfs
+
+The *cumulative distribution function* for a multivriate random variable
+$X:\Omega \rightarrow \mathbb{R}^N$ is defined by
+$$
+F_X(x_1, \ldots, x_N)
+= \Pr[x_1 \leq X_1, \cdots, x_N \leq X_N]
+= \Pr[\{ x \in \mathbb{R}^N : x_1 \leq X_1, \ldots, x_N \leq X_N \}].
+$$
+
+The *probability density function* for a continuous multivariate
+random variable is given by
+$$
+p_X(x_1, \ldots, x_N)
+= (\nabla F_X)(x_1, \ldots, x_N),
+$$
+where $\nabla F_X$ is the gradient of the cdf.
+
+
+## A.7 Expectations {.unnumbered}
 
 ### Expectation
 
 If we have a (potentially multivariate) random variable $Z$, we write
 $\mathbb{E}[Z]$ for its _expectation_, which despite the fancy name,
-is just its average value, weighted by density,
+is just its average value, weighted by its density,
 $$
 \mathbb{E}[Z] = \int_{\textrm{supp}(Z)} z \cdot p_Z(z) \, \textrm{d}z.
 $$
@@ -4676,7 +4959,7 @@ $$
 That is, we take a weighted average of the value of $Z$ with weights
 determined by the conditional density $p_{Z \mid Y}(z \mid y)$.
 
-### Expectation of functions of random variables
+### Expectations of functions of random variables
 
 Suppose we have a random variable $Z$ and a real-valued function
 $f:\textrm{supp}(Z) \rightarrow \mathbb{R}^N$.  We can then define
@@ -4706,7 +4989,9 @@ $$
 Either way, we just take a weighted average the value of $f(z)$ with
 weights $p_Z(z)$ or $p_{Z|Y}(z \mid y).$
 
-### Variance and standard deviation
+## A.8 Variance, standard deviation, covariance, and correlation {.unnumbered}
+
+### Variance
 
 The _variance_ of a random variable is the expectation of its squared
 difference from the expectation,
@@ -4716,20 +5001,98 @@ $$
 \left( X - \mathbb{E}[X] \right)^2
 \right].
 $$
-The _standard deviation_ is the square root of the variance,
+If $X$ represents a distance measured in meters, then the 
+variance $\textrm{var}[X]$ is expressed in square meters.  This can
+make it tricky to reason about variances.
+
+### Standard deviation
+
+The _standard deviation_ of a random variable is the square root of the variance,
 $$
 \textrm{sd}[X] = \sqrt{\textrm{var}[X]}.
 $$
-
 The units of the standard deviation are identical to those of the
-random variable $X$. In contrast, the units of the variance are the
-square of the units of $X$. For example, if $X$ represents a
-distance measured in meters, then the standard deviation
-$\textrm{sd}[X]$ is also expressed in meters. On the other hand, the
-variance $\textrm{var}[X]$ is expressed in square meters.
+random variable $X$.  Thus we say that the standard deviation is the
+*scale* of a variable's variation.
+
+### Covariance
+
+If we have two random variables $X$ and $Y$, their *covariance* is
+defined as
+$$
+\textrm{cov}[X, Y]
+= \mathbb{E}\!\left[\strut (X - \mathbb{E}[X]) \cdot (Y - \mathbb{E}[Y])\right].
+$$
+Covariance is measured in units that are the product of the units of
+$X$ and the units of $Y$. For example if $X$ is
+watts and $Y$ is hours, then the units of $\textrm{cov}[X, Y]$ is
+watt-hours.  As an operation, covariance is commutative in that
+$\textrm{cov}[X,Y] = \textrm{cov}[Y, X].$
+
+The covariance between a variable and itself is just its variance,
+$$
+\textrm{cov}[X, X]
+= \mathbb{E}\!\left[ \strut (X - \mathbb{E}[X])
+                    \cdot (X - \mathbb{E}[X])\right]
+= \mathbb{E}\!\left[ \strut (X - \mathbb{E}[X])^2\right]
+= \textrm{var}[X].
+$$
+
+### Correlation
+
+The *correlation* between two random variables is their inverse scaled covariance,
+$$
+\textrm{corr}[X, Y]
+= \frac{\textrm{cov}[X, Y]}
+       {\textrm{sd}[X] \cdot \textrm{sd}[Y]}.
+$$
+The units all cancel here---the numerator has units in the square of
+the original variables as does the denominator.  Like covariance,
+correlation is commutative.
+
+The correlation between a variable and itself is the unit,
+$$
+\textrm{corr}[X, X]
+= \frac{\textrm{var}[X]}
+       {\textrm{sd}[X] \cdot \textrm{sd}[X]}
+= 1.
+$$
 
 
-## A.5 Quantiles, medians, and uncertainty intervals {.unnumbered}
+### Covariance and correlation matrices
+
+If we have a random variable $X:\Omega \rightarrow \mathbb{R}^N$, its
+*covariance matrix* has entries corresponding to covariances between
+its components,
+$$
+\textrm{cov}[X]
+= \mathbb{E}\!\left[(X - \mathbb{E}[X]) \cdot (X - \mathbb{E}[X])^{\top}\right].
+$$
+The entries are the covariances between pairs of components,
+$$
+\textrm{cov}[X]_{i,j} = \textrm{cov}[X_i, X_j].
+$$
+Covariance matrices are symmetric and positive definite (and hence
+full rank).  The units of the entries are squared relative to the
+original variable $X$.
+
+The *correlation matrix* for $X$ standardizes the covariance matrix
+by dividing by the scales,
+$$
+\textrm{corr}[X] = S \cdot \textrm{cov}[X] \cdot S,
+$$
+where $S$ is the diagonal matrix with entries $S_{n,n} =
+\frac{1}{\textrm{sd}[X_n]}.$  The entries are the correlations between
+pairs of components,
+$$
+\textrm{corr}[X]_{i,j}
+= \frac{1}{\textrm{sd}[X_i]} \cdot \textrm{cov}[X_i, X_j] \cdot \frac{1}{\textrm{sd}[X_j]}
+= \textrm{corr}[X_i, X_j].
+$$
+
+
+
+## A.9 Quantiles, medians, and uncertainty intervals {.unnumbered}
 
 Suppose $Z$ is a univariate random variable (e.g., one of the
 parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
@@ -4945,8 +5308,6 @@ using square brackets because a random variable is a function, whereas
 we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
 is a value; see the Appendix [section on random
 variables](#a.4-random-variables-cdfs-pdfs-and-pmfs). 
-
-
 
 
 ### Posterior predictive inference {.unnumbered}
