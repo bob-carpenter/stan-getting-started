@@ -16,4 +16,31 @@ code, pre {
 
 pre {
     background-color: white;
-}    
+}
+
+.example-text {
+  position: relative;
+  margin-left: 2.5em;
+  margin-right: 1.5em;
+  margin-top: 0;
+  margin-bottom: 0;
+  font-size: 90%;
+  padding: 1em 0;  /* Add space for the horizontal lines */
+}
+
+.example-text::before, .example-text::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 0.75px solid; /* Adds a line */
+}
+
+.example-text::before {
+  top: 0;
+}
+
+.example-text::after {
+  bottom: -1.25;
+}
+

@@ -4051,7 +4051,7 @@ Because $\emptyset \in \mathcal{S}$, its complement $\Omega =
 can restrict our attention to sample spaces $\Omega \subseteq
 \mathbb{R}^N$.
 
-<hr />
+<div class="example-text">
 *Example 1*: The power set of any non-empty set forms a complete
 atomic boolean algebra under union, intersection, and complementation,
 and is hence a $\sigma$-algebra. The simplest $\sigma$-algebra has a
@@ -4060,7 +4060,9 @@ $\mathcal{S} = \left\{ \{\}, \{ 0 \} \right\}$. The simplest
 non-trivial $\sigma$-algebra has a binary sample space $\Omega = \{ 0,
 1 \}$, with measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1
 \}, \{ 0, 1 \} \right\}$.
-<hr />
+</div>
+
+<div class="example-text">
 *Example 2(a)*: A simple continuous example takes a sample space
 $\Omega = (0, 1)$ and defines $\mathcal{S}$ to be the smallest
 $\sigma$-algebra containing the open intervals $(a, b) \subseteq
@@ -4070,16 +4072,21 @@ shown to exist), contains all of the singletons, because $\{ a \} =
 ((0, a) \cup (a, 1))^{\complement}.$ The smallest $\sigma$-algebra
 containing the open sets of a sample space is called a *Borel
 algebra*.
-<hr />  
+</div>
+
+<div class="example-text">
 *Example 2(b)*: Another example of a Borel algebra is the closure of
 the open intervals over the entire real line, $\Omega = \mathbb{R}$.
-<hr />
+</div>
+
+<div class="example-text">
 *Example 3*: If $\mathcal{S}_1$ and $\mathcal{S}_2$ are
 $\sigma$-algebras over $\Omega_1$ and $\Omega_2$, then
 the product space $\mathcal{S} = \left\{ A_1 \times A_2 : A_1 \in \mathcal{S}_1 \
 \textrm{and} \ A_2 \in \mathcal{S}_2 \right\}$ is a $\sigma$-algebra
 over $\Omega = \Omega_1 \times \Omega_2.$
-<hr />
+</div>
+
 
 ### Measures and probability spaces
 
@@ -4102,7 +4109,7 @@ sample space $\Omega$ with a probability measure $\Pr$ over the
 $\sigma$-algebra $\mathcal{S}$ together make up a *probability space*
 $(\Omega, \mathcal{S}, \Pr)$.
 
-<hr />
+<div class="example-text">
 *Example 1, continued*:  We can define a
 measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
 \}$ and measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1 \},
@@ -4127,9 +4134,9 @@ boolean outcome of a football match (1 for the home team winning, 0
 for the visiting team winning), then $\Pr[\{ 1 \}]$ is the probability
 that the home team wins and $\Pr[\{ 0 \}]$ is the probability that the
 visiting team wins.
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 2(a), cont.*  We can define the *Lebesgue measure*
 over intervals $(a, b) \subseteq (0, 1)$ by
 $$
@@ -4149,9 +4156,9 @@ Singleton sets have measure zero, because
 $$
 \Pr[\{ a \}] = \Pr[(a, a)] = a - a = 0.
 $$  
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 2(b), cont.*  The Lebesgue measure over $\Omega = \mathbb{R}$ does not
 form a probability space, because the measure of the whole space $\mathbb{R}$ is not
 finite. We can define a measure over $\Omega = \mathbb{R}$ by
@@ -4171,9 +4178,9 @@ $$
 \textrm{logit}^{-1}(b) - \textrm{logit}^{-1}(a)
 = 1 - 0 = 1.
 $$
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 3, cont.* Suppose we have a product $\sigma$-algebra over the open unit square $\Omega = (0, 1)^2$ (i.e.,$(0, 1) \times (0, 1)$).  
 We can define a basis for a probability measure using
 open discs for $x \in (0, 1)^2$,
@@ -4193,8 +4200,7 @@ measurable subset of $(0, 1)^2$ has a probability equal to its area
 $\Omega$ has a probability of 1 because it is a unit square with unit area.
 This construction works with the volumes of balls in three
 dimensions and the hypervolumes of hyperballs in higher dimensions.
-
-<hr />
+</div>
 
 ## A.2 Joint and conditional probability {.unnumbered}
 
@@ -4354,16 +4360,15 @@ real numbers. It is conventional to overload the membership operator
 for a random variable $X$ and write write $x \in X$ if $x \in
 \textrm{range}(X)$.
 
-<hr />
-
+<div class="example-text">
 *Example 1, cont.* Our first example has a finite sample space,
 $\Omega = \{ 0, 1 \}.$ Over this sample space, we can define a random
 variable $X:\Omega \rightarrow \mathbb{R}$ by $X(0) = -2$ and $X(1) =
 10$.  This has $\textrm{range}(X) = \{ -2, 10 \}$ and represents the
 payoff of a 2 unit bet placed on the outcome $X = 1$ at 5:1 odds.
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 2(a), cont.* In this ongoing example, we have
 $\Omega = (0, 1)$.  Because $\Omega \subseteq \mathbb{R}$, we can
 define a random variable $X$ by the identity function,
@@ -4389,9 +4394,9 @@ T(\omega)
 \end{cases}
 $$
 so that $\textrm{range}(T) = \{ 0, 1 \}.$
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 2(b), cont.* We previously defined a probability space over the sample
 space $\Omega = \mathbb{R}$.  We can define a random variable $U$ over
 $\Omega$ by the identity function,
@@ -4405,8 +4410,8 @@ V(\omega) = \textrm{logit}^{-1}(\omega) = \frac{1}{1 + \exp(-\omega)},
 $$
 which has $\textrm{range}(V) = (0, 1)$.  A third example is $W$ defined by
 $W(\omega) = \omega^2$, which has $\textrm{range}(W) = [0, \infty)$. 
+</div>
 
-<hr />
 
 ### Functions of random variables
 
@@ -4432,18 +4437,17 @@ Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
 $$
 As in the univariate case, we write $Y = f(X_1, \ldots, X_N).$
 
-<hr />
+<div class="example-text">
 *Example 2(a), cont.*  Although we have given the random variables $X,$
 $Y,$ and $T$ direct definitions, note that $Y = \textrm{logit}(X),$
 $Z = \textrm{log}(x),$ and $T = \textrm{I}(\omega < 0.3).$
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 2(b), cont.* In this example, we have defined $U,$ $V,$ and
  $W$ as primitive random variables, but we also have $V =
  \textrm{logit}^{-1}(U)$ and $W = \textrm{U}^2.$
-
-<hr />
+</div>
 
 ## A.5 Cdfs, pdfs, and pmfs {.unnumbered}
 
@@ -4465,8 +4469,7 @@ where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega)
 of the relevant events $X \leq x$ must be measurable in order
 for $X$ to be a random variable.
 
-<hr />
-
+<div class="example-text">
 *Example 1, cont.*: Continuing our minimal descrite example with
 $\Omega = \{ 0, 1 \}$, let's make our measure concrete and suppose
 that $\Pr[\{ 0 \}] = 0.3$ and thus $\Pr[\{ 1 \}] = 0.7.$  With our
@@ -4482,9 +4485,9 @@ F_X(x) =
 1.0 & \textrm{if } x \in [10, \infty).
 \end{cases}
 $$
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 2(a), cont.* Taking up our example of $\Omega = (0,
 1),$ with $\Pr[(a, b)] = b - a$ for $(a, b) \subseteq (0, 1),$ we see
 that the random variable $X(\omega) = \omega$ has the cdf
@@ -4514,9 +4517,9 @@ F_Y(y) &= \Pr[Y \leq y]
 \\[4pt]
 &= \textrm{logit}^{-1}(y).
 \end{align}
+</div>
 
-<hr />
-
+<div class="example-text">
 *Example 2(b), cont.* In this example, 
 $\Omega = \mathbb{R}$ and $\Pr[(a, b)] = \textrm{logit}^{-1}(b) -
 \textrm{logit}^{-1}(a).$ Let the random variable $U$ be the identity
@@ -4563,8 +4566,7 @@ F_V(v)
 \end{align}
 Thus we see that $F_V$ in this example has the same cumulative
 distribution as $F_X$ in example 2(a).  
-
-<hr />
+</div>
 
 ### Probability density function {.unnumbered}
 
@@ -4598,8 +4600,7 @@ $$
 F_X(x) = \int_{-\infty}^x \, p_X(x) \, \textrm{d}x.
 $$
 
-<hr />
-
+<div class="example-text">
 *Example 2(a), cont.* We have a random variable $X$ with cdf $F_X(x) =
 x,$ for $x \in X,$ so the pdf is
 $$
@@ -4685,7 +4686,7 @@ F_X'(x) = F_X'(-x)
 \qquad \qquad
 p_X(x) = p_X(-x).
 $$
-<hr />
+</div>
 
 
 #### Change of variables
@@ -4832,29 +4833,137 @@ $$
 p_{X \mid Y}(x \mid y) = \frac{p_{X, Y}(x, y)}{p_Y(y)}.
 $$
 
-#### Mixed pdfs
+#### Conditioning on discrete and continuous variables
 
-We can mix conditioning on discrete and continuous random variables,
-as we will do going forward.  These are each defined by the
-appropriate mix of the above operations: equality for discrete
-variables, limits for continuous variables used to condition on the
-right-hand side of the $\mid$, and differentiation for continuous
-outcomes on the left-hand side of the $\mid.$  In all cases, we will
-rely on the fact that we have
+In practice, we might have a variable (discrete or continuous) whose
+value depends on the value of one or more discrete variables and one
+or more continuous variables (e.g., the outcome of a drug trial based
+on a patient's discrete age group and continuous blood pressure).  In
+this case, we define the cdf by conditioning on equality for discrete
+variables and by taking limits of surrounding intervals (balls in
+higher dimensions) for continuous variables.  If the resulting
+variable is discrete, its pmf is defined by differences of the cdf; if
+it is continous, the pdf is defined by differentiating the cdf.
+
+In all cases, we will rely on the fact that for any random variables
+$X$ and $Y$, including multivariate ones, we have
 $$
 p_{X \mid Y}(x \mid y) = \frac{p_{X, Y}(x, y)}{p_Y(y)}.
 $$
+Here, we have overloaded the $p$ notation to allow for discrete,
+continuous, or mixed random variables.
 
-### Multiple conditioning variables
+<div class="example-text">
+*Example 6.* Suppose we have a discrete random variable $Z$ taking
+boolean values (i.e., $\textrm{range}(Z) = \{ 0, 1 \}),$ and two
+continuous random variables $U$ and $V$.  We can define a new
+continuous random variable
+$$
+Y
+= \begin{cases}
+U & \textrm{if } Z = 1, \textrm{ and}
+\\[2pt]
+V & \textrm{if } Z = 0.
+\end{cases}
+$$
+The resulting mixed pdf/pmf is given by
+$$
+p_{Y, Z, U, V}(y, z, u, v)
+= \begin{cases}
+1 & \textrm{if } z = 1 \textrm{ and } y = u, \textrm{ or if } z = 0
+\textrm{ and } y = v, \textrm{ and}
+\\
+0 & \textrm{otherwise}.
+\end{cases}
+$$
+If we marginalize out the $Z,$ we get
+$$
+p_{Y, U, V}(y, u, v)
+= \begin{cases}
+1 & \textrm{if } y = u, y = v
+\\
+\Pr[Z = 1] & \textrm{if } y = u, y \neq v
+\\
+\Pr[Z = 0] & \textrm{if } y = v, y \neq u
+\end{cases}
+$$
+If we further marginalize out the $U$ and $V,$ we are left again
+with a continuous density, 
+$$
+p_Y(y) = \Pr[Z = 1] \cdot p_U(y) + \Pr[Z = 0] \cdot p_V(y).
+$$
+</div>
 
-We can extend all of these constructions used to construct single
-conditional densities $p_{X \mid Y}$ that condition on a single
-variable $Y$ to the general case $p_{X \mid Y_1, \ldots, Y_N}$ in the
-obvious way---we just take multiple limits for the $Y$ to get the cdf
-and then differentiate to get the pdf.  Multiple conditioning
-variables just get carried along on the right-hand side of equations
-as long as they have non-zero probability (discrete) or non-zero
-density (continuous).
+### Mixed continuous and discrete variables
+
+Not all random variables can be classified as continuous or
+discrete---some have cumulative distribution functions that
+are continuous in some segments and step functions elsewhere.
+In our applied examples, such distributions will be constructed
+from simpler continuous and discrete distributions.
+
+<div class="example-text">
+*Example 7 (zero inflation).* Suppose we have a binary random variable
+$Z$ (i.e., $\textrm{range}(Z) = \{ 0, 1 \}$) and a continuous random
+variable $U$ with $\textrm{range}(U) = \mathbb{R}.$   We can define a
+new random variable $Y$ by 
+$$
+Y =
+\begin{cases}
+0 & \textrm{if } Z = 1, \textrm{ and}
+\\[2pt]
+U & \textrm{if } Z = 0.
+\end{cases}
+$$
+The variable $Y$ will have $\textrm{range}(Y) = \mathbb{R},$ so it
+is not technically discrete.  Nevertheless, we see that $\Pr[Y = 0] =
+\Pr[Z = 1],$ which cannot happen in a continuous distribution (where
+all points have zero probability).  The cdf $F_Y$ is equal to the
+cdf $F_U$ scaled by the probability $Z = 0$, with a jump at zero of
+$\Pr[Z = 1],$
+$$
+F_Y(y) =
+\begin{cases}
+F_U(y) \cdot \Pr[Z = 0] & \textrm{if } y < 0, \textrm{ and}
+\\[4pt]
+\Pr[Z = 1] + F_U(y) \cdot \Pr[Z = 0] & \textrm{if } y > 0.
+\end{cases}
+$$
+Zero-inflated continuous distributions are sometimes called *spike and
+slab* distributions, because the probability mass at zero acts as a
+"spike" (i.e., as a delta function for integration), with the
+underlying continuous distribution forming the "slab" (especially in
+when there is a high probability of extreme values).
+
+Here is a plot of the resulting mixed cdf for the case $\Pr[Z = 1] =
+0.4$, with the standard logistic distribution as the continuous
+component. 
+```{python}
+#| code-fold: true
+p = 0.4
+def mix_cdf(y):
+    cdf_y = (1 - p) * inv_logit(y)
+    return cdf_y if y < 0 else cdf_y + p
+y_left = np.linspace(-8, -0.065, 50)
+y_right = np.linspace(0, 8, 50)
+F_Y_left = [mix_cdf(y_n) for y_n in y_left]
+F_Y_right = [mix_cdf(y_n) for y_n in y_right]
+df_left = pd.DataFrame({ 'y': y_left, 'F_Y': F_Y_left })
+df_right = pd.DataFrame({ 'y': y_right, 'F_Y': F_Y_right })
+mydraw(pn.ggplot(pn.aes(x = 'y', y = 'F_Y'))
+    + pn.geom_line(data = df_left)
+    + pn.geom_line(data = df_right)
+    + pn.geom_point(data = pd.DataFrame({'x': [0], 'y': [(1 - p) / 2]}),
+                    mapping = pn.aes(x = 'x', y = 'y'), size=2,
+		    shape='o', stroke = 0.5, fill='none')
+    + pn.geom_point(data = pd.DataFrame({'x': [0], 'y': [1 - (1 - p) / 2]}),
+                    mapping = pn.aes(x = 'x', y = 'y'), size=2)
+    + pn.scale_x_continuous(breaks = np.linspace(-8, 8, 9))
+    + pn.scale_y_continuous(breaks = [0, 0.3, 0.7, 1])
+)
+```
+
+</div>
 
 
 ## A.6 Multivariate random variables {.unnumbered}
@@ -4869,8 +4978,7 @@ $$
 In this case, we can write $X = [X_1 \ \cdots \ X_N].$ The same
 construction may be naturally extended to matrices, tensors, etc.
 
-<hr />
-
+<div class="example-text">
 *Example 4.* Consider a sample space $(0, 1)^2$ with a Borel
 $\sigma$-algebra and probability function given by area (i.e., the
 Lebesgue measure), so that if $A \subseteq (0,1)^2,$ we have $\Pr[A] =
@@ -4881,8 +4989,7 @@ the *projection function* defined by $\pi_1\!\left((x,y)\strut\right)
 \pi_2(\omega),$ where $\pi_2\!\left((x, y)\strut\right) = y.$ We can
 define a multivariate random variable $Z = [X \quad Y],$ which could
 have also been defined directly by $Z(\omega) = \omega.$
-
-<hr />
+</div>
 
 ### Functions of multivariate random variables
 
@@ -4896,18 +5003,17 @@ $$
 Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
 $$
 
-<hr />
 
+<div class="example-text">
 *Example 4, cont.* We can take the random variables $X$ and $Y$ and
 define a new random variable $L = \sqrt{X^2 + Y^2}$ which is the
 Euclidean distance from the origin to the point $(X, Y)$.  We can
 move back and forth between univariate and multivariate functions.
 For example, we could have defined $L$ as a function of the
 multivariate variable $Z$ by $L = \sqrt{Z_1^2 + Z_2^2}.$
+</div>
 
-<hr />
-
-### Multivariate cdfs and pdfs
+### Multivariate cdfs, pmfs, and pdfs
 
 The *cumulative distribution function* for a multivriate random variable
 $X:\Omega \rightarrow \mathbb{R}^N$ is defined by
@@ -4915,6 +5021,13 @@ $$
 F_X(x_1, \ldots, x_N)
 = \Pr[x_1 \leq X_1, \cdots, x_N \leq X_N]
 = \Pr[\{ x \in \mathbb{R}^N : x_1 \leq X_1, \ldots, x_N \leq X_N \}].
+$$
+
+The *probability mass function* for a discrete multivariate random
+variable is
+$$
+p_X(x_1, \ldots, x_N)
+= \Pr[X_1 = x_1, \ldots, X_N = x_n].
 $$
 
 The *probability density function* for a continuous multivariate
@@ -5001,9 +5114,32 @@ $$
 \left( X - \mathbb{E}[X] \right)^2
 \right].
 $$
+Variance can be decomposed as follows.
+\begin{align}
+\textrm{var}[X]
+&= \mathbb{E}\!\left[
+\left( X - \mathbb{E}[X] \right)^2
+\right]
+\\[4pt]
+&= \mathbb{E}\!\left[ \,
+X^2 - 2 \cdot X \cdot \mathbb{E}[X] + \mathbb{E}[X]^2
+\, \right]
+\\[4pt]
+&= \mathbb{E}\!\left[X^2 \right]
+- \mathbb{E}\!\left[2 \cdot X \cdot \mathbb{E}[X]\right]
++ \mathbb{E}\!\left[\mathbb{E}[X]^2\right]
+\\[4pt]
+&= \mathbb{E}\!\left[X^2 \right]
+- 2 \cdot \mathbb{E}[X] \cdot \mathbb{E}[X]
++ \mathbb{E}[X]^2
+&= \mathbb{E}\!\left[X^2\right] - \mathbb{E}[X]^2.
+\end{align}
+
+
 If $X$ represents a distance measured in meters, then the 
 variance $\textrm{var}[X]$ is expressed in square meters.  This can
 make it tricky to reason about variances.
+
 
 ### Standard deviation
 
