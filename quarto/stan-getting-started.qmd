@@ -46,6 +46,11 @@ bibliography: references.bib
 
 # Preface {.unnumbered}
 
+Welcome to this introduction to Bayesian statistics using Stan in
+Python.  The preface explains what we expect you to know before
+starting, how to install Stan, and provides the Python boilerplate
+we will use throughout.
+
 ## Prerequisites {.unnumbered}
 
 We will assume the reader will be able to follow text that includes
@@ -1208,7 +1213,7 @@ intractable integral for the evidence, with
 \begin{align}
 p(\theta) &= \textrm{normal}(\theta, 1),
 \\[2pt]
-p(y \mid \theta, x) &= \prod_{n=1}^N \textrm{bernouolli}(y_n \mid
+p(y \mid \theta, x) &= \prod_{n=1}^N \textrm{bernoulli}(y_n \mid
 \textrm{logit}^{-1}(x_n \cdot \theta))
 \end{align}
 
@@ -4024,9 +4029,12 @@ repository for *Bayesian Workflow*](https://github.com/jgabry/bayes-workflow-boo
 
 # A. Probability theory {.unnumbered}
 
-This brief overview of the main definitions of probability theory was
-greatly influenced by @anderson1979, Appendix A, "Brief Review of
-Results of Probability Theory."
+The goal of this overview is to provide precise definitions of those
+aspects of probability theory required to understand the operations
+used in applied Bayesian statistics.  The presentation was heavily
+influenced by @anderson1979's book [*Optimal
+Filtering*](http://users.cecs.anu.edu.au/~john/papers/BOOK/B02.PDF),
+(Appendix A, "Brief Review of Results of Probability Theory").
 
 ## A.1 Probability spaces {.unnumbered}
 
@@ -4047,31 +4055,36 @@ properties,
 then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
 
 Because $\emptyset \in \mathcal{S}$, its complement $\Omega =
-\emptyset^{\complement} \in \mathcal{S}$.  For applied statistics, we
+\emptyset^{\complement} \in \mathcal{S}$.  Closure under intersections
+follows from De Morgan's law,
+$$
+A \cap B = \left( A^{\complement} \cup B^{\complement} \right)^\complement.
+$$
+
+For applied statistics, we
 can restrict our attention to sample spaces $\Omega \subseteq
 \mathbb{R}^N$.
 
 <div class="example-text">
-*Example 1*: The power set of any non-empty set forms a complete
-atomic boolean algebra under union, intersection, and complementation,
-and is hence a $\sigma$-algebra. The simplest $\sigma$-algebra has a
-singleton sample space $\Omega = \{ 0 \}$, with measurable events
-$\mathcal{S} = \left\{ \{\}, \{ 0 \} \right\}$. The simplest
-non-trivial $\sigma$-algebra has a binary sample space $\Omega = \{ 0,
-1 \}$, with measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1
-\}, \{ 0, 1 \} \right\}$.
+*Example 1*: The power set of any non-empty set contains the empty set
+and is closed under complementation and countable unions, and is hence
+a $\sigma$-algebra.  The trivial case has a singleton sample space
+$\Omega = \{ 0 \}$, with $\sigma$-algebra $\mathcal{S} = \left\{ \{\},
+\{ 0 \} \right\}$. The simplest non-trivial example has a binary
+sample space $\Omega = \{ 0, 1 \}$, with $\sigma$-algebra $\mathcal{S}
+= \left\{ \{\}, \{ 0 \}, \{ 1 \}, \{ 0, 1 \} \right\}$.
 </div>
 
 <div class="example-text">
 *Example 2(a)*: A simple continuous example takes a sample space
 $\Omega = (0, 1)$ and defines $\mathcal{S}$ to be the smallest
 $\sigma$-algebra containing the open intervals $(a, b) \subseteq
-\Omega$ (i.e., $0 < a < b < 1$) and closed under complements and countable unions.  
-The resulting $\sigma$-algebra (which can be
-shown to exist), contains all of the singletons, because $\{ a \} =
-((0, a) \cup (a, 1))^{\complement}.$ The smallest $\sigma$-algebra
+\Omega$ (i.e., $0 < a < b < 1$) and closed under complements and
+countable unions.  The smallest $\sigma$-algebra
 containing the open sets of a sample space is called a *Borel
-algebra*.
+algebra* and can be shown to exist.  This $\sigma$-algebra 
+contains all of the singletons, because $\{ a \} =
+((0, a) \cup (a, 1))^{\complement}.$ 
 </div>
 
 <div class="example-text">
@@ -4090,12 +4103,12 @@ over $\Omega = \Omega_1 \times \Omega_2.$
 
 ### Measures and probability spaces
 
-A _measure_ over a $\sigma$-algebra $\mathcal{S}$ is a
-function $\Pr: \mathcal{S} \rightarrow [0, 1]$ such that for all $A,
-B_n \in \mathcal{S},$
+Probability measures are measures where the sample space is normalized
+to have unit measure. A _probability measure_ over a $\sigma$-algebra
+$\mathcal{S}$ is a function $\Pr: \mathcal{S} \rightarrow [0, 1]$ such
+that for all $A, B_n \in \mathcal{S},$
 
-* *empty set zero probability*: $\Pr[\emptyset] = 0$,
-* *full set unit probability*: $\Pr[\Omega] = 1$,
+* *sample space unit probability*: $\Pr[\Omega] = 1$,
 * *non-negativity*: if $A \in \mathcal{S}$, then $\Pr[A] \geq 0$, and
 * *countable additivity*: if $A_n \in \mathcal{S}$ for $n \in
 \mathbb{N}$ is a sequence of pairwise disjoint sets (i.e., $A_i \cap A_j =
@@ -4104,10 +4117,20 @@ $$
 \Pr\!\left[\bigcup_{n = 0}^\infty B_n\right] = \sum_{n=0}^\infty \Pr\!\left[B_n\right].
 $$
 
-An element $A \in \mathcal{S}$ is said to be a *measurable set*.  The
-sample space $\Omega$ with a probability measure $\Pr$ over the
-$\sigma$-algebra $\mathcal{S}$ together make up a *probability space*
-$(\Omega, \mathcal{S}, \Pr)$.
+The sample space $\Omega$ with a probability measure $\Pr$ over the
+$\sigma$-algebra $\mathcal{S}$ together make up the *probability
+space* $(\Omega, \mathcal{S}, \Pr)$.
+
+In analysis, an element $A \in \mathcal{S}$ is said to be a
+*measurable set.*  Measurable sets in a probability measure are
+called *events*.
+Because $A^\complement \cup A =
+\Omega$, it follows from countable additivity that
+$$
+\Pr[A^{\complement}] = 1 - \Pr[A],
+$$
+and in particular, $\Pr[\emptyset] = \Pr[\Omega^\complement] = 1.$  We
+also have $\Pr[A] \leq 1$ for any event $A \in \mathcal{S}.$
 
 <div class="example-text">
 *Example 1, continued*:  We can define a
@@ -4127,7 +4150,7 @@ and therefore
 $$
 \Pr[\{ 0 \}] = 1 - \Pr[\{ 1 \}].
 $$
-For example, if $\Pr[\{ 0 \}] = p$ then $\Pr[\{ 1 \}] = 1 - p.$
+For example, let $\Pr[\{ 1 \}] = 0.7$ so that $\Pr[\{ 0 \}] = 0.3.$
 
 If we take the sample space to represent the 
 boolean outcome of a football match (1 for the home team winning, 0
@@ -4142,16 +4165,12 @@ over intervals $(a, b) \subseteq (0, 1)$ by
 $$
 \Pr[(a, b)] = b - a.
 $$
-For example, this yields the expected
+This yields the expected value for the whole space,
 $$
 \Pr[\Omega] = \Pr[(0, 1)] = 1 - 0 = 1.
 $$
 The probability for unions of non-intersecting
-intervals is defined by countable additivity.  Because $A^\complement \cup A =
-\Omega$, it follows from countable additivity that
-$$
-\Pr[A^{\complement}] = 1 - \Pr[A].
-$$
+intervals is defined by countable additivity.
 Singleton sets have measure zero, because
 $$
 \Pr[\{ a \}] = \Pr[(a, a)] = a - a = 0.
@@ -4161,7 +4180,7 @@ $$
 <div class="example-text">
 *Example 2(b), cont.*  The Lebesgue measure over $\Omega = \mathbb{R}$ does not
 form a probability space, because the measure of the whole space $\mathbb{R}$ is not
-finite. We can define a measure over $\Omega = \mathbb{R}$ by
+finite.  On the other hand, we can define a measure over $\Omega = \mathbb{R}$ by
 defining the probability of an interval to be
 $$
 \Pr[(a, b)] = \textrm{logit}^{-1}(b) - \textrm{logit}^{-1}(a),
@@ -4174,15 +4193,19 @@ $$
 $$
 This has the desired property that
 $$
-\lim_{\begin{array}{c}a \rightarrow -\infty \\ b \rightarrow \infty\end{array}}
-\textrm{logit}^{-1}(b) - \textrm{logit}^{-1}(a)
+\Pr[\Omega]
+= \lim_{\begin{array}{c}a \rightarrow -\infty \\ b \rightarrow
+\infty\end{array}}
+  \Pr[(a, b)]
+= \lim_{\begin{array}{c}a \rightarrow -\infty \\ b \rightarrow \infty\end{array}}
+   \textrm{logit}^{-1}(b) - \textrm{logit}^{-1}(a)
 = 1 - 0 = 1.
 $$
 </div>
 
 <div class="example-text">
-*Example 3, cont.* Suppose we have a product $\sigma$-algebra over the open unit square $\Omega = (0, 1)^2$ (i.e.,$(0, 1) \times (0, 1)$).  
-We can define a basis for a probability measure using
+*Example 3, cont.* Suppose we have a product $\sigma$-algebra over the
+open unit square $\Omega = (0, 1)^2$ (i.e.,$(0, 1) \times (0, 1)$). We can define a basis for a probability measure using
 open discs for $x \in (0, 1)^2$,
 $$
 \textrm{D}(x, r) = \left\{
@@ -4205,47 +4228,45 @@ dimensions and the hypervolumes of hyperballs in higher dimensions.
 ## A.2 Joint and conditional probability {.unnumbered}
 
 In this section, we will presuppose a fixed probability space
-$(\Omega, \mathcal{S}, \Pr)$.  We can think of a measurable set $A
-\in \mathcal{S}$ as an *event*, by which we mean something that does
-or does not occur with a probability defined by the event's measure
-$\Pr[A]$.  That is, if we think of there being some $\omega \in
-\Omega$ that corresponds to the real world, then an event $A \in
-\mathcal{S}$ occurs if $\omega \in S$.
+$(\Omega, \mathcal{S}, \Pr)$.
 
 ### Joint probability
 
-If $A$ and $B$ are events (i.e., $A, B \in \mathcal{S}$), we define the
-*joint probability* of $A$ and $B$, written $\Pr[A, B]$ and understood
-as the probability that events $A$ and $B$ both occur, by
+If $A$ and $B$ are events (i.e., $A, B \in \mathcal{S}$), their
+*joint probability* is written $\Pr[A, B]$ and understood
+as the probability that events $A$ and $B$ both occur, so that
 $$
 \Pr[A, B] = \Pr[A \cap B].
 $$
 This notation extends to any number of events, with $\Pr[A, B, C] =
-\Pr[A \cap B \cap C]$ and so on.
+\Pr[A \cap B \cap C]$ and so on.  
 
-In the context of joint probability $\Pr[A, B]$, we refer to $\Pr[A]$
-as the *marginal probability* (of $A$).  If $A_1, A_2, \ldots$ are
-said to be *mutually disjoint* if $i \neq j$ implies $A_i \cap A_j =
-\emptyset.$  A $partition$ of the set $B$ is a countable sequence of
-mutually disjoin sets $B_1, B_2, \ldots$ such that $B = \bigcup_n B_n.$
+The sets $A_1, A_2, \ldots$ are said to be *mutually disjoint* if $i
+\neq j$ implies $A_i \cap A_j = \emptyset.$ A $partition$ of the set
+$B$ is a countable sequence of mutually disjoint sets $B_0, B_1, B_2,
+\ldots$ such that $B = \bigcup_{n \in \mathbb{N}} \, B_n.$
 
-The *law of total probability* states that if $B_1, B_2, \ldots$ is a
+The *law of total probability* states that if $B_0, B_1, \ldots$ is a
 partition of $B$, then
 $$
-\Pr[A, B] = \sum_n \Pr[A, B_n].
+\Pr[A, B] = \sum_{n \in \mathbb{N}} \, \Pr[A, B_n].
 $$
-This result follows directly from countable additivity, and has an
-immediate consequence that if $B_1, B_2, \ldots$ is a partition of
-$\Omega,$ then
+This result follows directly from countable additivity.
+
+In the context of joint probability
+$\Pr[A, B]$, we refer to $\Pr[A]$ as the *marginal probability* (of
+$A$). It follows from the law of total probability that if
+$B_1, B_2, \ldots$ is a partition of $\Omega,$ then the marginal
+probability of $A$ is
 $$
-\Pr[A] = \Pr[A \cap \Omega] = \Pr[A, \Omega] = \sum_n \Pr[A, B_n].
+\Pr[A] = \Pr[A, \Omega] = \sum_n \Pr[A, B_n].
 $$
 
 ### Conditional probability
 
-If $\Pr[B] \neq 0$, we define the *conditional probability* of $A$ given
-$B$, which is understood as the probability of $A$ occurring if $B$
-occurs, by 
+If $A$ and $B$ are events and $\Pr[B] \neq 0$, the
+*conditional probability* of $A$ given $B$ is the probability of 
+$A$ occurring if $B$ occurs, and is defined by
 $$
 \Pr[A \mid B] = \frac{\Pr[A, B]}{\Pr[B]}.
 $$
@@ -4283,8 +4304,8 @@ $A$ (either finite or countably infinite), then
 
 ## A.3 Independent events {.unnumbered}
 
-There are several notions of independence in statistics, which are
-summarized below.
+There are several notions of independence in statistics, which we
+summarize below.
 
 ### Independence
 
@@ -4299,6 +4320,62 @@ $$
 \qquad \qquad
 \Pr[B \mid A] = \Pr[B].
 $$
+If $A$ and $B$ are independent, then $A$ and $B^\complement$ are also
+independent, and thus $\Pr[A \mid B] = \Pr[A \mid B^\complement].$ 
+
+<div class="example-text">
+*Example 3, cont.*  Consider our Lebesgue measure on $(0, 1)^2,$ where
+the probability of an event is equal to its area.  We can define an
+event $A$ by dividing the sample space into an area for $A$ of 0.2
+and an area for $A^\complement$ of 0.8.  In the following diagram, we
+represent this as a blue horizontal dividing line, with the lower half
+(with area 0.2) representing the event $A.$  We do the same for $B$ with a red
+vertical dividing line, taking the left half (with area 0.6) to
+correspond to the event $B.$  
+```{python}
+#| code-fold: true
+mydraw(pn.ggplot(pd.DataFrame())
+  + pn.scale_y_continuous(breaks=[0.1, 0.6], labels=["A", "-A"], limits = (0, 1), expand=(0, 0))
+  + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["B", "-B"], limits = (0, 1), expand=(0, 0))
+  + pn.geom_vline(pn.aes(xintercept=0.6), color='red')
+  + pn.geom_hline(pn.aes(yintercept=0.2), color='blue')
+  + pn.theme(panel_grid_major = pn.element_blank(),
+             panel_grid_minor = pn.element_blank(),
+     	     axis_title = pn.element_blank(),
+	     axis_ticks = pn.element_blank())
+)
+```
+We have $\Pr[A] = 0.2$ and $\Pr[B] = 0.6.$ We can work out that
+$$
+\Pr[A \mid B] = \frac{\Pr[A, B]}{\Pr[B]} = \frac{0.12}{0.6} = 0.2 = \Pr[A],
+$$
+and
+$$
+\Pr[B \mid A] = \frac{\Pr[B, A]}{\Pr[A]} = .\frac{0.12}{0.2} = 0.6 = \Pr[B].
+$$
+Thus the events $A$ and $B$ are independent.  We can also reason
+geometrically, noting that the ratio of $A$'s area to the total
+space's area is the same as the ratio of $A \cap B$'s area to the area
+of $B.$  Now consider the following manner of partitioning the sample space.
+```{python}
+#| code-fold: true
+df_line = pd.DataFrame({ 'x': [0.3, 0.6], 'y': [1, 0] })
+mydraw(pn.ggplot(pd.DataFrame())
+  + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["C", "-C"], limits = (0, 1), expand=(0, 0))
+  + pn.scale_y_continuous(breaks=[0.1, 0.6], labels=["A", "-A"], limits = (0, 1), expand=(0, 0))
+  + pn.geom_line(df_line, pn.aes(x = 'x', y = 'y'), color='red')
+#  + pn.geom_segment(pn.aes(x=0.2, y=1, xend=0.7, yend=0), color='red')
+  + pn.coord_cartesian(xlim=(0, 1), ylim=(0, 1))
+  + pn.geom_hline(pn.aes(yintercept=0.2), color='blue')
+  + pn.theme(panel_grid_major = pn.element_blank(),
+             panel_grid_minor = pn.element_blank(),
+	     axis_title = pn.element_blank(),
+	     axis_ticks = pn.element_blank())
+)
+```
+Geometric reasoning here shows that $\Pr[A \mid C^\complement] < \Pr[A
+\mid C]$ and thus $A$ and $C$ are not independent.
+</div>
 
 ### Conditional independence
 
@@ -4347,7 +4424,7 @@ A random variable is a deterministic function, and as such is neither
 a variable nor random by itself.  The name derives because we often
 use simple variables like $X$ to refer to random variables in
 notation and because it derives its random structure from the
-underlying probabilty measure $\Pr,$ as we show in the rest of this
+underlying probability measure $\Pr,$ as we show in the rest of this
 section.
 
 Given a random variable $X$, we define its range as usual for a
@@ -4357,8 +4434,8 @@ $$
 $$
 Because $X(\omega) \in \mathbb{R}$, the range is always a subset of
 real numbers. It is conventional to overload the membership operator
-for a random variable $X$ and write write $x \in X$ if $x \in
-\textrm{range}(X)$.
+for random variables and write $X \in A$ if $X(\omega) \in A$ for every
+$\omega \in \Omega.$ 
 
 <div class="example-text">
 *Example 1, cont.* Our first example has a finite sample space,
@@ -4415,17 +4492,14 @@ $W(\omega) = \omega^2$, which has $\textrm{range}(W) = [0, \infty)$.
 
 ### Functions of random variables
 
-One of the ways in which random variables act like regular scalars is
-that we can use them in arithmetic operations and as arguments to
-functions to produce new random variables.  Given a random variable
-$X$ defined over a sample space $\Omega$ and a function 
-a function $f:\textrm{range}(X) \rightarrow \mathbb{R}$, we can define
-a new random variable $Y$ over the same sample space by setting
-$$
-Y(\omega) = f(X(\omega)).
-$$
-This new random variable is conventionally written as $Y = f(X),$
-which is yet another overload of conventional set-theory notation.
+Random variables partly derive their name because we can use them in
+arithmetic operations and as arguments to functions to produce new
+random variables.  Given a random variable $X$ defined over a sample
+space $\Omega$ and a function a function $f:\textrm{range}(X)
+\rightarrow \mathbb{R}$, we can define a new random variable $Y$ over
+the same sample space by setting $$ Y(\omega) = f(X(\omega)).  $$ This
+new random variable is conventionally written as $Y = f(X),$ which is
+yet another overload of conventional set-theory notation.
 
 Functions of more than one random variable work the same way.  If
 $X_1, \ldots, X_N$ are random variables and $f:\textrm{range}(X_1)
@@ -4435,12 +4509,11 @@ defined by
 $$
 Y(\omega) = f(X_1(\omega), \ldots, X_N(\omega)).
 $$
-As in the univariate case, we write $Y = f(X_1, \ldots, X_N).$
 
 <div class="example-text">
 *Example 2(a), cont.*  Although we have given the random variables $X,$
 $Y,$ and $T$ direct definitions, note that $Y = \textrm{logit}(X),$
-$Z = \textrm{log}(x),$ and $T = \textrm{I}(\omega < 0.3).$
+$Z = \textrm{log}(X),$ and $T = \textrm{I}(X < 0.3).$
 </div>
 
 <div class="example-text">
@@ -4470,17 +4543,17 @@ of the relevant events $X \leq x$ must be measurable in order
 for $X$ to be a random variable.
 
 <div class="example-text">
-*Example 1, cont.*: Continuing our minimal descrite example with
-$\Omega = \{ 0, 1 \}$, let's make our measure concrete and suppose
-that $\Pr[\{ 0 \}] = 0.3$ and thus $\Pr[\{ 1 \}] = 0.7.$  With our
-random variable that takes $X(0) = -2$ and $X(1) = 10$, the resulting
-cdf is
+
+*Example 1, cont.*: Continuing our minimal discrete example with
+$\Omega = \{ 0, 1 \}$, $\Pr[\{ 0 \}] = 0.3,$ and $\Pr[\{ 1 \}] = 0.7,$
+consider a random variable that takes $X(0) = -2$ and $X(1) = 10$. The
+resulting cdf is
 $$
 F_X(x) =
 \begin{cases}
-0 & \textrm{if } x \in (-\infty, 2)
+0 & \textrm{if } x \in (-\infty, 2),
 \\
-0.3 & \textrm{if } x \in [-2, 10)
+0.3 & \textrm{if } x \in [-2, 10), \textrm{ and}
 \\
 1.0 & \textrm{if } x \in [10, \infty).
 \end{cases}
@@ -4495,16 +4568,15 @@ $F_X:\mathbb{R} \rightarrow [0, 1]$ defined by
 $$
 F_X(x)
 = \begin{cases}
-0 & \textrm{if } x \in (-\infty, 0)
+0 & \textrm{if } x \in (-\infty, 0),
 \\
-x & \textrm{if } x \in [0, 1)
+x & \textrm{if } x \in [0, 1), \textrm{ and}
 \\
 1 & \textrm{if } x \in [1, \infty).
 \end{cases}
 $$
 The result for $x \in [0, 1)$ follows because
-$F_X(x) = \Pr[X \leq x] = \Pr[(0, x)] = x,$ with the final equality
-following by how we have defined $\Pr[(a,b)] = b - a$ in this example.
+$F_X(x) = \Pr[X \leq x] = \Pr[(0, x)] = x.$
 
 For the case of $Y(\omega) = \textrm{logit}(\omega),$ we have
 the cdf $F_Y:\mathbb{R} \rightarrow [0, 1]$ defined by
@@ -4580,25 +4652,27 @@ for $x \in \mathbb{R},$ where $F_X'$ is the derivative of the cdf.
 Thus the unit of measure for the cdf is probability, whereas the unit
 of measure for the pdf is change in probability.
 
-We know that $\Pr[\Omega] = 1$ and that for any random variable $X,$
-$\Pr[\Omega] = \lim_{x \rightarrow \infty} \, F_X(x) = 1$.
-Furthermore, we know $F_X(x) = \int_{-\infty}^x p_X(x) \textrm{d}x.$  Putting this
-together we have
-
-\begin{align}
-1 &= \lim_{x \rightarrow \infty} F_X(x)
-\\[4pt]
-&= \lim_{x \rightarrow \infty} \int_{-\infty}^x p_X(x) \textrm{d}x
-\\[4pt]
-&= \int_{-\infty}^\infty p_X(x) \textrm{d}x.
-\end{align}
-
 Even though the cdf forms the theoretical foundation for
 distributions, in practice we usually work with pdfs and occasionally
 want to go back to the cdf, which we can do by integration,
 $$
 F_X(x) = \int_{-\infty}^x \, p_X(x) \, \textrm{d}x.
 $$
+
+We know that $\Pr[\Omega] = 1$ and that for any random variable $X,$
+$\Pr[\Omega] = \lim_{x \rightarrow \infty} \, F_X(x) = 1$.
+Furthermore, we know $F_X(x) = \int_{-\infty}^x p_X(x) \textrm{d}x.$  Putting this
+together we have
+
+\begin{align}
+\int_{-\infty}^\infty p_X(x) \textrm{d}x
+&= \lim_{x \rightarrow \infty} \int_{-\infty}^x p_X(x) \textrm{d}x
+\\[4pt]
+&= \lim_{x \rightarrow \infty} F_X(x)
+\\[4pt]
+&= 1.
+\end{align}
+
 
 <div class="example-text">
 *Example 2(a), cont.* We have a random variable $X$ with cdf $F_X(x) =
@@ -4843,7 +4917,7 @@ this case, we define the cdf by conditioning on equality for discrete
 variables and by taking limits of surrounding intervals (balls in
 higher dimensions) for continuous variables.  If the resulting
 variable is discrete, its pmf is defined by differences of the cdf; if
-it is continous, the pdf is defined by differentiating the cdf.
+it is continuous, the pdf is defined by differentiating the cdf.
 
 In all cases, we will rely on the fact that for any random variables
 $X$ and $Y$, including multivariate ones, we have
@@ -5015,7 +5089,7 @@ multivariate variable $Z$ by $L = \sqrt{Z_1^2 + Z_2^2}.$
 
 ### Multivariate cdfs, pmfs, and pdfs
 
-The *cumulative distribution function* for a multivriate random variable
+The *cumulative distribution function* for a multivariate random variable
 $X:\Omega \rightarrow \mathbb{R}^N$ is defined by
 $$
 F_X(x_1, \ldots, x_N)
@@ -5132,14 +5206,23 @@ X^2 - 2 \cdot X \cdot \mathbb{E}[X] + \mathbb{E}[X]^2
 &= \mathbb{E}\!\left[X^2 \right]
 - 2 \cdot \mathbb{E}[X] \cdot \mathbb{E}[X]
 + \mathbb{E}[X]^2
+\\[4pt]
 &= \mathbb{E}\!\left[X^2\right] - \mathbb{E}[X]^2.
 \end{align}
-
 
 If $X$ represents a distance measured in meters, then the 
 variance $\textrm{var}[X]$ is expressed in square meters.  This can
 make it tricky to reason about variances.
 
+Adding a constant $c \in \mathbb{R}$ to a random variable $X$ does not
+change its variance,
+$$
+\textrm{var}[c + X] = \textrm{var}[X].
+$$
+Multiplying the variance requires quadratic scaling to extract,
+$$
+\textrm{var}[c \cdot X] = c^2 \cdot \textrm{var}[X].
+$$
 
 ### Standard deviation
 
@@ -5150,6 +5233,14 @@ $$
 The units of the standard deviation are identical to those of the
 random variable $X$.  Thus we say that the standard deviation is the
 *scale* of a variable's variation.
+
+Standard deviations are back on the usual scale, so if we have a
+constant $c \in \mathbb{R},$ we have
+\begin{align}
+\textrm{sd}[c + X] &= \textrm{sd}[X]
+\\[4pt]
+\textrm{sd}[c \cdot X] &= c \cdot \textrm{sd}[X].
+\end{align}
 
 ### Covariance
 
@@ -5174,6 +5265,51 @@ $$
 = \textrm{var}[X].
 $$
 
+<div class="example-text">
+*Example 5.* We can construct a pair of scalar random variables $(X,
+Y)$ that covary by generating data according to a simple linear
+regression with $\mathbb{E}[Y] = \alpha + \beta \cdot X,$
+\begin{align}
+p_X(x) &= \textrm{normal}(x \mid 0, \tau), \textrm{ and}
+\\
+p_{Y \mid X}(y \mid x)
+&= \textrm{normal}(y \mid \alpha + \beta \cdot x, \sigma),
+\end{align}
+where $\sigma, \tau \in (0, \infty)$ are scale parameters (i.e.,
+determine the distribution's standard deviation).  Because the normal
+distribution uses a location-scale parameterization, we can also
+construct $Y$ using a simple change of variables using a new variable
+$E$ corresponding to the "error,"
+\begin{align}
+Y &= \alpha + \beta \cdot X + E
+\\[4pt]
+p_E(\epsilon) &= \textrm{normal}(0, \sigma),
+\end{align}
+We know from regression theory that if $Y = \alpha + \beta \cdot X +
+E$ where $E$ has a normal distribution, then
+$$
+\beta = \frac{\textrm{cov}[X, Y]}{\textrm{var}[X]},
+$$
+and hence
+$$
+\textrm{cov}[X, Y] = \beta \cdot \textrm{var}[X] = \beta \cdot \tau^2.
+$$
+We can validate our mathematical derivation via simulation.
+```{python}
+M = 100_000
+tau = 2.3
+sigma = 1.5
+alpha, beta = 1.3, -0.7
+x = np.random.normal(loc = 0, scale = tau, size = M)
+y = np.random.normal(loc = alpha + beta * x, scale = sigma, size = M)
+cov_hat = np.cov(x, y)[0, 1]
+print(f"sample cov(x, y) = {cov_hat:5.2f}")
+```
+Here, we expect the sample covariance to be very close to $\beta \cdot
+\tau^2 = -0.7 \cdot 2.3^2 = -3.703.$
+</div>
+
+
 ### Correlation
 
 The *correlation* between two random variables is their inverse scaled covariance,
@@ -5193,6 +5329,42 @@ $$
        {\textrm{sd}[X] \cdot \textrm{sd}[X]}
 = 1.
 $$
+
+<div class="example-text">
+*Example 5, cont.*  Given that we have computed the covariance between
+$X$ and $Y$, we can compute their correlation by dividing by their
+scales,
+$$
+\textrm{corr}[X, Y]
+= \frac{\textrm{cov}[X, Y]}{\textrm{sd}[X] \cdot \textrm{sd}[Y]}.
+$$
+We know that $\textrm{sd}[X] = \tau,$ but $Y$ is a compound that
+inherits additional uncertainty form its location parameter being a
+random variable itself.  Nevertheless, because
+$Y = \alpha + \epsilon + \beta \cdot X$, where $\alpha$ is constant
+and both $E$ and $X$ are normal, we just add variances of the varying
+terms and then take the square root to return to the standard
+deviation scale, 
+$$
+\textrm{sd}[Y] &= \sqrt{\textrm{var}[\beta \cdot X] + \textrm{var}[E]}
+= \sqrt{\beta^2 \cdot \textrm{var}[X] + \textrm{var}[E]}
+= \sqrt{\beta^2 \cdot \tau^2 + \sigma^2}
+\approx 2.200.
+\end{align}
+Therefore, the correlation will be
+$$
+\textrm{corr}[X, Y]
+= \frac{\textrm{cov}[X, Y]}{\textrm{sd}[X] \cdot \textrm{sd}[Y]}
+= \frac{\beta \cdot \tau^2}{\sigma \cdot \sqrt{\beta^2 \cdot \tau^2 + \sigma^2}}
+= \frac{-0.7 \cdot 2.3^2}{2.3 \cdot 2.2} \approx -0.732.
+$$
+The simulation results agree with the mathematics.
+```{python}
+print(f"sd(x) = {np.std(x):5.2f};  sd(y) = {np.std(y):5.2f}")
+corr_hat = np.corrcoef(x, y)[0, 1]
+print(f"sample corr(x, y) = {corr_hat:5.2f}")
+```
+</div>
 
 
 ### Covariance and correlation matrices
