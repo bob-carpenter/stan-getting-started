@@ -1,6 +1,6 @@
 ---
-title: "Getting Started with Stan"
-subtitle: "in Python with CmdStanPy and plotnine"
+title: "Getting Started with Bayesian Statistics"
+subtitle: "using Stan and Python"
 author: "Bob Carpenter"
 date: "last-modified"
 format:
@@ -4339,6 +4339,7 @@ mydraw(pn.ggplot(pd.DataFrame())
   + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["B", "-B"], limits = (0, 1), expand=(0, 0))
   + pn.geom_vline(pn.aes(xintercept=0.6), color='red')
   + pn.geom_hline(pn.aes(yintercept=0.2), color='blue')
+  + pn.coord_equal()
   + pn.theme(panel_grid_major = pn.element_blank(),
              panel_grid_minor = pn.element_blank(),
      	     axis_title = pn.element_blank(),
@@ -4359,13 +4360,11 @@ space's area is the same as the ratio of $A \cap B$'s area to the area
 of $B.$  Now consider the following manner of partitioning the sample space.
 ```{python}
 #| code-fold: true
-df_line = pd.DataFrame({ 'x': [0.3, 0.6], 'y': [1, 0] })
 mydraw(pn.ggplot(pd.DataFrame())
   + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["C", "-C"], limits = (0, 1), expand=(0, 0))
   + pn.scale_y_continuous(breaks=[0.1, 0.6], labels=["A", "-A"], limits = (0, 1), expand=(0, 0))
-  + pn.geom_line(df_line, pn.aes(x = 'x', y = 'y'), color='red')
-#  + pn.geom_segment(pn.aes(x=0.2, y=1, xend=0.7, yend=0), color='red')
-  + pn.coord_cartesian(xlim=(0, 1), ylim=(0, 1))
+  + pn.geom_segment(pn.aes(x=0.2, y=1, xend=0.7, yend=0), color='red')
+  + pn.coord_equal()
   + pn.geom_hline(pn.aes(yintercept=0.2), color='blue')
   + pn.theme(panel_grid_major = pn.element_blank(),
              panel_grid_minor = pn.element_blank(),
