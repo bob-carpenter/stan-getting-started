@@ -4763,7 +4763,7 @@ $$
 </div>
 
 
-#### Change of variables
+#### Change of variables (univariate)
 
 Suppose I have a univariate random variable $X:\Omega \rightarrow
 \mathbb{R}$ and a function $f:\mathbb{R} \rightarrow \mathbb{R}$.
@@ -4780,9 +4780,8 @@ $$
 p_Y(y) = p_X(f^{-1}(y)) \cdot (f^{-1})'(y),
 $$
 where $f^{-1}$ is the inverse of $f$ and $(f^{-1})'$ is the derivative
-of the inverse of $f$. 
-
-
+of the inverse of $f$.  We consider multivariate changes of variables
+when we introduce vector-based random variables below.
 
 
 ### Probability mass function {.unnumbered}
@@ -4792,24 +4791,28 @@ $X$ is discrete (in the sense of being made up only of step
 functions), then we define its *probability mass function* (pmf)
 $p_X:\mathbb{N} \rightarrow (0, \infty)$ by
 $$
-p_X(n) = p_X(n + 1) - p_X(n),
+p_X(n) = \Pr[X \leq n + 1] - \Pr[X \leq n] = F_X(n + 1) - F_X(n),
 $$
-for $n \in \mathbb{N}$.
+for $n \in \mathbb{N}$.  
 
 The *support* of a random variable $X$ is the set of values it can
 take on, which is formally defined as the values for which the pdf or
-pmf is greater than 0,
+pmf is strictly greater than 0,
 $$
 \textrm{supp}(X) = \{ x : p_X(x) > 0 \}.
 $$
 
-The characterization of random variables with pdfs and pmfs is
-incomplete because not all probability distributions can be classified
-as discrete or continuous.  A random variable $X$ can have a cdf with
-both continuous portions and jumps.  For example, if we define a
-mixture of a discrete and continuous cdf (e.g., for a spike-and-slab
-prior in Bayesian statistics), we get a cdf that is neither discrete
-nor continuous.
+<div class="example-text">
+*Example 4.* Let $U$ be the result of rolling a fair 6-sided die and
+$V$ be the result of rolling another fair 6-sided die independently,
+and let $X = U + V$ be the sum of the dice.  The following plots show
+the pmf and pdf for $X$, which can take on values between 2 and 12.
+There are $6 \times 6 = 36$ different primitive outcomes, and each
+outcome has a probability equal to the total number of ways it can
+arise divided by 36 (e.g., $\Pr[X = 2] = 1/36$ because $X=2$ only
+occurs one way, with $U = 1, V = 1,$ whereas $\Pr[X = 5] = 4/36$
+because $X = 5$ can arise as four different combinations of $U$ and
+$V$.
 ```{python}
 #| code-fold: true
 support = np.arange(2, 13)
@@ -4844,13 +4847,17 @@ g12 = (pw.load_ggplot(plot1, figsize=(3.25, 3))
       | pw.load_ggplot(plot2, figsize=(3.25, 3)))
 g12.savefig()
 ```
-Because the cdf is defined by $F_X(x) = \Pr[X \leq x],$ for
-a discrete distribution defined over $\mathbb{N},$ its value at $x$ is
-the sum of the probabilities of outcomes *less than or equal to* the
-argument,
-$$
-F_X(x) = \sum_{n = 0}^x p_X(x).
-$$
+</div>
+
+
+The characterization of random variables with pdfs and pmfs is
+incomplete because not all probability distributions can be classified
+as discrete or continuous.  A random variable $X$ can have a cdf with
+both continuous portions and jumps.  For example, if we define a
+mixture of a discrete and continuous cdf (e.g., for a spike-and-slab
+prior in Bayesian statistics), we get a cdf that is neither discrete
+nor continuous (we provide an example and plot its cdf below).
+
 
 ### Conditional cdfs, pdfs, and pmfs
 
@@ -4924,47 +4931,20 @@ $X$ and $Y$, including multivariate ones, we have
 $$
 p_{X \mid Y}(x \mid y) = \frac{p_{X, Y}(x, y)}{p_Y(y)}.
 $$
-Here, we have overloaded the $p$ notation to allow for discrete,
-continuous, or mixed random variables.
+Here, we have exploited the overloaded $p$ notation, which allows for
+discrete, continuous, or mixed random variables.
 
 <div class="example-text">
-*Example 6.* Suppose we have a discrete random variable $Z$ taking
-boolean values (i.e., $\textrm{range}(Z) = \{ 0, 1 \}),$ and two
-continuous random variables $U$ and $V$.  We can define a new
-continuous random variable
+*Example 5.*
+Suppose we have a continuous random variable $Y$ that depends on a
+discrete random variable $U$ and a continuous
+random variable $V.$  Then we define the conditional density as a
+partial derivative of a limit conditioned on the discrete outcome,
 $$
-Y
-= \begin{cases}
-U & \textrm{if } Z = 1, \textrm{ and}
-\\[2pt]
-V & \textrm{if } Z = 0.
-\end{cases}
-$$
-The resulting mixed pdf/pmf is given by
-$$
-p_{Y, Z, U, V}(y, z, u, v)
-= \begin{cases}
-1 & \textrm{if } z = 1 \textrm{ and } y = u, \textrm{ or if } z = 0
-\textrm{ and } y = v, \textrm{ and}
-\\
-0 & \textrm{otherwise}.
-\end{cases}
-$$
-If we marginalize out the $Z,$ we get
-$$
-p_{Y, U, V}(y, u, v)
-= \begin{cases}
-1 & \textrm{if } y = u, y = v
-\\
-\Pr[Z = 1] & \textrm{if } y = u, y \neq v
-\\
-\Pr[Z = 0] & \textrm{if } y = v, y \neq u
-\end{cases}
-$$
-If we further marginalize out the $U$ and $V,$ we are left again
-with a continuous density, 
-$$
-p_Y(y) = \Pr[Z = 1] \cdot p_U(y) + \Pr[Z = 0] \cdot p_V(y).
+p_{Y \mid U, V}(y \mid u, v) =
+\frac{\partial}{\partial y}
+\lim_{\epsilon \rightarrow 0}
+F_{Y \mid U = u, \ V \in (v - |\epsilon|, v+ |\epsilon|)}(y).
 $$
 </div>
 
@@ -4977,7 +4957,7 @@ In our applied examples, such distributions will be constructed
 from simpler continuous and discrete distributions.
 
 <div class="example-text">
-*Example 7 (zero inflation).* Suppose we have a binary random variable
+*Example 6.* Suppose we have a binary random variable
 $Z$ (i.e., $\textrm{range}(Z) = \{ 0, 1 \}$) and a continuous random
 variable $U$ with $\textrm{range}(U) = \mathbb{R}.$   We can define a
 new random variable $Y$ by 
@@ -5011,7 +4991,7 @@ when there is a high probability of extreme values).
 
 Here is a plot of the resulting mixed cdf for the case $\Pr[Z = 1] =
 0.4$, with the standard logistic distribution as the continuous
-component. 
+component (i.e., with cdf $\textrm{logit}^{-1}.)$
 ```{python}
 #| code-fold: true
 p = 0.4
@@ -5087,6 +5067,21 @@ For example, we could have defined $L$ as a function of the
 multivariate variable $Z$ by $L = \sqrt{Z_1^2 + Z_2^2}.$
 </div>
 
+### Change of variables (multivariate)
+
+Suppose we have a random variable $X \in \mathbb{R}^N$ and a smooth,
+invertible function $f:\mathbb{R}^N \rightarrow \mathbb{R}^N.$  Then we define
+$Y = f(X)$ to be a new random variable, and note that its density is
+$$
+p_Y(y)
+= p_X\!\left(f^{-1}(y)\right)
+  \cdot \left| \nabla \! \left( f^{-1} \right) \! \left(y\right) \right|,
+$$
+where $\nabla g$ is read as the Jacobian of the function $g$ and
+$\left| A \right|$ is read as the absolute determinant of the matrix
+$A.$  Here the function $g = f^{-1}$ maps $\mathbb{R}^N$ to $\mathbb{R}^N,$
+so $\nabla\!\left(f^{-1}\right)$ is an $N \times N$ matrix.
+
 ### Multivariate cdfs, pmfs, and pdfs
 
 The *cumulative distribution function* for a multivariate random variable
@@ -5105,12 +5100,20 @@ p_X(x_1, \ldots, x_N)
 $$
 
 The *probability density function* for a continuous multivariate
-random variable is given by
+random variable $X \in \mathbb{R}^N$ is defined as the function
+$p_X:\mathbb{R}^N \rightarrow [0, \infty)$ that has the property
+that for any event $A \in \mathcal{S},$
 $$
-p_X(x_1, \ldots, x_N)
-= (\nabla F_X)(x_1, \ldots, x_N),
+\Pr[x \in A] = \int_A p_X(x) \textrm{d} x,
 $$
-where $\nabla F_X$ is the gradient of the cdf.
+or in terms of rectangular integrations and the cdf,
+$$
+F_X(x) = \int_0^{x_1} \cdots \int_0^{x_N} p_X([x_1 \quad
+\cdots \quad x_N]) \, \textrm{d}x_N \cdots \textrm{d}x_1.
+$$
+
+Conditional cdfs, pmfs, and pdfs are defined in the same way as for
+univariate random variables.
 
 
 ## A.7 Expectations {.unnumbered}
@@ -5155,7 +5158,9 @@ in terms of the density for $Z$, we use the so-called *law of the
 unconscious statistician*, which tells us we can simplify the change
 of variables back to a direct average over $Z$,
 \begin{align}
-\mathbb{E}[W]
+\mathbb{E}[f(Z)]
+&= \mathbb{E}[W]
+\\[4pt]
 &= \int_W w \cdot p_W(w) \, \textrm{d}w.
 \\[4pt]
 &= \int_W w \cdot p_Z(f^{-1}(w)) \cdot (f^{-1})'(w) \, \textrm{d}w.
@@ -5163,12 +5168,11 @@ of variables back to a direct average over $Z$,
 &= \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z,
 \end{align}
 where we have written $f^{-1}$ for the inverse transfrom form $W$
-back to $Z$ and $(f^{-1})'$ for its derivative.
+back to $Z$ and $(f^{-1})'$ for its derivative.  The first line is
+the definition, the second is a standard univariate change of
+variables (see above), but deriving the third line in the general case
+requires measure-theoretic techniques beyond this short introduction.
 
-We define the expectation of a function applied to $Z$, such as $f(Z)$, as
-$$
-\mathbb{E}[W] = \mathbb{E}[f(Z)] = \int_Z f(z) \cdot p_Z(z) \, \textrm{d}z.
-$$
 The conditional form follows suit,
 $$
 \mathbb{E}[f(Z) \mid Y = y] = \int_Z f(z) \cdot p_{Z \mid Y}(z \mid y) \, \textrm{d}z.
@@ -5219,14 +5223,18 @@ change its variance,
 $$
 \textrm{var}[c + X] = \textrm{var}[X].
 $$
-Multiplying the variance requires quadratic scaling to extract,
+Multiplying the variance requires quadratic scaling,
 $$
 \textrm{var}[c \cdot X] = c^2 \cdot \textrm{var}[X].
+$$
+The variance of a sum is the sum of the variances,
+$$
+\textrm{var}[U + V] = \textrm{var}[U] + \textrm{var}[V].
 $$
 
 ### Standard deviation
 
-The _standard deviation_ of a random variable is the square root of the variance,
+The _standard deviation_ of a random variable is the square root of its variance,
 $$
 \textrm{sd}[X] = \sqrt{\textrm{var}[X]}.
 $$
@@ -5234,14 +5242,22 @@ The units of the standard deviation are identical to those of the
 random variable $X$.  Thus we say that the standard deviation is the
 *scale* of a variable's variation.
 
-Standard deviations are back on the usual scale, so if we have a
-constant $c \in \mathbb{R},$ we have
+Standard deviations of a random variable $X$ have the same scale as
+the random variable $X$ itself.  They also drop additive constants,
+but unlike variances, they scale linearly with multiplication due to
+their scale.  For any constant $c \in \mathbb{R},$ we have
 \begin{align}
 \textrm{sd}[c + X] &= \textrm{sd}[X]
 \\[4pt]
 \textrm{sd}[c \cdot X] &= c \cdot \textrm{sd}[X].
 \end{align}
-
+The standard deviation of a sum works through the fact that variances
+are additive,
+$$
+\textrm{sd}[U + V]
+= \sqrt{\textrm{sd}[U]^2 + \textrm{sd}[V]^2}.
+$$
+    
 ### Covariance
 
 If we have two random variables $X$ and $Y$, their *covariance* is
@@ -5266,12 +5282,12 @@ $$
 $$
 
 <div class="example-text">
-*Example 5.* We can construct a pair of scalar random variables $(X,
+*Example 6.* We can construct a pair of scalar random variables $(X,
 Y)$ that covary by generating data according to a simple linear
 regression with $\mathbb{E}[Y] = \alpha + \beta \cdot X,$
 \begin{align}
 p_X(x) &= \textrm{normal}(x \mid 0, \tau), \textrm{ and}
-\\
+\\[4pt]
 p_{Y \mid X}(y \mid x)
 &= \textrm{normal}(y \mid \alpha + \beta \cdot x, \sigma),
 \end{align}
@@ -5283,7 +5299,7 @@ $E$ corresponding to the "error,"
 \begin{align}
 Y &= \alpha + \beta \cdot X + E
 \\[4pt]
-p_E(\epsilon) &= \textrm{normal}(0, \sigma),
+p_E(\epsilon) &= \textrm{normal}(0, \sigma).
 \end{align}
 We know from regression theory that if $Y = \alpha + \beta \cdot X +
 E$ where $E$ has a normal distribution, then
@@ -5331,7 +5347,7 @@ $$
 $$
 
 <div class="example-text">
-*Example 5, cont.*  Given that we have computed the covariance between
+*Example 6, cont.*  Given that we have computed the covariance between
 $X$ and $Y$, we can compute their correlation by dividing by their
 scales,
 $$
@@ -5346,11 +5362,11 @@ and both $E$ and $X$ are normal, we just add variances of the varying
 terms and then take the square root to return to the standard
 deviation scale, 
 $$
-\textrm{sd}[Y] &= \sqrt{\textrm{var}[\beta \cdot X] + \textrm{var}[E]}
+\textrm{sd}[Y] = \sqrt{\textrm{var}[\beta \cdot X] + \textrm{var}[E]}
 = \sqrt{\beta^2 \cdot \textrm{var}[X] + \textrm{var}[E]}
 = \sqrt{\beta^2 \cdot \tau^2 + \sigma^2}
 \approx 2.200.
-\end{align}
+$$
 Therefore, the correlation will be
 $$
 \textrm{corr}[X, Y]
@@ -5370,13 +5386,13 @@ print(f"sample corr(x, y) = {corr_hat:5.2f}")
 ### Covariance and correlation matrices
 
 If we have a random variable $X:\Omega \rightarrow \mathbb{R}^N$, its
-*covariance matrix* has entries corresponding to covariances between
-its components,
+*covariance matrix* is
 $$
 \textrm{cov}[X]
 = \mathbb{E}\!\left[(X - \mathbb{E}[X]) \cdot (X - \mathbb{E}[X])^{\top}\right].
 $$
-The entries are the covariances between pairs of components,
+The covariance matrix of $X$ has entries that are covariances of its
+elements, 
 $$
 \textrm{cov}[X]_{i,j} = \textrm{cov}[X_i, X_j].
 $$
@@ -5387,10 +5403,10 @@ original variable $X$.
 The *correlation matrix* for $X$ standardizes the covariance matrix
 by dividing by the scales,
 $$
-\textrm{corr}[X] = S \cdot \textrm{cov}[X] \cdot S,
+\textrm{corr}[X] = S^{-1} \cdot \textrm{cov}[X] \cdot S^{-1},
 $$
-where $S$ is the diagonal matrix with entries $S_{n,n} =
-\frac{1}{\textrm{sd}[X_n]}.$  The entries are the correlations between
+where $S$ is the diagonal matrix of scales, $S_{n,n} =
+\textrm{sd}[X_n].$  The entries are the correlations between
 pairs of components,
 $$
 \textrm{corr}[X]_{i,j}
@@ -5402,51 +5418,27 @@ $$
 
 ## A.9 Quantiles, medians, and uncertainty intervals {.unnumbered}
 
-Suppose $Z$ is a univariate random variable (e.g., one of the
-parameters, $\Theta_d$).  If $p \in [0, 1]$, the _$p$-quantile_ for a
-univariate random variable $Z$, $\textrm{quantile}(Z, p)$, is defined
-by
-$$
-\textrm{quantile}(Z, p) = z
-\ \textrm{ if and only if } \
-\textrm{Pr}[Z \leq z] = p.
-$$
-That is, the $p$-quantile of $Z$ is the value $z$ such that the
-probability $Z$ is less than or equal to $z$ is $p.$  In Bayesian
-applications, we will typically be taking the probability for
-functions of parameters $Z = f(\Theta)$ and conditioning on observed data $y$.
+The *quantile function* for a continuous random variable $Z$ is its
+inverse cdf, $F^{-1}_Z:(0, 1) \rightarrow \textrm{range}(Z).$ nFor a
+value $p \in (0, 1),$ we say that $F^{-1}_Z(p)$ is the _$p$-quantile_
+of $Z$.  In terms of probabilities, if $z = F^{-1}_Z(p),$ then $\Pr[Z
+\leq z] = p.$
 
-The 0.5-quantile is known as the _median_.  There is a 50% chance that
-a random variable takes on a value less than its median and a 50%
-chance that it takes on a value greater.  Another common Bayesian
-estimator for parameter $\Theta$ is its posterior median,
-$$
-\overline{\theta} = \textrm{quantile}(Z, 0.5).
-$$
-The median estimator has the property of minimizing expected absolute
-error (in contrast to the posterior mean estimate, which minimizes
-expected squared error), again assuming the model represents the true
-data generating process.
+The 50% quantile, $F_Z^{-1}(0.5),$ is known as the _median_.  There is
+a 50% chance that a random variable takes on a value less than its
+median and a 50% chance that it takes on a value greater.
 
-
-If we have two probabilities, $0 \leq p^L \leq p^U \leq 1$, they
-define the $(p^L, p^U)$ _posterior interval_ 
+We can define posterior intervals for variables using quantile
+functions.  For a random variable $X$ and $p \in (0, 1)$ the
+*central $p$ posterior interval* of $X$ is
+$\left( F_X^{-1}\!\left(\frac{1 - p}{2}\right),
+        F_X^{-1}\!\left(1 - \frac{1 - p}{2}\right) \right),$
+and it has its nominal coverage by definition,
 $$
-\textrm{interval}(Z, p^L, p^U)
-= \left(
-    \textrm{quantile}(Z, p^L),
-    \textrm{quantile}(Z, p^U)
-  \right).
+\Pr\!\left[X \in \left( F_X^{-1}\!\left(\frac{1 - p}{2}\right),
+        F_X^{-1}\!\left(1 - \frac{1 - p}{2}\right) \right)\right]
+= p.
 $$
-
-The probability that a point falls in the interval is given by the
-differences in probabilities,
-$$
-\textrm{Pr}\!\left[Z \in \textrm{interval}(Z, p^L, p^U)\right] = p^U - p^L.
-$$
-If $1 - p^U = p^L$, the interval is called the _central $(p^L - p^U)$ interval_.
-For example, the central 95% interval for $Z$ is
-$\left( \textrm{quantile}(Z, 0.025), \textrm{quantile}(Z, 0.975) \right)$.
 
 
 # B. Bayesian statistics {.unnumbered}
