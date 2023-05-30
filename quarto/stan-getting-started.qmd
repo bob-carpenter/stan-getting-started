@@ -4040,9 +4040,9 @@ Filtering*](http://users.cecs.anu.edu.au/~john/papers/BOOK/B02.PDF),
 
 ### Sample spaces and $\sigma$-algebras
 
-A _sample space_ is a non-empty set $\Omega$, the members of which
-represent possible ways the world might be (i.e., what are sometimes
-known as "possible worlds").
+A _sample space_ is a non-empty set $\Omega$, the members of which are
+called *outcomes* because they represent possible ways the world might
+be (i.e., what are sometimes known as "possible worlds").
 
 A _$\sigma$-algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
 $\mathcal{S} \subseteq \textrm{pow}(\Omega)$, that satisfy three
@@ -4276,30 +4276,32 @@ $$
 \Pr[A, B] = \Pr[A \mid B] \cdot \Pr[B].
 $$
 
+Given a fixed event $B \in \mathcal{S},$ the function $\Pr[A \mid B]$
+forms a measure over $B.$  More formally, we can derive a new
+probability space with $\Omega' = B$,$\mathcal{S} = \{ A \in
+\mathcal{S} : A \subseteq B },$ and $\Pr'[A] = \Pr[A \mid B].$
+
+
+over the space $B$
+
+
 ### Bayes's rule
 
 Bayes's rule allows us to derive a conditional probability $\Pr[A \mid
-B]$ given the inverse probability $\Pr[B \mid A]$ and $\Pr[A]$.
-
-If $\Pr[B] \neq 0$ and the sequence $A_0, A_1, A_2, \cdots$ is a partition of
+B]$ given the inverse probability $\Pr[B \mid A]$ and $\Pr[A]$.  In
+its simplest form, it's just an application of the chain rule and
+definition of conditional probability, where if $\Pr[B] \neq 0,$
+$$
+\Pr[A \mid B] = \frac{\Pr[B \mid A] \cdot \Pr[A]}{\Pr[B]}.
+$$
+But Bayes's rule goes further and assumes that if 
+$A_0, A_1, A_2, \cdots$ is a partition of
 $A$ (either finite or countably infinite), then
 \begin{align}
-\Pr[A \mid B]
-&= \frac{\Pr[A, B]}
-        {\Pr[B]} \qquad \qquad \qquad \qquad & \textrm{[def.\ of conditional prob]}
-\\[4pt]
-&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
-        {\Pr[B]} & \textrm{[chain rule]}
-\\[4pt]
-&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
-        {\sum_n \Pr[B, A_n]} &
-	\textrm{[law of total probability]}
-\\[4pt]
-&= \frac{\Pr[B \mid A] \cdot \Pr[A]}
-        {\sum_n \Pr[B \mid A_n] \cdot \Pr[A_n]}
-	& \textrm{[chain rule]}.
-\end{align}
-
+\Pr[A_n \mid B]
+&= \frac{\Pr[B \mid A_n] \cdot \Pr[A_n]}
+        {\sum_{n'} \Pr[B \mid A_{n'}] \cdot \Pr[A_{n'}].
+\end{align}	
 
 
 ## A.3 Independent events {.unnumbered}
@@ -4488,6 +4490,12 @@ which has $\textrm{range}(V) = (0, 1)$.  A third example is $W$ defined by
 $W(\omega) = \omega^2$, which has $\textrm{range}(W) = [0, \infty)$. 
 </div>
 
+### Independence for random variables
+
+Two random variables $X$ and $Y$ are said to be *independent* if the
+events picked out by $X \leq x$ and $Y \leq y$ (i.e., $\{ \omega \in
+\Omega : X(\omega) \leq x \}$) are independent for all
+$x$ and $y.$
 
 ### Functions of random variables
 
@@ -4540,6 +4548,16 @@ where we read $X \leq x$ as the event $\{ \omega \in \Omega : X(\omega)
 \leq x \}$.  The cdf of a random variable is well-defined because all
 of the relevant events $X \leq x$ must be measurable in order
 for $X$ to be a random variable.
+
+The cdf $F_X$ of any random variable $X$ satisfies three important
+properties,
+
+* $F_X$ is continuous from the right,
+* $F_X$ is monotonic increasing (but not necessarily strictly so), and
+* the limit as the argument goes to infinity is one,
+$$
+\lim_{x \rightarrow \infty} F_X(x) = 1.
+$$
 
 <div class="example-text">
 
@@ -5111,8 +5129,22 @@ F_X(x) = \int_0^{x_1} \cdots \int_0^{x_N} p_X([x_1 \quad
 \cdots \quad x_N]) \, \textrm{d}x_N \cdots \textrm{d}x_1.
 $$
 
+We can marginalize a joint cdf with a limit,
+$$
+F_X(x) = \lim_{y \rightarrow \infty} F_{X, Y}(x, y).
+$$
+The *law of total probability* holds for joint densities,
+$$
+p_X(x) = \int_{\mathbb R} \, p_{X, Y}(x, y) \, \textrm{d}y.
+$$
+
 Conditional cdfs, pmfs, and pdfs are defined in the same way as for
-univariate random variables.
+univariate random variables.  This leads to a common form of
+marginalization where the joint density is factored,
+$$
+p_X(x) = \int_{\mathbb R} \, p_{X \mid Y}(x \mid y) \cdot p_Y(y) \, \textrm{d}y.
+$$
+
 
 
 ## A.7 Expectations {.unnumbered}
@@ -5132,6 +5164,21 @@ are defined.
 
 Statistical notation overloads many notations, and commonly just $Z$
 rather than $\textrm{supp}(Z)$ is used to subscript the integral.
+
+Expectations are linear operators in that if $a, b$ are constants and
+$X$ is a random variable, then 
+$$
+\mathbb{E}[a + b \cdot X] = a = b \cdot \mathbb{E}[X].
+$$
+Expectations are also additive in random variables,
+$$
+\mathbb{E}[X + Y] = \mathbb{E}[X] = \mathbb{E}[Y].
+$$
+If $X$ and $Y$ are independent, then we also have
+$$
+\mathbb{E}[X \cdot Y] = \mathbb{E}[X] \cdot \mathbb{E}[Y].
+$$
+
 
 ### Conditional expectation
 
