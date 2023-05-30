@@ -4278,8 +4278,8 @@ $$
 
 Given a fixed event $B \in \mathcal{S},$ the function $\Pr[A \mid B]$
 forms a measure over $B.$  More formally, we can derive a new
-probability space with $\Omega' = B$,$\mathcal{S} = \{ A \in
-\mathcal{S} : A \subseteq B },$ and $\Pr'[A] = \Pr[A \mid B].$
+probability space with $\Omega' = B$, $\mathcal{S} = \{ A \in
+\mathcal{S} : A \subseteq B \},$ and $\Pr'[A] = \Pr[A \mid B].$
 
 
 over the space $B$
@@ -4297,11 +4297,11 @@ $$
 But Bayes's rule goes further and assumes that if 
 $A_0, A_1, A_2, \cdots$ is a partition of
 $A$ (either finite or countably infinite), then
-\begin{align}
+$$
 \Pr[A_n \mid B]
-&= \frac{\Pr[B \mid A_n] \cdot \Pr[A_n]}
-        {\sum_{n'} \Pr[B \mid A_{n'}] \cdot \Pr[A_{n'}].
-\end{align}	
+= \frac{\Pr[B \mid A_n] \cdot \Pr[A_n]}
+        {\sum_{n'} \Pr[B \mid A_{n'}] \cdot \Pr[A_{n'}]}.
+$$
 
 
 ## A.3 Independent events {.unnumbered}
