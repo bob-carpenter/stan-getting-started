@@ -1,8 +1,22 @@
-# stan-getting-started
+# Getting started with Bayesian statistics using Stan and Python
 
-An introduction to the Stan probabilistic programming language and the
-CmdStanPy interface to Stan.  Uses the external Python libraries
-`numpy`, `pandas`, and `plotnine`.
+An introduction to
+
+* Bayesian statistics and probability theory,
+
+* the Stan probabilistic programming language,
+
+* the CmdStanPy interface to Stan, with
+
+* the Python libraries `numpy`, `pandas`, and `plotnine`.
+
+Rendered version here:
+
+<quote>
+Bob
+Carpenter. 2023. [Getting started with Bayesian statistics using Stan and Python](https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html). 
+</quote>
+
 
 ## Building the case study
 
