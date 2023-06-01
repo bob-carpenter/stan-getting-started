@@ -4118,7 +4118,7 @@ $n$.  The empty set $\emptyset$ has size 0.
 
 
 
-## A.5 Comprehensions {.unnumbered}
+## A.5 Comprehensions and power sets {.unnumbered}
 
 Comprehensions are a way to turn conditions into sets.  For example, I
 might take all the natural numbers that satisfy the condition of being
@@ -4128,7 +4128,14 @@ $$
 B = \{ x \in A \, : \, \phi(x) \},
 $$
 for the set $B$ that contains all of the elements of $A$ that satisfy
-the condition $\phi$.  
+the condition $\phi$.
+
+The set of all subsets of a set $A$ is called its *power set* and is
+defined by
+$$
+\textrm{pow}(A) = \{ B : B \subseteq A \}.
+$$
+Another common notation for power sets is $\mathbf{2}^A.$
 
 
 ## A.6 Union, intersection, difference, and complement {.unnumbered}
@@ -4300,9 +4307,9 @@ The identity conditions for tuples are that $(a, b) = (a', b')$ if and
 only if $a = a$ and $b = b.$  That means that if $a \neq b,$ then $(a,
 b) \neq (b, a).$
 
-### Cross-products
+### Cross products and exponents
 
-The *cross-product* of two sets $A$ and $B$ is written $A \times B$ and
+The *cross product* of two sets $A$ and $B$ is written $A \times B$ and
 defined to be the set of tuples formed from $A$ and $B,$
 $$
 A \times B = \{ (a, b) : a \in A, b \in B \}.
@@ -4314,6 +4321,11 @@ A_1 \times A_2 \times \cdots A_N = A_1 \times (A_2 \times \cdots A_N).
 $$
 Despite the nesting, we write $(a, b, c)$ rather than $(a, (b, c)).$
 
+For the cross product of a set $A$ with itself $n \in N$ times, we
+define the *set exponent* as 
+$$
+A^n = \underbrace{A \times \cdot \times A}_{n \textrm{ times}}.
+$$
 
 ### Relations
 
@@ -4340,6 +4352,12 @@ B$.  If $f:A \rightarrow B$ is a function we say that $A$ is the
 *domain* of the function and write $\textrm{dom}(f) = A.$ The *range*
 of a function is the set of values that are results of applying the
 function, $\textrm{range}(f) = \{ f(a) : a \in A \}.$
+
+Given two sets $A$ and $B,$ the set of functions from $A$ to $B$ is
+written as $B^A,$ and defined by
+<$$
+\textrm{B^A} = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
+$$
 
 If $f:A \rightarrow B$ and $g:B \rightarrow C$ are functions, then
 their composition $g \circ f:A \rightarrow C$ is also a function, and
@@ -4393,17 +4411,23 @@ A _$\sigma$-algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
 $\mathcal{S} \subseteq \textrm{pow}(\Omega)$, that satisfy three
 properties,
 
-* *unit*: $\emptyset \in \mathcal{S}$,
+* *space is measurable*: $\Omega \in \mathcal{S}$,
 * *closed under complements*: if $A \in \mathcal{S},$ then $A^{\complement}
 \in \mathcal{S}$, and
 * *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
 then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
 
-Because $\emptyset \in \mathcal{S}$, its complement $\Omega =
+Because $\Omega \in \mathcal{S}$, its complement $\emptyset =
 \emptyset^{\complement} \in \mathcal{S}$.  Closure under intersections
 follows from De Morgan's law,
 $$
-A \cap B = \left( A^{\complement} \cup B^{\complement} \right)^\complement.
+A \cap B = \left( A^{\complement} \cup B^{\complement} \right)^\complement,
+$$
+which extends to the countably infinite case
+$$
+\bigcap_{n \in \mathbb{N}} A_n
+= \left( A_n^\complement
+\right)^{\complement}.
 $$
 
 For applied statistics, we
@@ -4411,13 +4435,20 @@ can restrict our attention to sample spaces $\Omega \subseteq
 \mathbb{R}^N$.
 
 <div class="example-text">
-*Example 1*: The power set of any non-empty set contains the empty set
+*Example 1(a)*: The power set of any non-empty set contains the empty set
 and is closed under complementation and countable unions, and is hence
 a $\sigma$-algebra.  The trivial case has a singleton sample space
 $\Omega = \{ 0 \}$, with $\sigma$-algebra $\mathcal{S} = \left\{ \{\},
 \{ 0 \} \right\}$. The simplest non-trivial example has a binary
 sample space $\Omega = \{ 0, 1 \}$, with $\sigma$-algebra $\mathcal{S}
 = \left\{ \{\}, \{ 0 \}, \{ 1 \}, \{ 0, 1 \} \right\}$.
+</div>
+
+<div class="example-text">
+*Example 1(b): An example of a countably infinite sample space, we can
+take the power set of the natural numbers, $\Omega =
+\textrm{pow}(\mathbb{N}),$ which is not only a $\sigma$-algebra, but a
+complete, atomic, boolean algebra.
 </div>
 
 <div class="example-text">
@@ -4478,7 +4509,7 @@ and in particular, $\Pr[\emptyset] = \Pr[\Omega^\complement] = 1.$  We
 also have $\Pr[A] \leq 1$ for any event $A \in \mathcal{S}.$
 
 <div class="example-text">
-*Example 1, continued*:  We can define a
+*Example 1(a), continued*:  We can define a
 measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
 \}$ and measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1 \},
 \{ 0, 1 \} \right\}$.  This involves assigning probabilities to all of the
@@ -4505,6 +4536,20 @@ visiting team wins.
 </div>
 
 <div class="example-text">
+*Example 1(b), cont.*  We can define multiple measures over the power
+set of the integers.  These are defined by supplying probabilities to
+the atoms, i.e., the integers.  In this example, we will take
+$\Pr[\{ n \}] = 2^-{n + 1}.$  This assigns a probability to the
+event $\{ n \}$ equal to that of flipping $n$ successive heads with a
+fair coin.  Countable additivity gives us $\Pr[\mathbb{N}] = 1,$ because $\sum_{n \in
+\mathbb{N}} 2^{n - 1} = \frac{1}{2} + \frac{1}{4} + \frac{1}{8} +
+\cdots = 1.$  
+
+from which it follows from countable
+additivity that for any $A \subseteq \mathbb{N},$ that $\Pr[ A \] =
+\sum{a \in A} \Pr[\{ a \}].$
+
+<div class="example-text">
 *Example 2(a), cont.*  We can define the *Lebesgue measure*
 over intervals $(a, b) \subseteq (0, 1)$ by
 $$
@@ -4520,6 +4565,10 @@ Singleton sets have measure zero, because
 $$
 \Pr[\{ a \}] = \Pr[(a, a)] = a - a = 0.
 $$  
+We could have used $\Omega = [0, 1]$ as an example, but it
+is different geometrically than $(0, 1)$ because it does not
+contain its limits at the end points; the open interval will be more
+convenient for this example going forward.
 </div>
 
 <div class="example-text">
@@ -4550,8 +4599,9 @@ $$
 
 <div class="example-text">
 *Example 3, cont.* Suppose we have a product $\sigma$-algebra over the
-open unit square $\Omega = (0, 1)^2$ (i.e.,$(0, 1) \times (0, 1)$). We can define a basis for a probability measure using
-open discs for $x \in (0, 1)^2$,
+open unit square $\Omega = [0, 1]^2$ (i.e., $[0, 1] \times [0,
+1]$). We can define a basis for a probability measure using 
+open discs for $x \in (0, 1)^2$, 
 $$
 \textrm{D}(x, r) = \left\{
 x' : ||x|| < r \right\}.
@@ -4799,9 +4849,11 @@ with a range equal to the sample space, $\textrm{range}(X) = (0, 1) =
 \Omega.$  The range of a random variable is not constrained by $\Omega$.
 Consider the random variable $Y$ over $\Omega = (0, 1)$ defined by
 $$
-Y(\omega) = \textrm{logit}(\omega) = \log \frac{\omega}{1 - \omega},
+Y(\omega) =
+\textrm{logit}(\omega) &
+= \log \frac{\omega}{1 - \omega} \textrm{ if} \omega \in (0, 1).
 $$
-which has $\textrm{range}(Y) = \mathbb{R}$.  A third example is the
+A third example is the
 random variable $Z$ defined by $Z(\omega) = \log \omega$, which has
 $\textrm{range}(Z) = (-\infty, 0)$.  We can even have a random
 variable $T$ over $\Omega = (0, 1)$ with a discrete range by defining
