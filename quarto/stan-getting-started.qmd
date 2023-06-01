@@ -4130,7 +4130,8 @@ $$
 for the set $B$ that contains all of the elements of $A$ that satisfy
 the condition $\phi$.  
 
-## A.8 Unions and intersections {.unnumbered}
+
+## A.6 Union, intersection, difference, and complement {.unnumbered}
 
 The *union* of two sets $A$ and $B$, written $A \cup B$, contains the
 elements that are in either set,
@@ -4160,8 +4161,27 @@ $$
 In the infinite case, union parallels existential quantification (for
 some), whereas intersection parallels universal quantification (for every).
 
+If $A$ and $B$ are sets, then their *difference*, written $A \setminus
+B$, is the set of elements in $A$ that are not in $B$,
+$$
+A \setminus B = \{ x \in A \, : \, x \not\in B \}.
+$$
 
-## A.6 Disjointness and partitions {.unnumbered}
+If there is a universal set $\mathcal{U}$, the *complement* of the set
+$A$ is the set of elements not in $A$, 
+$$
+A^\complement = \mathcal{U} \setminus A = \{ x \in \mathcal{U} \, : \, x \not\in A \}.
+$$
+The complement $A^\complement$ is sometimes written as $\bar{A}$.
+
+If we have a universal set $\mathcal{U}$, then we can use it to define
+difference in terms of complementation through
+$$
+A \setminus B = A \cap B^\complement.
+$$
+
+
+## A.7 Disjointness and partitions {.unnumbered}
 
 A pair of sets $A$ and $B$ are *disjoint* if $A \cap B = \emptyset$.
 A potentiall infinite sequence of sets $A_0, A_1, \ldots$ is *pairwise
@@ -4175,30 +4195,6 @@ A = \bigcup_{n < \infty} B_n.
 $$
 
 
-## A.7 Set difference and complementation {.unnumbered}
-
-### Set difference {.unnumbered}
-
-If $A$ and $B$ are sets, then their *difference*, written $A \setminus
-B$, is the set of elements in $A$ that are not in $B$,
-$$
-A \setminus B = \{ x \in A \, : \, x \not\in B \}.
-$$
-
-### Complementation
-
-If there is a universal set $\mathcal{U}$, the *complement of a set
-$A$ is the set of elements not in $A$, 
-$$
-A^\complement = \{ x \in \mathcal{U} \, : \, x \not\in A \}.
-$$
-The complement $A^\complement$ is sometimes written as $\bar{A}$.
-
-If we have a universal set $\mathcal{U}$, then we can use it to define
-difference in terms of complementation through
-$$
-A \setminus B = A \cap B^\complement.
-$$
 
 
 ## A.8 Basic laws of set theory {.unnumbered}
@@ -4293,6 +4289,86 @@ $$
 \left(A \cap B\right)^\complement
 = A^\complement \cup B^\complement.
 $$
+
+## A.9 Tuples, cross-producs, and relations {.unnumbered}
+
+### Tuples
+
+Given elements from two sets, $a \in A$ and $b \in B$, we write $(a,
+b)$ for the *tuple* consisting of the pair $a$ and $b$ in that order.
+The identity conditions for tuples are that $(a, b) = (a', b')$ if and
+only if $a = a$ and $b = b.$  That means that if $a \neq b,$ then $(a,
+b) \neq (b, a).$
+
+### Cross-products
+
+The *cross-product* of two sets $A$ and $B$ is written $A \times B$ and
+defined to be the set of tuples formed from $A$ and $B,$
+$$
+A \times B = \{ (a, b) : a \in A, b \in B \}.
+$$
+This notion can be extended to any number of sets by taking the
+operator to be left associative and setting,
+$$
+A_1 \times A_2 \times \cdots A_N = A_1 \times (A_2 \times \cdots A_N).
+$$
+Despite the nesting, we write $(a, b, c)$ rather than $(a, (b, c)).$
+
+
+### Relations
+
+A *relation* between the sets $A$ and $B$ is a set $R \subseteq A
+\times B.$  A relation $R$ is said to be *symmetric* if $(a, b) \in R$
+implies $(b, a) \in R$.  A relation $R$ is said to be *transitive* if
+$(a, b) \in R$ and $(b, c) \in R$ implies $(a, c) \in R.$
+
+If $R$ and $T$ are relations, then their *composition* $R \circ T$ is
+defined by
+$$
+R \circ T = \{ (a, c) : (a, b) \in R, (b, c) \in R \}.
+$$
+Thus a relation $R$ is transitive if $R \circ R = R.$
+
+## A.10 Functions, compositions, and inverses {.unnumbered}
+
+A relation $f \subseteq A \times B$ is said to be a *function* if for
+every $a \in A$ there is exactly one $b \in B$ such that $(a, b) \in
+f.$  If $(a, b) \in f$ we write $f(a) = b$ and say $a$ *maps to* $b.$
+
+If $f \subseteq A \times B$ is a function, we write $f:A \rightarrow
+B$.  If $f:A \rightarrow B$ is a function we say that $A$ is the
+*domain* of the function and write $\textrm{dom}(f) = A.$ The *range*
+of a function is the set of values that are results of applying the
+function, $\textrm{range}(f) = \{ f(a) : a \in A \}.$
+
+If $f:A \rightarrow B$ and $g:B \rightarrow C$ are functions, then
+their composition $g \circ f:A \rightarrow C$ is also a function, and
+satisfies $(g \circ f)(a) = g(f(a)).$
+
+For a given set $A$, the *identity function$ $\textrm{id}_A:A
+\rightarrow A$ maps each element to itself, i.e., $\textrm{id}_A(a) =
+a.$.  We usually drop the subscript and just write $\textrm{id}.$
+A function $f : A \rightarrow B$ is
+said to be 
+
+* *injective* if $a \neq b$ implies $f(a) \neq f(b),$
+* *surjective* if $B = \textrm{range}(B),$ and 
+* *bijective* if it is both injective and surejctive.
+
+An injective function is called an *injection,* a surjective one a
+*surjection,* and a bijective one a *bijection.* Surjections are
+also said to be "onto" and bijections are said to be "one
+to one."  A function $f:A \rightarrow B$ is said to be *many to one*
+if there exists $a \neq a'$ such that $f(a) = f(a').$
+
+If $f:A \rightarrow B$ is a bijection, it has an *inverse* $f^{-}:B
+\rightarrow A$ defined so that if $f(a) = b$ then $f(b) = a.$ The
+composition of a function with its inverse or vice-versa is the
+identity function, $f \circ f^{-} = \textrm{id},$ $f^{-} \circ f =
+\textrm{id}.$  Thus for a bijection $f:A \rightarrow B,$ we have
+$f^{-1}(f(a)) = a$ for all $a \in A$ and $f(f^{-}(b)) = b$ for all $b
+\in B.$
+
 
 
 
@@ -4549,9 +4625,6 @@ Given a fixed event $B \in \mathcal{S},$ the function $\Pr[A \mid B]$
 forms a measure over $B.$  More formally, we can derive a new
 probability space with $\Omega' = B$, $\mathcal{S} = \{ A \in
 \mathcal{S} : A \subseteq B \},$ and $\Pr'[A] = \Pr[A \mid B].$
-
-
-over the space $B$
 
 
 ### Bayes's rule
