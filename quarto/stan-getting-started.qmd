@@ -4362,7 +4362,7 @@ to one."  A function $f:A \rightarrow B$ is said to be *many to one*
 if there exists $a \neq a'$ such that $f(a) = f(a').$
 
 If $f:A \rightarrow B$ is a bijection, it has an *inverse* $f^{-}:B
-\rightarrow A$ defined so that if $f(a) = b$ then $f(b) = a.$ The
+\rightarrow A$ defined so that $f^{-1}(b) = a$ if $f(a) = b.$  The
 composition of a function with its inverse or vice-versa is the
 identity function, $f \circ f^{-} = \textrm{id},$ $f^{-} \circ f =
 \textrm{id}.$  Thus for a bijection $f:A \rightarrow B,$ we have
