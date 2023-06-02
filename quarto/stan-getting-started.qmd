@@ -339,9 +339,7 @@ occurrence, which we are warranted in entertaining by our present
 evidence.
 
 
-
-
-# Stan example: forward-simulating clinical trials
+# Stan examples: forward simulation and Monte Carlo
 
 By *forward simulation*, we mean running a simulation of a scientific
 process forward from the parameter values to simulated data. For
@@ -633,19 +631,18 @@ We start with a two-unit square centered at the origin. Then we will
 generate points uniformly at random in this square.  For each point
 $(x, y)$, we will calculate whether it falls inside the unit circle
 circumscribed within the square, which is true if the distance to the
-origin is less than or equal to 1,
+origin is less than 1,
 $$
-\sqrt{x^2 + y^2} \leq 1,
+\sqrt{x^2 + y^2} < 1,
 $$
 which simplifies by squaring both sides to
 $$
-x^2 + y^2 \leq 1.
+x^2 + y^2 < 1.
 $$
-The proportion of such points gives
-the proportion of the square's volume taken up by the circle.  Because
-the square is $2 \times 2$, it has an area of 4, so the circle has an
-area of 4 times the proportion of points falling inside the circle (i.e.,
-in the unit disc). 
+The proportion of such points gives the proportion of the square's
+volume taken up by the circle.  Because the square is $2 \times 2$, it
+has an area of 4, so the circle has an area of 4 times the proportion
+of points falling inside the circle (i.e., in the open unit disc).
 
 Here's the Stan code.
 ```{.stan filename="stan/monte-carlo-pi.stan"}
@@ -657,12 +654,14 @@ generated quantities {
 }
 ```
 The program declares variables `x` and `y` and constrains them to fall
-in the interval $[-1, 1]$ and assigns them uniform random values.  The
-indicator variable `inside` is set to 1 if the Euclidean length of the
-vector $\begin{bmatrix}x & y\end{bmatrix}$ is less than 1 (i.e., it
-falls within an inscribed unit circle) and is set to 0 otherwise.  The
-We then set a variable `pi` equal to 4 times the indicator value.
-The mean of the sample for `pi` will be our estimate of $\pi$.
+in the interval $(-1, 1)$ (numerical overflow may produce values -1
+and 1) and assigns them uniform random values.  The indicator variable
+`inside` is set to 1 if the Euclidean length of the vector
+$\begin{bmatrix}x & y\end{bmatrix}$ is less than 1 (i.e., it falls
+within an inscribed unit circle) and is set to 0 otherwise.  
+The variable `pi` is then set to four times the indicator value.
+As we see below, it is the sample mean of these values that is of
+interest.
 
 First, we compile and then sample from the model, taking a sample size
 of `M = 10_000` draws.  Then we plot the draws.
@@ -689,27 +688,28 @@ mydraw(
 )
 ```
 
-Next, we take the sample mean of the indicators for being inside the
-circle, which produces an estimate of the probability of a point being
+Next, we take the sample mean of the inside-the-circle indicator,
+which produces an estimate of the probability of a point being
 inside the circle.  This corresponds directly to the expectation
 \begin{align}
 \mathbb{E}[4 \cdot \textrm{I}(\sqrt{X^2 + Y^2} \leq 1)]
 &= \int_{-1}^1 \int_{-1}^1
-\textrm{I}(x^2 + y^2 \leq 1) \cdot p(x, y) \, \textrm{d}x \, \textrm{d}y
+\textrm{I}(x^2 + y^2 <1) \cdot p(x, y) \, \textrm{d}x \, \textrm{d}y
 \\[4pt]
 &= \int_{-1}^1 \int_{-1}^1
-\textrm{I}(x^2 + y^2 \leq 1) \cdot \textrm{uniform}(x \mid -2, 2)
+\textrm{I}(x^2 + y^2 < 1) \cdot \textrm{uniform}(x \mid -2, 2)
 \cdot \textrm{uniform}(y \mid -2, 2) \, \textrm{d}x \, \textrm{d}y
 \\[4pt]
 &= \int_{-1}^1 \int_{-1}^1
-4 \cdot \textrm{I}(x^2 + y^2 \leq 1) \, \textrm{d}x \, \textrm{d}y
+4 \cdot \textrm{I}(x^2 + y^2 < 1) \, \textrm{d}x \, \textrm{d}y
 \\[4pt]
-\pi.
+&= \pi,
 \end{align}
-
-The posterior mean `inside` is the probability that a random point in
-the 2-unit square falls in the inscribed unit circle.  The posterior
-mean for `pi` is thus our estimate for $\pi$.
+where $\textrm{I}()$ is the indicator, which returns 1 if its argument
+is true and 0 otherwise.  The posterior mean of the variable `inside`
+is the probability that a random point in the 2-unit square is inside
+the inscribed unit circle. The posterior  mean for `pi` is thus our
+estimate for $\pi$. 
 
 ```{python}
 Pr_is_inside = np.mean(inside_draws)
@@ -4027,6 +4027,430 @@ Many of the Stan developers are working on turning the paper into a
 book; the current state is available from the public [GitHub
 repository for *Bayesian Workflow*](https://github.com/jgabry/bayes-workflow-book).
 
+# AA.  Set theory {.unnumbered}
+
+Probability theory is based on simple notions from set theory such as
+unions and intersections.  We will need to generalize to infite sets
+and worry about issues such as countability, all of which we define in
+this appendix.
+
+## A.1 Basic set notation {.unnumbered}
+
+One way to think of a set is as a bag of objects without duplicates.
+We write sets using curly braces.  For example, the set containing the
+numbers 1 and 2 is written as $\{ 1, 2 \}$.  Sets are not ordered, so
+the notation $\{ 1, 2 \}$ picks out the same set as $\{ 2, 1 \}$.
+
+### Ellipses notation
+
+Sets are often written with informal shorthand with *ellipses*
+($\ldots$) standing in for a sequence of elements.  For example, $\{
+1, 2, \ldots, 7\}$ would pick out the set $\{ 1, 2, 3, 4, 5, 6, 7 \}$
+and $\{ x_0, x_1, \ldots, x_4 \}$ is shorthand for $\{ x_0, x_1, x_2,
+x_3, x_4 \}$.
+
+Ellipses that end rather than separate are used to denote an unbounded
+sequence of elements.  For example, we will write $\{ 0, 1, 2, \ldots
+\}$ for the set of all counting numbers.
+
+
+## A.2 Membership, subsets, and equality {.unnumbered}
+
+If $A$ is a set, we write $x \in A$ if $x$ is a *member* of the set $A$,
+and we write $x \not\in A$ otherwise.  For example, $1 \in \{ 1, 2
+\}$, but $7 \not\in \{ 1, 2 \}$.
+
+If $A$ and $B$ are sets, we write $A \subseteq B$ and say that $A$ is
+a *subset* of $B$ if $x \in A$ implies $x \in B$.  For example,
+$\{ 1, 3 \} \subseteq \{ 0, 1, 2, 3, 4 \}$, but
+$\{ 1, 3 \} \not\subseteq \{ 0, 2, 4 \}$.
+
+Two sets $A$ and $B$ are *equal*, written $A = B$, if they are subsets
+of each other, $A \subseteq B$ and $B \subseteq A$.
+
+
+## A.3 Distinguished sets {.unnumbered}
+
+### Empty set
+
+We use the notation $\emptyset$ for the unique *empty set* which
+contains no members.  In other words, for any $x$, we know $x \not\in
+\emptyset$.  That means the empty set is a subset of every other set
+$A$, $\emptyset \subseteq A$.
+
+### Universal set {.unnumbered}
+
+A *universal* set $\mathcal{U}$ is one such that for every set $A$
+under consideration in some context, we have
+$$
+A \subseteq \mathcal{U}.
+$$
+Depending on the sets under consideration, universal sets may not
+exist (in the sense of not being a set).  We will only be considering
+sets of numbers here rather than infinitely nested sets of sets, so
+most of the complications of more general set theory do not arise.
+
+### Sets of numbers
+
+The symbol $\mathbb{Z}$ is conventionally used for the set of all
+*integers* (i.e., whole numbers).  The symbol $\mathbb{N}$ is used for
+the set of all *counting number*s (i.e., non-negative whole numbers).
+The symbol $\mathbb{R}$ is conventionally used for the set of all
+*real numbers*.  The symbol $\mathbb{C}$ is used for the set of all
+*complex numbers*.
+
+
+
+## A.4 Finite and infinite sets {.unnumbered}
+
+A set $s$ is said to be *finite* if it can be written in the form $s =
+\{ x_0, x_1, \ldots, x_{n-1}\}$ for some $n \geq 0.$ If a set is not
+finite, it is said to be *infinite*.
+
+The *size* of a finite set is the number of distinct members it has.
+For example, the set $s = \{ 1, 2, 3 \}$ has size 3.  It is standard
+to use absolute-value notation for the size of a set, for example,
+$$
+\left|  \{ 1, 2, 3 \} \right| = 3.
+$$
+In general, every finite set $s = \{ x_0, \ldots, x_{n-1} \}$ has size
+$n$.  The empty set $\emptyset$ has size 0.
+
+
+
+## A.5 Comprehensions and power sets {.unnumbered}
+
+Comprehensions are a way to turn conditions into sets.  For example, I
+might take all the natural numbers that satisfy the condition of being
+odd or being less than 17 or both.  We use the standard
+*comprehension* notation,
+$$
+B = \{ x \in A \, : \, \phi(x) \},
+$$
+for the set $B$ that contains all of the elements of $A$ that satisfy
+the condition $\phi$.
+
+The set of all subsets of a set $A$ is called its *power set* and is
+defined by
+$$
+\textrm{pow}(A) = \{ B : B \subseteq A \}.
+$$
+Another common notation for power sets is $\mathbf{2}^A.$
+
+
+## A.6 Union, intersection, difference, and complement {.unnumbered}
+
+The *union* of two sets $A$ and $B$, written $A \cup B$, contains the
+elements that are in either set,
+$$
+A \cup B = \{ x \, : \, x \in A \textrm{ or } x \in B \}.
+$$
+The *intersection* of two sets $A$ and $B$, written $A \cap B$, contains the
+elements that are in either set,
+$$
+A \cap B = \{ x \, : \, x \in A \textrm{ and } x \in B \}.
+$$
+Logically speaking, union is disjunction (or), whereas intersection is
+conjunction (and).
+
+Both unions and intersections can be extended to infinite sets using
+subscript notation.  If $A_0, A_1, \ldots$ is an infinite sequence of
+sets, then
+$$
+\bigcup_{n = 0}^{\infty} A_n = \{ x \, : \, x \in A_n \textrm{ for some }
+n < \infty \}
+$$
+and
+$$
+\bigcap_{n = 0}^{\infty} A_n = \{ x \, : \, x \in A_n \textrm{ for all }
+n < \infty \}
+$$
+In the infinite case, union parallels existential quantification (for
+some), whereas intersection parallels universal quantification (for every).
+
+If $A$ and $B$ are sets, then their *difference*, written $A \setminus
+B$, is the set of elements in $A$ that are not in $B$,
+$$
+A \setminus B = \{ x \in A \, : \, x \not\in B \}.
+$$
+
+If there is a universal set $\mathcal{U}$, the *complement* of the set
+$A$ is the set of elements not in $A$, 
+$$
+A^\complement = \mathcal{U} \setminus A = \{ x \in \mathcal{U} \, : \, x \not\in A \}.
+$$
+The complement $A^\complement$ is sometimes written as $\bar{A}$.
+
+If we have a universal set $\mathcal{U}$, then we can use it to define
+difference in terms of complementation through
+$$
+A \setminus B = A \cap B^\complement.
+$$
+
+
+## A.7 Disjointness and partitions {.unnumbered}
+
+A pair of sets $A$ and $B$ are *disjoint* if $A \cap B = \emptyset$.
+A potentiall infinite sequence of sets $A_0, A_1, \ldots$ is *pairwise
+disjoint* if for every $i, j < \infty$, $A_i$ and $A_j$ are
+disjoint, $A_i \cap A_j = \emptyset$.
+
+A pairwise disjoint sequence of sets $B_0, B_1, \ldots$ is said to be
+a *partition* of a set $A$ if
+$$
+A = \bigcup_{n < \infty} B_n.
+$$
+
+
+
+
+## A.8 Basic laws of set theory {.unnumbered}
+
+### Commutativity
+
+Set operations are *commutative*, meaning that for all sets $A$ and $B$,
+$$
+A \cup B = B \cup A
+$$
+and
+$$
+A \cap B = B \cap A.
+$$
+
+### Associativity
+
+Set operations are *associative*, meaning that for all sets $A$, $B$,
+and $C$,
+$$
+(A \cup B) \cup C = A \cup (B \cup C)
+$$
+and
+$$
+(A \cap B) \cap C = A \cap (B \cap C).
+$$
+
+### Distributivity
+
+The intersection operation is *distributive* with respect to the union
+operation, so that for all sets $A$, $B$, and $C$,
+$$
+A \cap (B \cup C) = (A \cap B) \cup (A \cap C).
+$$
+Because of commutativity, this also holds on the right for $(B \cup C)
+\cap A$.
+
+### Involutivity
+
+The complementation operation is an *involution* (i.e., equal to its
+own inverse), so that for all sets $A$,
+$$
+\left(A^\complement\right)^{\complement} = A.
+$$
+
+### Identities
+
+The empty set is a left and right *identity* for union, so that for all sets $A$,
+$$
+\emptyset \cup A \ = \ A \cup \emptyset \ = \ A.
+$$
+If there is a universal set $\mathcal{U}$, it is an identity for
+intersection, so that for all sets $A$,
+$$
+\mathcal{U} \cap A \ = \ A \cap \mathcal{U} \ = \ A.
+$$
+
+### Zeroes
+
+The empty set is a *zero* for intersection, so that for all sets $A$,
+$$
+\emptyset \cap A \ = \ A \cap \emptyset \ = \ \emptyset.
+$$
+The universal set, if it exists, is a *zero* for union, so that for
+all sets $A$,
+$$
+\mathcal{U} \cup A \ = \ A \cup \mathcal{U} \ = \ \mathcal{U}.
+$$
+
+
+### Idempotence
+
+The union and intersection operations are *idempotent*, so that for all sets $A$,
+$$
+A \cup A = A
+$$
+and
+$$
+A \cap A = A.
+$$
+
+### DeMorgan's laws
+
+*DeMorgan's laws* relate complementation, intersection, and union,
+where for all sets $A$, $B$, and $C$,
+$$
+\left(A \cup B\right)^\complement
+= A^\complement \cap B^\complement.
+$$
+and
+$$
+\left(A \cap B\right)^\complement
+= A^\complement \cup B^\complement.
+$$
+
+## A.9 Tuples, cross-producs, and relations {.unnumbered}
+
+### Tuples
+
+Given elements from two sets, $a \in A$ and $b \in B$, we write $(a,
+b)$ for the *tuple* consisting of the pair $a$ and $b$ in that order.
+The identity conditions for tuples are that $(a, b) = (a', b')$ if and
+only if $a = a$ and $b = b.$  That means that if $a \neq b,$ then $(a,
+b) \neq (b, a).$
+
+### Cross products and exponents
+
+The *cross product* of two sets $A$ and $B$ is written $A \times B$ and
+defined to be the set of tuples formed from $A$ and $B,$
+$$
+A \times B = \{ (a, b) : a \in A, b \in B \}.
+$$
+This notion can be extended to any number of sets by taking the
+operator to be left associative and setting,
+$$
+A_1 \times A_2 \times \cdots A_N = A_1 \times (A_2 \times \cdots A_N).
+$$
+Despite the nesting, we write $(a, b, c)$ rather than $(a, (b, c)).$
+
+For the cross product of a set $A$ with itself $n \in N$ times, we
+define the *set exponent* as 
+$$
+A^n = \underbrace{A \times \cdot \times A}_{n \textrm{ times}}.
+$$
+
+### Relations
+
+A *relation* between the sets $A$ and $B$ is a set $R \subseteq A
+\times B.$ For example, the comparison operator $\leq$ defines a
+relation over the real numbers $L = \{ (x, y) \in \mathbb{R} \times
+\mathbb{R} : x \leq y \}.$
+
+A relation $R$ is said to be *symmetric* if $(a, b) \in R$
+implies $(b, a) \in R$. The inequality relation is not symmetric, but
+the equality relation $E = \{ (x, x) \in \mathbb{R} \times \mathbb{R}
+: x \in \mathbb{R} \}$ is.
+
+A relation $R$ is said to be *transitive* if $(a, b) \in R$ and $(b,
+c) \in R$ implies $(a, c) \in R.$ Both equality and inequality are
+transitive relations, but the within unit distance relation
+$W = \{ (x, y) \in \mathbb{R} \times \mathbb{R} : | x - y | \leq 1 \}$
+is not.
+
+If $R$ and $T$ are relations, then their *composition* $R \circ T$ is
+defined by
+$$
+R \circ T = \{ (a, c) : (a, b) \in R, (b, c) \in R \}.
+$$
+Thus a relation $R$ is transitive if $R \circ R = R.$
+
+
+
+## A.10 Functions {.unnumbered}
+
+### Functions
+
+A relation $f \subseteq A \times B$ is said to be a *function* if for
+every $a \in A$ there is exactly one $b \in B$ such that $(a, b) \in
+f.$  If $(a, b) \in f$ we write $f(a) = b$ and say $a$ *maps to* $b.$
+If $f \subseteq A \times B$ is a function, we write $f:A \rightarrow
+B$.  
+
+### Domains and ranges
+
+If $f:A \rightarrow B$ is a function, it *domain* is $A$ and its
+*codomain* is $B.$ The *range* of a function is the set of values that
+result from applying the function to elements of $A.$ If we define
+$f:\mathbb{R} \rightarrow \mathbb{R}$ by $f(x) = x^2,$ then the
+codomain is $\mathbb{R},$ but the range is $(0, \infty).$ The range of
+a function is always a subset of its codomain.
+
+Given a function, its domain is
+$$
+\textrm{dom}(f) = \{ x : (x, y) \in f \} = A,
+$$
+and its range is
+$$
+\textrm{rng}(f) = \{ y : (x, y) \in f \},
+$$
+but we cannot infer its codomain from its members.  The codomain only
+matters in a higher-level context in which the function is considered
+a member of a larger family of functions.
+
+Given two sets $A$ and $B,$ the set of functions from $A$ to $B$ is
+written as $B^A,$ and defined by
+$$
+\textrm{B^A} = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
+$$
+
+### Composition
+
+If $f:A \rightarrow B$ and $g:B \rightarrow C$ are functions, then
+their composition $g \circ f:A \rightarrow C$ is also a function, and
+satisfies $(g \circ f)(a) = g(f(a)).$
+
+### Injective, surjective, and bijective functions
+
+A function $f : A \rightarrow B$ is said to be 
+
+* *injective* if $a \neq b$ implies $f(a) \neq f(b),$
+* *surjective* if $B = \textrm{range}(B),$ and 
+* *bijective* if it is both injective and surejctive.
+
+An injective function is called an *injection,* a surjective one a
+*surjection,* and a bijective one a *bijection.* Surjections are
+also said to be "onto" and bijections are said to be "one
+to one."  A function $f:A \rightarrow B$ is said to be *many to one*
+if there exists $a \neq a'$ such that $f(a) = f(a').$
+
+### Inverse functions
+
+If $f:A \rightarrow B$ is a bijection, it has an *inverse* $f^{-}:B
+\rightarrow A$ defined so that $f^{-1}(b) = a$ if $f(a) = b.$  The
+composition of a function with its inverse or vice-versa is the
+identity function, $f \circ f^{-} = \textrm{id},$ $f^{-} \circ f =
+\textrm{id}.$  Thus for a bijection $f:A \rightarrow B,$ we have
+$f^{-1}(f(a)) = a$ for all $a \in A$ and $f(f^{-}(b)) = b$ for all $b
+\in B.$
+
+### Special functions
+
+For a given set $A$, the *identity function$ $\textrm{id}_A:A
+\rightarrow A$ maps each element to itself, i.e., $\textrm{id}_A(a) =
+a.$.  We usually drop the subscript and just write $\textrm{id}.$
+
+For any set $A$, the *indicator function* $\textrm{I}_A$ is defined so
+that
+$$
+\textrm{I}_A(x)
+= \begin{cases}
+1 & \textrm{if } x \in A, \textrm{ and}
+\\[2pt]
+0 & \textrm{otherwise}.
+\end{cases}
+
+## A.11 Finite, countable, and uncountable sets
+
+A set $A$ is *finite* if there exists a number $n \in
+\mathbb{N}$ and a bijection from $\{ 0, 1, \ldots, n \}$ and $A.$
+The number $n$ is the *size* of the set.  A set is *infinite* if it is
+not finite.
+
+A set $A$ is *countable* if there is surjective function $f:
+\mathbb{N} \rightarrow A$ and is said to be *uncountable* otherwise.
+A countable set may be either finite or infinite.  It can be shown
+that the integers $\mathbb{Z}$ are countable and the set of real
+numbers $\mathbb{R}$ is uncountable.
+
+
 # A. Probability theory {.unnumbered}
 
 The goal of this overview is to provide precise definitions of those
@@ -4048,17 +4472,23 @@ A _$\sigma$-algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
 $\mathcal{S} \subseteq \textrm{pow}(\Omega)$, that satisfy three
 properties,
 
-* *unit*: $\emptyset \in \mathcal{S}$,
+* *space is measurable*: $\Omega \in \mathcal{S}$,
 * *closed under complements*: if $A \in \mathcal{S},$ then $A^{\complement}
 \in \mathcal{S}$, and
 * *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
 then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
 
-Because $\emptyset \in \mathcal{S}$, its complement $\Omega =
+Because $\Omega \in \mathcal{S}$, its complement $\emptyset =
 \emptyset^{\complement} \in \mathcal{S}$.  Closure under intersections
 follows from De Morgan's law,
 $$
-A \cap B = \left( A^{\complement} \cup B^{\complement} \right)^\complement.
+A \cap B = \left( A^{\complement} \cup B^{\complement} \right)^\complement,
+$$
+which extends to the countably infinite case
+$$
+\bigcap_{n \in \mathbb{N}} A_n
+= \left( A_n^\complement
+\right)^{\complement}.
 $$
 
 For applied statistics, we
@@ -4066,13 +4496,20 @@ can restrict our attention to sample spaces $\Omega \subseteq
 \mathbb{R}^N$.
 
 <div class="example-text">
-*Example 1*: The power set of any non-empty set contains the empty set
+*Example 1(a)*: The power set of any non-empty set contains the empty set
 and is closed under complementation and countable unions, and is hence
 a $\sigma$-algebra.  The trivial case has a singleton sample space
 $\Omega = \{ 0 \}$, with $\sigma$-algebra $\mathcal{S} = \left\{ \{\},
 \{ 0 \} \right\}$. The simplest non-trivial example has a binary
 sample space $\Omega = \{ 0, 1 \}$, with $\sigma$-algebra $\mathcal{S}
 = \left\{ \{\}, \{ 0 \}, \{ 1 \}, \{ 0, 1 \} \right\}$.
+</div>
+
+<div class="example-text">
+*Example 1(b): An example of a countably infinite sample space, we can
+take the power set of the natural numbers, $\Omega =
+\textrm{pow}(\mathbb{N}),$ which is not only a $\sigma$-algebra, but a
+complete, atomic, boolean algebra.
 </div>
 
 <div class="example-text">
@@ -4133,7 +4570,7 @@ and in particular, $\Pr[\emptyset] = \Pr[\Omega^\complement] = 1.$  We
 also have $\Pr[A] \leq 1$ for any event $A \in \mathcal{S}.$
 
 <div class="example-text">
-*Example 1, continued*:  We can define a
+*Example 1(a), continued*:  We can define a
 measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
 \}$ and measurable sets $\mathcal{S} = \left\{ \{\}, \{ 0 \}, \{ 1 \},
 \{ 0, 1 \} \right\}$.  This involves assigning probabilities to all of the
@@ -4160,6 +4597,20 @@ visiting team wins.
 </div>
 
 <div class="example-text">
+*Example 1(b), cont.*  We can define multiple measures over the power
+set of the integers.  These are defined by supplying probabilities to
+the atoms, i.e., the integers.  In this example, we will take
+$\Pr[\{ n \}] = 2^-{n + 1}.$  This assigns a probability to the
+event $\{ n \}$ equal to that of flipping $n$ successive heads with a
+fair coin.  Countable additivity gives us $\Pr[\mathbb{N}] = 1,$ because $\sum_{n \in
+\mathbb{N}} 2^{n - 1} = \frac{1}{2} + \frac{1}{4} + \frac{1}{8} +
+\cdots = 1.$  
+
+from which it follows from countable
+additivity that for any $A \subseteq \mathbb{N},$ that $\Pr[ A \] =
+\sum{a \in A} \Pr[\{ a \}].$
+
+<div class="example-text">
 *Example 2(a), cont.*  We can define the *Lebesgue measure*
 over intervals $(a, b) \subseteq (0, 1)$ by
 $$
@@ -4175,6 +4626,10 @@ Singleton sets have measure zero, because
 $$
 \Pr[\{ a \}] = \Pr[(a, a)] = a - a = 0.
 $$  
+We could have used $\Omega = [0, 1]$ as an example, but it
+is different geometrically than $(0, 1)$ because it does not
+contain its limits at the end points; the open interval will be more
+convenient for this example going forward.
 </div>
 
 <div class="example-text">
@@ -4205,8 +4660,9 @@ $$
 
 <div class="example-text">
 *Example 3, cont.* Suppose we have a product $\sigma$-algebra over the
-open unit square $\Omega = (0, 1)^2$ (i.e.,$(0, 1) \times (0, 1)$). We can define a basis for a probability measure using
-open discs for $x \in (0, 1)^2$,
+open unit square $\Omega = [0, 1]^2$ (i.e., $[0, 1] \times [0,
+1]$). We can define a basis for a probability measure using 
+open discs for $x \in (0, 1)^2$, 
 $$
 \textrm{D}(x, r) = \left\{
 x' : ||x|| < r \right\}.
@@ -4280,9 +4736,6 @@ Given a fixed event $B \in \mathcal{S},$ the function $\Pr[A \mid B]$
 forms a measure over $B.$  More formally, we can derive a new
 probability space with $\Omega' = B$, $\mathcal{S} = \{ A \in
 \mathcal{S} : A \subseteq B \},$ and $\Pr'[A] = \Pr[A \mid B].$
-
-
-over the space $B$
 
 
 ### Bayes's rule
@@ -4457,9 +4910,11 @@ with a range equal to the sample space, $\textrm{range}(X) = (0, 1) =
 \Omega.$  The range of a random variable is not constrained by $\Omega$.
 Consider the random variable $Y$ over $\Omega = (0, 1)$ defined by
 $$
-Y(\omega) = \textrm{logit}(\omega) = \log \frac{\omega}{1 - \omega},
+Y(\omega) =
+\textrm{logit}(\omega) &
+= \log \frac{\omega}{1 - \omega} \textrm{ if} \omega \in (0, 1).
 $$
-which has $\textrm{range}(Y) = \mathbb{R}$.  A third example is the
+A third example is the
 random variable $Z$ defined by $Z(\omega) = \log \omega$, which has
 $\textrm{range}(Z) = (-\infty, 0)$.  We can even have a random
 variable $T$ over $\Omega = (0, 1)$ with a discrete range by defining
