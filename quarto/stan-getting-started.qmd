@@ -4030,7 +4030,7 @@ repository for *Bayesian Workflow*](https://github.com/jgabry/bayes-workflow-boo
 # AA.  Set theory {.unnumbered}
 
 Probability theory is based on simple notions from set theory such as
-unions and intersections.  We will need to generalize to infite sets
+unions and intersections.  We will need to generalize to infinite sets
 and worry about issues such as countability, all of which we define in
 this appendix.
 
@@ -4191,7 +4191,7 @@ $$
 ## A.7 Disjointness and partitions {.unnumbered}
 
 A pair of sets $A$ and $B$ are *disjoint* if $A \cap B = \emptyset$.
-A potentiall infinite sequence of sets $A_0, A_1, \ldots$ is *pairwise
+A potentially infinite sequence of sets $A_0, A_1, \ldots$ is *pairwise
 disjoint* if for every $i, j < \infty$, $A_i$ and $A_j$ are
 disjoint, $A_i \cap A_j = \emptyset$.
 
@@ -4297,7 +4297,7 @@ $$
 = A^\complement \cup B^\complement.
 $$
 
-## A.9 Tuples, cross-producs, and relations {.unnumbered}
+## A.9 Tuples, cross-products, and relations {.unnumbered}
 
 ### Tuples
 
@@ -4403,7 +4403,7 @@ A function $f : A \rightarrow B$ is said to be
 
 * *injective* if $a \neq b$ implies $f(a) \neq f(b),$
 * *surjective* if $B = \textrm{range}(B),$ and 
-* *bijective* if it is both injective and surejctive.
+* *bijective* if it is both injective and surjective.
 
 An injective function is called an *injection,* a surjective one a
 *surjection,* and a bijective one a *bijection.* Surjections are
