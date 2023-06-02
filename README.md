@@ -10,11 +10,8 @@ An introduction to
 
 * the Python libraries `numpy`, `pandas`, and `plotnine`.
 
-Rendered version here:
-
-<quote>
-Bob
-Carpenter. 2023. [Getting started with Bayesian statistics using Stan and Python](https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html). 
+Bob Carpenter. 2023. [Getting started with Bayesian statistics using Stan and Python](https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html). 
+ 
 </quote>
 
 
