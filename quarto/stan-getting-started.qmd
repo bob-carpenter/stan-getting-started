@@ -4387,7 +4387,7 @@ a member of a larger family of functions.
 
 Given two sets $A$ and $B,$ the set of functions from $A$ to $B$ is
 written as $B^A,$ and defined by
-<$$
+$$
 \textrm{B^A} = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
 $$
 
@@ -4427,7 +4427,7 @@ For a given set $A$, the *identity function$ $\textrm{id}_A:A
 \rightarrow A$ maps each element to itself, i.e., $\textrm{id}_A(a) =
 a.$.  We usually drop the subscript and just write $\textrm{id}.$
 
-For any set $A$, the *indicator function$ $\textrm{I}_A$ is defined so
+For any set $A$, the *indicator function* $\textrm{I}_A$ is defined so
 that
 $$
 \textrm{I}_A(x)
@@ -4437,6 +4437,18 @@ $$
 0 & \textrm{otherwise}.
 \end{cases}
 
+## A.11 Finite, countable, and uncountable sets
+
+A set $A$ is *finite* if there exists a number $n \in
+\mathbb{N}$ and a bijection from $\{ 0, 1, \ldots, n \}$ and $A.$
+The number $n$ is the *size* of the set.  A set is *infinite* if it is
+not finite.
+
+A set $A$ is *countable* if there is surjective function $f:
+\mathbb{N} \rightarrow A$ and is said to be *uncountable* otherwise.
+A countable set may be either finite or infinite.  It can be shown
+that the integers $\mathbb{Z}$ are countable and the set of real
+numbers $\mathbb{R}$ is uncountable.
 
 
 # A. Probability theory {.unnumbered}
