@@ -4330,9 +4330,20 @@ $$
 ### Relations
 
 A *relation* between the sets $A$ and $B$ is a set $R \subseteq A
-\times B.$  A relation $R$ is said to be *symmetric* if $(a, b) \in R$
-implies $(b, a) \in R$.  A relation $R$ is said to be *transitive* if
-$(a, b) \in R$ and $(b, c) \in R$ implies $(a, c) \in R.$
+\times B.$ For example, the comparison operator $\leq$ defines a
+relation over the real numbers $L = \{ (x, y) \in \mathbb{R} \times
+\mathbb{R} : x \leq y \}.$
+
+A relation $R$ is said to be *symmetric* if $(a, b) \in R$
+implies $(b, a) \in R$. The inequality relation is not symmetric, but
+the equality relation $E = \{ (x, x) \in \mathbb{R} \times \mathbb{R}
+: x \in \mathbb{R} \}$ is.
+
+A relation $R$ is said to be *transitive* if $(a, b) \in R$ and $(b,
+c) \in R$ implies $(a, c) \in R.$ Both equality and inequality are
+transitive relations, but the within unit distance relation
+$W = \{ (x, y) \in \mathbb{R} \times \mathbb{R} : | x - y | \leq 1 \}$
+is not.
 
 If $R$ and $T$ are relations, then their *composition* $R \circ T$ is
 defined by
@@ -4341,17 +4352,38 @@ R \circ T = \{ (a, c) : (a, b) \in R, (b, c) \in R \}.
 $$
 Thus a relation $R$ is transitive if $R \circ R = R.$
 
-## A.10 Functions, compositions, and inverses {.unnumbered}
+
+
+## A.10 Functions {.unnumbered}
+
+### Functions
 
 A relation $f \subseteq A \times B$ is said to be a *function* if for
 every $a \in A$ there is exactly one $b \in B$ such that $(a, b) \in
 f.$  If $(a, b) \in f$ we write $f(a) = b$ and say $a$ *maps to* $b.$
-
 If $f \subseteq A \times B$ is a function, we write $f:A \rightarrow
-B$.  If $f:A \rightarrow B$ is a function we say that $A$ is the
-*domain* of the function and write $\textrm{dom}(f) = A.$ The *range*
-of a function is the set of values that are results of applying the
-function, $\textrm{range}(f) = \{ f(a) : a \in A \}.$
+B$.  
+
+### Domains and ranges
+
+If $f:A \rightarrow B$ is a function, it *domain* is $A$ and its
+*codomain* is $B.$ The *range* of a function is the set of values that
+result from applying the function to elements of $A.$ If we define
+$f:\mathbb{R} \rightarrow \mathbb{R}$ by $f(x) = x^2,$ then the
+codomain is $\mathbb{R},$ but the range is $(0, \infty).$ The range of
+a function is always a subset of its codomain.
+
+Given a function, its domain is
+$$
+\textrm{dom}(f) = \{ x : (x, y) \in f \} = A,
+$$
+and its range is
+$$
+\textrm{rng}(f) = \{ y : (x, y) \in f \},
+$$
+but we cannot infer its codomain from its members.  The codomain only
+matters in a higher-level context in which the function is considered
+a member of a larger family of functions.
 
 Given two sets $A$ and $B,$ the set of functions from $A$ to $B$ is
 written as $B^A,$ and defined by
@@ -4359,15 +4391,15 @@ written as $B^A,$ and defined by
 \textrm{B^A} = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
 $$
 
+### Composition
+
 If $f:A \rightarrow B$ and $g:B \rightarrow C$ are functions, then
 their composition $g \circ f:A \rightarrow C$ is also a function, and
 satisfies $(g \circ f)(a) = g(f(a)).$
 
-For a given set $A$, the *identity function$ $\textrm{id}_A:A
-\rightarrow A$ maps each element to itself, i.e., $\textrm{id}_A(a) =
-a.$.  We usually drop the subscript and just write $\textrm{id}.$
-A function $f : A \rightarrow B$ is
-said to be 
+### Injective, surjective, and bijective functions
+
+A function $f : A \rightarrow B$ is said to be 
 
 * *injective* if $a \neq b$ implies $f(a) \neq f(b),$
 * *surjective* if $B = \textrm{range}(B),$ and 
@@ -4379,6 +4411,8 @@ also said to be "onto" and bijections are said to be "one
 to one."  A function $f:A \rightarrow B$ is said to be *many to one*
 if there exists $a \neq a'$ such that $f(a) = f(a').$
 
+### Inverse functions
+
 If $f:A \rightarrow B$ is a bijection, it has an *inverse* $f^{-}:B
 \rightarrow A$ defined so that $f^{-1}(b) = a$ if $f(a) = b.$  The
 composition of a function with its inverse or vice-versa is the
@@ -4387,6 +4421,21 @@ identity function, $f \circ f^{-} = \textrm{id},$ $f^{-} \circ f =
 $f^{-1}(f(a)) = a$ for all $a \in A$ and $f(f^{-}(b)) = b$ for all $b
 \in B.$
 
+### Special functions
+
+For a given set $A$, the *identity function$ $\textrm{id}_A:A
+\rightarrow A$ maps each element to itself, i.e., $\textrm{id}_A(a) =
+a.$.  We usually drop the subscript and just write $\textrm{id}.$
+
+For any set $A$, the *indicator function$ $\textrm{I}_A$ is defined so
+that
+$$
+\textrm{I}_A(x)
+= \begin{cases}
+1 & \textrm{if } x \in A, \textrm{ and}
+\\[2pt]
+0 & \textrm{otherwise}.
+\end{cases}
 
 
 
