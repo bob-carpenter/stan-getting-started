@@ -4916,7 +4916,7 @@ with a range equal to the sample space, $\textrm{range}(X) = (0, 1) =
 Consider the random variable $Y$ over $\Omega = (0, 1)$ defined by
 $$
 Y(\omega) =
-\textrm{logit}(\omega) &
+\textrm{logit}(\omega)
 = \log \frac{\omega}{1 - \omega} \textrm{ if} \omega \in (0, 1).
 $$
 A third example is the
@@ -5578,10 +5578,10 @@ $X \in (0, 1)$ and $Y \in (0, 1 - X).$  If we define $Z = 1 - X - Y,$
 then $[X \quad Y \quad Z]$ is a simplex (i.e., non-negative entries,
 sums to one).  We can perform a change of variables on $X, Y$ to
 convert to unconstrained parameters $U, V \in \mathbb{R}^2$ using the
-following "stick-breaking" transform, $[u \quad v] = f([x \quad y])$
+following "stick-breaking" transform, $[u \quad v] = f([x \quad y]),$
 defined by
 $$
-u = \textrm{logit}(x) \qquad v = \textrm{logit}(y \cdot (1 - x)).
+u = \textrm{logit}(x) \qquad v = \textrm{logit}\!\left(\frac{y}{1 - x}\right).
 $$
 The inverse of this function, $[x \quad y] = f^{-1}([u \quad v])$ is
 given by
@@ -5600,24 +5600,21 @@ $$
 (\textrm{logit}^{-1})'(u)
 & 0
 \\[4pt]
-\textrm{logit}^{-1}(v)
-\cdot (\textrm{logit}^{-1}')(u)
-& (1 - \textrm{logit}^{-1}(u))
-\cdot (\textrm{logit}^{-1}')(v)
+\textrm{logit}^{-1}(v) \cdot (\textrm{logit}^{-1})'(u)
+&  (1 - \textrm{logit}^{-1}(u)) \cdot (\textrm{logit}^{-1})'(v)
 \end{bmatrix},
 $$
 and thus has a Jacobian determinant of
 $$
 \left| \nabla f^{-1}([u \quad v]) \right|
-= 
-\textrm{logit}^{-1}(v)
-(1 - \textrm{logit}^{-1}(u))
-\cdot (\textrm{logit}^{-1}')(v),
+= (\textrm{logit}^{-1})'(u)
+\cdot (1 - \textrm{logit}^{-1}(u))
+\cdot (\textrm{logit}^{-1})'(v),
 $$
 where
 $$
-(\textrm{logit}^{-1})'(u) =
-\textrm{logit}^{-1}(u) \cdot (1 - \textrm{logit}^{-1}(u).
+\left(\textrm{logit}^{-1}\right)'(y) =
+\textrm{logit}^{-1}(y) \cdot \left( 1 - \textrm{logit}^{-1}(y) \right).
 $$
 
 It is convenient for derivations that the Jacobian for a function
@@ -5628,11 +5625,11 @@ $$
 and hence the determinant is just a function of the individual
 functions' determinants,
 $$
-\left| (\nabla (f \circ g))(x) \right|
+\left| \nabla (f \circ g) (x) \right|
 =
-\left| (\nabla f)(g(x)) \right|
+\left| \nabla f (g(x)) \right|
 \cdot
-\left| (\nabla g)(x) \right|.
+\left| \nabla g (x) \right|.
 $$
 
 ### Multivariate cdfs, pmfs, and pdfs
