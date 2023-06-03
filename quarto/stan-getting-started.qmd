@@ -4103,9 +4103,9 @@ The symbol $\mathbb{R}$ is conventionally used for the set of all
 
 ## A.4 Finite and infinite sets {.unnumbered}
 
-A set $s$ is said to be *finite* if it can be written in the form $s =
-\{ x_0, x_1, \ldots, x_{n-1}\}$ for some $n \geq 0.$ If a set is not
-finite, it is said to be *infinite*.
+A set $s$ is *finite* if it can be written in the form $s = \{ x_0,
+x_1, \ldots, x_{n-1}\}$ for some $n \geq 0.$ If a set is not finite,
+it is *infinite*.
 
 The *size* of a finite set is the number of distinct members it has.
 For example, the set $s = \{ 1, 2, 3 \}$ has size 3.  It is standard
@@ -4195,7 +4195,7 @@ A potentially infinite sequence of sets $A_0, A_1, \ldots$ is *pairwise
 disjoint* if for every $i, j < \infty$, $A_i$ and $A_j$ are
 disjoint, $A_i \cap A_j = \emptyset$.
 
-A pairwise disjoint sequence of sets $B_0, B_1, \ldots$ is said to be
+A pairwise disjoint sequence of sets $B_0, B_1, \ldots$ is
 a *partition* of a set $A$ if
 $$
 A = \bigcup_{n < \infty} B_n.
@@ -4334,12 +4334,12 @@ A *relation* between the sets $A$ and $B$ is a set $R \subseteq A
 relation over the real numbers $L = \{ (x, y) \in \mathbb{R} \times
 \mathbb{R} : x \leq y \}.$
 
-A relation $R$ is said to be *symmetric* if $(a, b) \in R$
+A relation $R$ is *symmetric* if $(a, b) \in R$
 implies $(b, a) \in R$. The inequality relation is not symmetric, but
 the equality relation $E = \{ (x, x) \in \mathbb{R} \times \mathbb{R}
 : x \in \mathbb{R} \}$ is.
 
-A relation $R$ is said to be *transitive* if $(a, b) \in R$ and $(b,
+A relation $R$ is *transitive* if $(a, b) \in R$ and $(b,
 c) \in R$ implies $(a, c) \in R.$ Both equality and inequality are
 transitive relations, but the within unit distance relation
 $W = \{ (x, y) \in \mathbb{R} \times \mathbb{R} : | x - y | \leq 1 \}$
@@ -4358,7 +4358,7 @@ Thus a relation $R$ is transitive if $R \circ R = R.$
 
 ### Functions
 
-A relation $f \subseteq A \times B$ is said to be a *function* if for
+A relation $f \subseteq A \times B$ is a *function* if for
 every $a \in A$ there is exactly one $b \in B$ such that $(a, b) \in
 f.$  If $(a, b) \in f$ we write $f(a) = b$ and say $a$ *maps to* $b.$
 If $f \subseteq A \times B$ is a function, we write $f:A \rightarrow
@@ -4388,7 +4388,7 @@ a member of a larger family of functions.
 Given two sets $A$ and $B,$ the set of functions from $A$ to $B$ is
 written as $B^A,$ and defined by
 $$
-\textrm{B^A} = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
+B^A = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
 $$
 
 ### Composition
@@ -4399,17 +4399,15 @@ satisfies $(g \circ f)(a) = g(f(a)).$
 
 ### Injective, surjective, and bijective functions
 
-A function $f : A \rightarrow B$ is said to be 
+A function $f : A \rightarrow B$ is
 
-* *injective* if $a \neq b$ implies $f(a) \neq f(b),$
-* *surjective* if $B = \textrm{range}(B),$ and 
+* *injective* (aka one-to-one) if $a \neq b$ implies $f(a) \neq f(b),$
+* *surjective* (aka onto) if $B = \textrm{range}(B),$ and 
 * *bijective* if it is both injective and surjective.
 
 An injective function is called an *injection,* a surjective one a
-*surjection,* and a bijective one a *bijection.* Surjections are
-also said to be "onto" and bijections are said to be "one
-to one."  A function $f:A \rightarrow B$ is said to be *many to one*
-if there exists $a \neq a'$ such that $f(a) = f(a').$
+*surjection,* and a bijective one a *bijection.* also said to be
+"onto."  A function that is not injective is said to be *many to one*.
 
 ### Inverse functions
 
@@ -4436,19 +4434,19 @@ $$
 \\[2pt]
 0 & \textrm{otherwise}.
 \end{cases}
+$$
 
-## A.11 Finite, countable, and uncountable sets
+## A.11 Finite, countable, and uncountable sets {.unnumbered}
 
 A set $A$ is *finite* if there exists a number $n \in
-\mathbb{N}$ and a bijection from $\{ 0, 1, \ldots, n \}$ and $A.$
+\mathbb{N}$ and a bijection from $\{ 0, 1, \ldots, n \}$ to $A.$
 The number $n$ is the *size* of the set.  A set is *infinite* if it is
 not finite.
 
-A set $A$ is *countable* if there is surjective function $f:
-\mathbb{N} \rightarrow A$ and is said to be *uncountable* otherwise.
-A countable set may be either finite or infinite.  It can be shown
-that the integers $\mathbb{Z}$ are countable and the set of real
-numbers $\mathbb{R}$ is uncountable.
+A set $A$ is *countable* if there is surjection from $\mathbb{N}$ to
+$A$ and is *uncountable* otherwise.  A countable set may be either
+finite or infinite.  It can be shown that the integers $\mathbb{Z}$
+are countable and the set of real numbers $\mathbb{R}$ is uncountable.
 
 
 # A. Probability theory {.unnumbered}
@@ -4491,9 +4489,8 @@ $$
 \right)^{\complement}.
 $$
 
-For applied statistics, we
-can restrict our attention to sample spaces $\Omega \subseteq
-\mathbb{R}^N$.
+For applied statistics, we can restrict our attention to sample spaces
+$\Omega \subseteq \mathbb{R}^N$.
 
 <div class="example-text">
 *Example 1(a)*: The power set of any non-empty set contains the empty set
@@ -4558,16 +4555,24 @@ The sample space $\Omega$ with a probability measure $\Pr$ over the
 $\sigma$-algebra $\mathcal{S}$ together make up the *probability
 space* $(\Omega, \mathcal{S}, \Pr)$.
 
-In analysis, an element $A \in \mathcal{S}$ is said to be a
-*measurable set.*  Measurable sets in a probability measure are
-called *events*.
-Because $A^\complement \cup A =
-\Omega$, it follows from countable additivity that
+In analysis, if $\mathcal{S}$ is a $\sigma$-algebra, an element $A \in
+\mathcal{S}$ is said to be a *Borel set.* If the $\sigma$-algebra is
+endowed with a measure, as in a probability space, an element of the
+$\sigma$-algebra is said to be a *measurable set.* Measurable sets $A
+\in \mathcal{S}$ are also called *events* because they have a
+well-defined probability $\Pr[A]$ of occurring.
+
+Because for any event $A,$ $A^\complement \cup A = \Omega$, it follows
+from countable additivity that
 $$
 \Pr[A^{\complement}] = 1 - \Pr[A],
 $$
-and in particular, $\Pr[\emptyset] = \Pr[\Omega^\complement] = 1.$  We
-also have $\Pr[A] \leq 1$ for any event $A \in \mathcal{S}.$
+$$
+\Pr[\emptyset] = \Pr[\Omega^\complement] = 0, \textrm{ and}
+$$
+$$
+\Pr[A] \leq 1.
+$$
 
 <div class="example-text">
 *Example 1(a), continued*:  We can define a
@@ -4697,7 +4702,7 @@ $$
 This notation extends to any number of events, with $\Pr[A, B, C] =
 \Pr[A \cap B \cap C]$ and so on.  
 
-The sets $A_1, A_2, \ldots$ are said to be *mutually disjoint* if $i
+The sets $A_1, A_2, \ldots$ are *mutually disjoint* if $i
 \neq j$ implies $A_i \cap A_j = \emptyset.$ A $partition$ of the set
 $B$ is a countable sequence of mutually disjoint sets $B_0, B_1, B_2,
 \ldots$ such that $B = \bigcup_{n \in \mathbb{N}} \, B_n.$
@@ -4764,7 +4769,7 @@ summarize below.
 
 ### Independence
 
-A pair of events $A$ and $B$ are said to be *independent* if
+A pair of events $A$ and $B$ are *independent* if
 $$
 \Pr[A, B] = \Pr[A] \cdot \Pr[B].
 $$
@@ -4833,7 +4838,7 @@ Geometric reasoning here shows that $\Pr[A \mid C^\complement] < \Pr[A
 
 ### Conditional independence
 
-A pair of events $A$ and $B$ are said to be *conditionally
+A pair of events $A$ and $B$ are *conditionally
 independent* given an event $C$ with $\Pr[C] > 0$ if
 $$
 \Pr[A, B \mid C] = \Pr[A \mid C] \cdot \Pr[B \mid C].
@@ -4850,7 +4855,7 @@ $$
 
 ### Mutual independence
 
-A sequence of events $A_0, A_1, \ldots, A_N$ is said to be *mutually
+A sequence of events $A_0, A_1, \ldots, A_N$ is *mutually
 independent* if 
 
 * $\Pr\!\left[\bigcap_{n = 1}^N A_n\right] = \prod_{n=1}^N \Pr[A_n],$ and
@@ -4947,7 +4952,7 @@ $W(\omega) = \omega^2$, which has $\textrm{range}(W) = [0, \infty)$.
 
 ### Independence for random variables
 
-Two random variables $X$ and $Y$ are said to be *independent* if the
+Two random variables $X$ and $Y$ are *independent* if the
 events picked out by $X \leq x$ and $Y \leq y$ (i.e., $\{ \omega \in
 \Omega : X(\omega) \leq x \}$) are independent for all
 $x$ and $y.$
@@ -5549,10 +5554,86 @@ p_Y(y)
 = p_X\!\left(f^{-1}(y)\right)
   \cdot \left| \nabla \! \left( f^{-1} \right) \! \left(y\right) \right|,
 $$
-where $\nabla g$ is read as the Jacobian of the function $g$ and
+where $\nabla g$ is the Jacobian of the function $g$ and
 $\left| A \right|$ is read as the absolute determinant of the matrix
 $A.$  Here the function $g = f^{-1}$ maps $\mathbb{R}^N$ to $\mathbb{R}^N,$
-so $\nabla\!\left(f^{-1}\right)$ is an $N \times N$ matrix.
+so the Jacobian $\nabla\!\left(f^{-1}\right)$ is an $N \times N$
+matrix.
+
+If the Jacobian $\nabla f^{-1}$ is a triangular $N \times N$ matrix,
+its determinant simplifies to product of its diagonal,
+$$
+\left| (\nabla f^{-1})(y) \right|
+= \prod_{n = 1}^N \left((\nabla f^{-1})(y)\right)_{n, n},
+$$
+where $(\nabla f^{-1}(y))_{n, n}$ is the partial derivative of
+the $n$-th element of the output with respect to the $n$-th element of
+the input, evaluated at $y,$
+$$
+\left((\nabla f^{-1})(y)\right)_{n, n}
+= \frac{\partial}{\partial u_n} f^{-1}(u)_n \ \bigg|_{u = y}.
+$$
+For example, suppose we have random variables $X, Y$ such that
+$X \in (0, 1)$ and $Y \in (0, 1 - X).$  If we define $Z = 1 - X - Y,$
+then $[X \quad Y \quad Z]$ is a simplex (i.e., non-negative entries,
+sums to one).  We can perform a change of variables on $X, Y$ to
+convert to unconstrained parameters $U, V \in \mathbb{R}^2$ using the
+following "stick-breaking" transform, $[u \quad v] = f([x \quad y])$
+defined by
+$$
+u = \textrm{logit}(x) \qquad v = \textrm{logit}(y \cdot (1 - x)).
+$$
+The inverse of this function, $[x \quad y] = f^{-1}([u \quad v])$ is
+given by
+$$
+x = \textrm{logit}^{-1}(u) \qquad y = \textrm{logit}^{-1}(v) \cdot (1 - \textrm{logit}^{-1}(u)),
+$$
+with the Jacobian matrix 
+$$
+\begin{bmatrix}
+\frac{\partial}{\partial u} x & \frac{\partial}{\partial v} x
+\\[4pt]
+\frac{\partial}{\partial u} y & \frac{\partial}{\partial v} y
+\end{bmatrix}
+=
+\begin{bmatrix}
+(\textrm{logit}^{-1})'(u)
+& 0
+\\[4pt]
+\textrm{logit}^{-1}(v)
+\cdot (\textrm{logit}^{-1}')(u)
+& (1 - \textrm{logit}^{-1}(u))
+\cdot (\textrm{logit}^{-1}')(v)
+\end{bmatrix},
+$$
+and thus has a Jacobian determinant of
+$$
+\left| \nabla f^{-1}([u \quad v]) \right|
+= 
+\textrm{logit}^{-1}(v)
+(1 - \textrm{logit}^{-1}(u))
+\cdot (\textrm{logit}^{-1}')(v),
+$$
+where
+$$
+(\textrm{logit}^{-1})'(u) =
+\textrm{logit}^{-1}(u) \cdot (1 - \textrm{logit}^{-1}(u).
+$$
+
+It is convenient for derivations that the Jacobian for a function
+composition is just the product of the Jacobians for the functions,
+$$
+\frac{\textrm{d}}{\textrm{d}x} f(g(x)) = f'(g(x)) \cdot f'(x),
+$$
+and hence the determinant is just a function of the individual
+functions' determinants,
+$$
+\left| (\nabla (f \circ g))(x) \right|
+=
+\left| (\nabla f)(g(x)) \right|
+\cdot
+\left| (\nabla g)(x) \right|.
+$$
 
 ### Multivariate cdfs, pmfs, and pdfs
 
@@ -5578,7 +5659,7 @@ that for any event $A \in \mathcal{S},$
 $$
 \Pr[x \in A] = \int_A p_X(x) \textrm{d} x,
 $$
-or in terms of rectangular integrations and the cdf,
+or equivalently, in terms of rectangular integrations and the cdf,
 $$
 F_X(x) = \int_0^{x_1} \cdots \int_0^{x_N} p_X([x_1 \quad
 \cdots \quad x_N]) \, \textrm{d}x_N \cdots \textrm{d}x_1.
@@ -6216,11 +6297,12 @@ $$
 $$
 
 Given an estimate $\widehat{\theta}$, its _error_ is $\widehat{\theta}
-- \theta$. If its expected error is zero, an estimator is said to be
-_unbiased_.   If the Monte Carlo draws $\theta^{(1)}, \ldots, \theta^{(M)}$ are
+- \theta$. If its expected error is zero, an estimator is _unbiased_.
+If the Monte Carlo draws $\theta^{(1)}, \ldots, \theta^{(M)}$ are
 independent, the _central limit theorem_ tells us that our error
-follows a normal distribution asymptotically, so that as $M \rightarrow \infty$,
-the error of our estimate $\widehat{\theta}$ follows a normal distribution,
+follows a normal distribution asymptotically, so that as $M
+\rightarrow \infty$, the error of our estimate $\widehat{\theta}$
+follows a normal distribution,
 $$
 \widehat{\theta} - \theta
 \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M}}\right),
