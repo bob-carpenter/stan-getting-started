@@ -117,7 +117,7 @@ packages we will use throughout this tutorial.
 ```{python}
 # PROJECT SETUP
 # set DRAFT = False for final output; DRAFT = True is faster
-DRAFT = True
+DRAFT = False
 
 import itertools
 import logging
@@ -4283,9 +4283,9 @@ $$
 A \cap A = A.
 $$
 
-### DeMorgan's laws
+### De Morgan's law
 
-*DeMorgan's laws* relate complementation, intersection, and union,
+*De Morgan's law* relate complementation, intersection, and union,
 where for all sets $A$, $B$, and $C$,
 $$
 \left(A \cup B\right)^\complement
@@ -4296,6 +4296,16 @@ $$
 \left(A \cap B\right)^\complement
 = A^\complement \cup B^\complement.
 $$
+De Morgan's law can be extended to the countably infinite case,
+$$
+\bigcap_{n \in \mathbb{N}} A_n
+= \left(
+\bigcup_{n \in \mathbb{N}} A_n^\complement
+\right)^{\complement}.
+$$
+
+
+
 
 ## A.9 Tuples, cross-products, and relations {.unnumbered}
 
@@ -4356,8 +4366,6 @@ Thus a relation $R$ is transitive if $R \circ R = R.$
 
 ## A.10 Functions {.unnumbered}
 
-### Functions
-
 A relation $f \subseteq A \times B$ is a *function* if for
 every $a \in A$ there is exactly one $b \in B$ such that $(a, b) \in
 f.$  If $(a, b) \in f$ we write $f(a) = b$ and say $a$ *maps to* $b.$
@@ -4405,9 +4413,9 @@ A function $f : A \rightarrow B$ is
 * *surjective* (aka onto) if $B = \textrm{range}(B),$ and 
 * *bijective* if it is both injective and surjective.
 
-An injective function is called an *injection,* a surjective one a
-*surjection,* and a bijective one a *bijection.* also said to be
-"onto."  A function that is not injective is said to be *many to one*.
+Functions satisfying these properties are called *injections,*
+*surjections,* and *bijections.*  A function that is not injective is
+said to be *many to one*.
 
 ### Inverse functions
 
@@ -4421,7 +4429,7 @@ $f^{-1}(f(a)) = a$ for all $a \in A$ and $f(f^{-}(b)) = b$ for all $b
 
 ### Special functions
 
-For a given set $A$, the *identity function$ $\textrm{id}_A:A
+For a given set $A$, the *identity function* $\textrm{id}_A:A
 \rightarrow A$ maps each element to itself, i.e., $\textrm{id}_A(a) =
 a.$.  We usually drop the subscript and just write $\textrm{id}.$
 
@@ -4467,27 +4475,18 @@ called *outcomes* because they represent possible ways the world might
 be (i.e., what are sometimes known as "possible worlds").
 
 A _$\sigma$-algebra_ $\mathcal{S}$ is a set of subsets of $\Omega$,
-$\mathcal{S} \subseteq \textrm{pow}(\Omega)$, that satisfy three
-properties,
+$\mathcal{S} \subseteq \textrm{pow}(\Omega)$, that 
 
-* *space is measurable*: $\Omega \in \mathcal{S}$,
-* *closed under complements*: if $A \in \mathcal{S},$ then $A^{\complement}
+* contains the *empty set*: $\emptyset \in \mathcal{S}$,
+* is *closed under complements*: if $A \in \mathcal{S},$ then $A^{\complement}
 \in \mathcal{S}$, and
-* *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
+* is *closed under countable unions*: if $A_n \in \mathcal{S}$ for $n \in \mathbb{N},$
 then $\bigcup_{n=0}^N A_n \in \mathcal{S}$.
 
-Because $\Omega \in \mathcal{S}$, its complement $\emptyset =
-\emptyset^{\complement} \in \mathcal{S}$.  Closure under intersections
-follows from De Morgan's law,
-$$
-A \cap B = \left( A^{\complement} \cup B^{\complement} \right)^\complement,
-$$
-which extends to the countably infinite case
-$$
-\bigcap_{n \in \mathbb{N}} A_n
-= \left( A_n^\complement
-\right)^{\complement}.
-$$
+Because $\emptyset \in \mathcal{S}$, its complement $\Omega =
+\emptyset^{\complement} \in \mathcal{S}$.  Closure under countable
+intersections follows from De Morgan's law.
+
 
 For applied statistics, we can restrict our attention to sample spaces
 $\Omega \subseteq \mathbb{R}^N$.
@@ -4503,7 +4502,7 @@ sample space $\Omega = \{ 0, 1 \}$, with $\sigma$-algebra $\mathcal{S}
 </div>
 
 <div class="example-text">
-*Example 1(b): An example of a countably infinite sample space, we can
+*Example 1(b)*: An example of a countably infinite sample space, we can
 take the power set of the natural numbers, $\Omega =
 \textrm{pow}(\mathbb{N}),$ which is not only a $\sigma$-algebra, but a
 complete, atomic, boolean algebra.
@@ -6019,6 +6018,52 @@ $$
 = p.
 $$
 
+## A.10 Stochastic processes and Markov chains {.unnumbered}
+
+### Discrete-time stochastic processes
+
+A *discrete-time stochastic process* is a countable sequence of random
+variables $X = X^{(0)}, X^{(1)}, \ldots.$ For the purposes of this
+book, we can restrict attention to real-valued variables on a state
+space $\Omega,$ so that $X^{(n)}:\Omega \rightarrow \mathbb{R}^N.$ In
+a stochastic process, the codomain $\mathbb{R}^N$ of the variables is
+called the *state space.*
+
+In the simplest non-trivial case, $N = 1$ so that $X^{(n)}(\omega) \in
+\mathbb{R}$ and the entire sequence is an infinite-dimensional random
+vector $X \in \mathbb{R}^{\mathbb{N}}.$
+
+### Markov chains
+
+A *Markov chain* is a discrete-time stochastic process, the evolution
+of which is governed by an initial distribution on the state space and
+a transition kernel governing the generation of the next state given
+the previous state.
+
+More formally, a Markov chain is determined by its initial
+distribution with cdf
+$$
+F_{X^{(0)}}(x) = \Pr[X^{(0) \leq x],
+$$
+and and a memoryless transition measure, so that
+$$
+F_{X^{(m + 1)}}(x^{(m + 1)} \mid x) =
+\Pr[X^{(m + 1)} \leq x^{ \mid X^{(m)} = x].
+$$
+and
+$$
+q
+= p_{X^{(i + 1)} \mid X^{(i)}}(u, v)
+= p_{X^{(j + 1)} \mid X^{(j)}}(u, v).
+$$
+
+We refer to $q$ as the transition density, though we may also consider
+the induced measure,
+$$
+\Pr(X_{m + 1} \in A \mid X_m = x_m) = \int_{A} q(y \mid x_m) \textrm{d}x_m.
+$$
+
+
 
 # B. Bayesian statistics {.unnumbered}
 
@@ -6050,7 +6095,7 @@ densities is
 \end{align}
 In general discussions, we typically use the variable $y$ for data and
 $\theta$ for model parameters.  The second step of Bayes's theorem
-replaces the evidence by marginalizing data out of the numerator.
+replaces the evidence by marginalizing data out of the denominator.
 
 ::: {#thm-line}
 ### Bayes's Theorem
