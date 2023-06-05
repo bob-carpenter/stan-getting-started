@@ -117,7 +117,7 @@ packages we will use throughout this tutorial.
 ```{python}
 # PROJECT SETUP
 # set DRAFT = False for final output; DRAFT = True is faster
-DRAFT = False
+DRAFT = True
 
 import itertools
 import logging
@@ -6018,52 +6018,6 @@ $$
 = p.
 $$
 
-## A.10 Stochastic processes and Markov chains {.unnumbered}
-
-### Discrete-time stochastic processes
-
-A *discrete-time stochastic process* is a countable sequence of random
-variables $X = X^{(0)}, X^{(1)}, \ldots.$ For the purposes of this
-book, we can restrict attention to real-valued variables on a state
-space $\Omega,$ so that $X^{(n)}:\Omega \rightarrow \mathbb{R}^N.$ In
-a stochastic process, the codomain $\mathbb{R}^N$ of the variables is
-called the *state space.*
-
-In the simplest non-trivial case, $N = 1$ so that $X^{(n)}(\omega) \in
-\mathbb{R}$ and the entire sequence is an infinite-dimensional random
-vector $X \in \mathbb{R}^{\mathbb{N}}.$
-
-### Markov chains
-
-A *Markov chain* is a discrete-time stochastic process, the evolution
-of which is governed by an initial distribution on the state space and
-a transition kernel governing the generation of the next state given
-the previous state.
-
-More formally, a Markov chain is determined by its initial
-distribution with cdf
-$$
-F_{X^{(0)}}(x) = \Pr[X^{(0) \leq x],
-$$
-and and a memoryless transition measure, so that
-$$
-F_{X^{(m + 1)}}(x^{(m + 1)} \mid x) =
-\Pr[X^{(m + 1)} \leq x^{ \mid X^{(m)} = x].
-$$
-and
-$$
-q
-= p_{X^{(i + 1)} \mid X^{(i)}}(u, v)
-= p_{X^{(j + 1)} \mid X^{(j)}}(u, v).
-$$
-
-We refer to $q$ as the transition density, though we may also consider
-the induced measure,
-$$
-\Pr(X_{m + 1} \in A \mid X_m = x_m) = \int_{A} q(y \mid x_m) \textrm{d}x_m.
-$$
-
-
 
 # B. Bayesian statistics {.unnumbered}
 
@@ -6255,119 +6209,107 @@ p(\tilde{y} \mid y)
 
 # C. Markov chain Monte Carlo {.unnumbered}
 
-Stan performs asymptotically exact, full Bayesian inference using
-Markov chain Monte Carlo (MCMC). MCMC starts from an initial value
-$\theta^{(0)}$, which can be random, user provided, or a mixture of
-both, and then generates a sequence of values $\theta^{(1)},
-\theta^{(2)}, \ldots, \theta^{(m)}, \ldots$ forming a _Markov chain_.
-A sequence forms a Markov chain if each value is generated conditioned
-on only the previous value, so that
-$$
-p(\theta^{(m + 1)} \mid \theta^{(1)}, \ldots, \theta^{(M)})
-= p(\theta^{(m + 1)} \mid \theta^{(m)}).
-$$
-We call the distribution $p(\theta^{(m + 1)} \mid \theta^{(m)})$
-the *transition kernel* of the Markov chain.
-Because of this dependency, the sequence of random variables making up
-the Markov chain exhibit a degree of _autocorrelation_, meaning that
-$\theta^{(m)}$ is correlated with $\theta^{(m+1)}$.
+In this section, we introduce the basic theory of Monte Carlo methods
+and then move on to more general Markov chain Monte Carlo methods.
+The presentation here was strongly influenced by
+@roberts2004, @rosenthal2006, and @geyer2011.
 
-We typically assume some mild conditions on the Markov chain
-transition transition kernel. First, it must be _ergodic_ in the sense
-of never getting stuck in such a way it can't visit the rest of the
-parameter space. Second, it must be _aperiodic_ in the sense of not
-cycling regularly through disjoint regions of the parameter space.
-Third, it needs to preserve the target density in the sense that if
-$\theta^{(m)} \sim p(\theta \mid y)$ has the posterior as its marginal
-distribution, then $\theta^{(m+1)} \sim p(\theta \mid y)$ also follows
-the posterior distribution.
+## C.1 Monte Carlo methods {.unnumbered}
 
-Suppose the initial value $\theta^{(0)}$ is drawn from the posterior,
+Monte Carlo methods use randomness to estimate expectations.  In the
+general case, suppose a random variable $X:\Omega \rightarrow
+\mathbb{R}^N$ is defined over a probability space $(\Omega, \mathcal{S}, \Pr)$
+and we want to estimate an expectation
 $$
-\theta^{(0)} \sim p(\theta \mid y).
+\mathbb{E}\!\left[f(X)\right]
+= \int_{\mathbb{R}^N} f(x) \cdot p_X(x) \, \textrm{d}x.
 $$
-The notation here indicates that we apply random sampling to draw a
-value for $\theta$ from the distribution $p(\theta \mid y)$ (for known
-data $y$) and assign it to $\theta^{(0)}$.  With the initial state
-drawn from the posterior, each value in the Markov chain will be
-marginally distributed according to the posterior, which we write as
+This integral may be difficult to evaluate analytically, but if we can
+take independent draws $x^{(1)}, \ldots, x^{(M)}$ where each draw is
+disributed as
 $$
-\theta^{(1)}, \ldots, \theta^{(M)}
-\sim p(\theta \mid y).
+x^{(m)} \sim p_X(\cdot),
+$$
+then we can approximate the integral to any desired degree of precision as
+$$
+\mathbb{E}\!\left[f(X)\right]
+\approx
+\frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right).
+$$
+Because the draws of $x^{(m)}$ are independent, the draws of
+$f\!\left(x^{(m)}\right)$ are also independent, so the ordinary
+central limit theorem applies.  This means that we get the right
+answer in the limit as the number of draws grows,
+$$
+\lim_{M \rightarrow \infty}
+\frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right)
+= \mathbb{E}\!\left[f(X)\right],
+$$
+and that the error approaches shrinks at a rate of (only)
+$\mathcal{O}\!\left(\frac{1}{\sqrt{M}}\right),$ and approaches a
+normal distribution,
+$$
+\lim_{M \rightarrow \infty}
+\mathbb{E}\!\left[f(X)\right] - \frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right)
+\sim
+\textrm{normal}\!\left( \frac{\textrm{sd}[X]}{\sqrt{M}} \right).
+$$
+As usual, this can be a good approximation for even small values, such
+as $M \approx 20.$
+
+
+
+
+In general, Monte Carlo methods use random algorithms to solve
+deterministic integrals in high dimensions.
+
+
+## C.1 Discrete-time stochastic processes {.unnumbered}
+
+A *discrete-time stochastic process* is a countable sequence of random
+variables $X = X^{(0)}, X^{(1)}, \ldots.$ For the purposes of this
+book, we can restrict attention to real-valued variables on a state
+space $\Omega,$ so that $X^{(n)}:\Omega \rightarrow \mathbb{R}^N.$ In
+a stochastic process, the codomain $\mathbb{R}^N$ of the variables is
+called the *state space.*
+
+In the simplest non-trivial case, $N = 1$ so that $X^{(n)}(\omega) \in
+\mathbb{R}$ and the entire sequence is an infinite-dimensional random
+vector $X \in \mathbb{R}^{\mathbb{N}}.$
+
+
+
+## Markov chains
+
+A *Markov chain* is a discrete-time stochastic process, the evolution
+of which is governed by an initial distribution on the state space and
+a transition kernel governing the generation of the next state given
+the previous state.
+
+More formally, a Markov chain is determined by its initial
+distribution with cdf
+$$
+F_{X^{(0)}}(x) = \Pr[X^{(0) \leq x],
+$$
+and and a memoryless transition measure, so that
+$$
+F_{X^{(m + 1)}}(x^{(m + 1)} \mid x) =
+\Pr[X^{(m + 1)} \leq x^{ \mid X^{(m)} = x].
+$$
+and
+$$
+q
+= p_{X^{(i + 1)} \mid X^{(i)}}(u, v)
+= p_{X^{(j + 1)} \mid X^{(j)}}(u, v).
 $$
 
-Typically we cannot draw an initialization from the posterior---if we
-could, we'd just use simpler Monte Carlo methods without the Markov
-chain dependencies.  In the situation where $\theta^{(0)}$ is not a
-draw from the posterior $p(\theta \mid y)$, then as the chain
-progresses, it will converge to the right distribution in the sense
-that in the limit as $m \rightarrow \infty$, the draws approach the
-corect distribution, so that
+We refer to $q$ as the transition density, though we may also consider
+the induced measure,
 $$
-\lim_{m \rightarrow \infty} p(\theta^{(m+1)} \mid \theta^{(m)})
-= p(\theta^{(m+1)} \mid y).
+\Pr(X_{m + 1} \in A \mid X_m = x_m) = \int_{A} q(y \mid x_m) \textrm{d}x_m.
 $$
 
-Suppose we have a posterior sample of draws $\theta^{(1)}, \ldots,
-\theta^{(M)}$. With this sample, we can estimate expectations by
-simply plugging in values of $\theta^{(m)}$ and averaging. If our
-chain satisfies the mild conditions above, we know that we get the
-right answer asymptotically,
-\begin{align}
-\mathbb{E}\!\left[f(\theta) \mid y \right]
-&= \int_{\Theta} f(\theta) \cdot p(\theta \mid y) \, \textrm{d}\theta
-\\[6pt]
-&= \lim_{M \rightarrow \infty} \ \frac{1}{M} \sum_{m=1}^M f\!\left( \theta^{(m)} \right).
-\end{align}
-With only finite time in practice, we use the initial segment of the
-chain to estimate expectations,
-$$
-\mathbb{E}\!\left[f(\theta) \mid y\right]
-\approx \frac{1}{M} \sum_{m=1}^M f(\theta^{(m)}).
-$$
 
-If our initial draw is from the posterior, this estimate is unbiased.
-In the usual situation, where the initial draw is not from the
-posterior, our expectation retains a degree of bias. Nevertheless, the
-limit above shows that the bias goes to zero in the limit. In
-practice, we typically remove an initial segment of $N$ draws before
-the chain has approximately converged to the right distribution, and
-average the remaining draws,
-$$
-\mathbb{E}\!\left[f(\theta) \mid y\right]
-\approx \frac{1}{M - N} \sum_{m=N + 1}^M f(\theta^{(m)}).
-$$
-
-Given an estimate $\widehat{\theta}$, its _error_ is $\widehat{\theta}
-- \theta$. If its expected error is zero, an estimator is _unbiased_.
-If the Monte Carlo draws $\theta^{(1)}, \ldots, \theta^{(M)}$ are
-independent, the _central limit theorem_ tells us that our error
-follows a normal distribution asymptotically, so that as $M
-\rightarrow \infty$, the error of our estimate $\widehat{\theta}$
-follows a normal distribution,
-$$
-\widehat{\theta} - \theta
-\sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M}}\right),
-$$
-where $\sigma$ is the standard deviation of the variable $\theta$.
-Pre-asymptotically, this result holds approximately and will be used
-to estimate the distribution of estimation errors.
-
-Because draws in MCMC can be correlated (or even anti-correlated), we
-need the MCMC central limit theorem to generalize the central limit
-theorem to the case of correlated variables; @geyer2011 and
-@roberts2004 provide precise definitions of the theorem.
-
-Here, we can estimate an _effective sample size_ (ESS), which is the
-number of independent draws that provide the same error distribution.
-If $M^{\textrm{eff}}$ is the effective sample size of the Markov chain
-$\theta^{(1)}, \ldots, \theta^{(M)}$, then the error will be
-distributed approximately as
-
-$$
-\widehat{\theta} - \theta
-\sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{M^{\textrm{eff}}}}\right).
-$$
 
 # D. Installed packages {.unnumbered}
 
