@@ -5810,6 +5810,22 @@ $$
 \textrm{var}[U + V] = \textrm{var}[U] + \textrm{var}[V].
 $$
 
+### Divergent expectations
+
+An expectation is defined through an integral, but that integral might
+diverge (i.e., not have a finite value).  Examples are rampant in
+statistics.  Suppose we have two independent, standard normal random
+variables $X_1, X_2 \sim \textrm{normal}(0, 1).$ Then their quotient
+$Y = \frac{X_1}{X_2}$ is a random variable such that $\mathbb{E}[Y]$
+and hence $\textrm{var}[Y]$ diverges.  The density of $Y$ follows the
+Cauchy distribution, with $p_Y(y) = \frac{1}{\pi} \cdot \frac{1}{1 +
+y^2}.$ The fundamental problem is that $p_Y(y)$ does not converge to
+zero quickly enough as $y \rightarrow \infty$ or $y \rightarrow
+-\infty$.  Contrast the Cauchy densit with the normal density,
+$p_{X_1}(x) \propto \exp\!\left(-\frac{1}{2}\cdot
+x\right),$ which converges exponentially fast.
+
+
 ### Standard deviation
 
 The _standard deviation_ of a random variable is the square root of its variance,
@@ -6017,6 +6033,18 @@ $$
         F_X^{-1}\!\left(1 - \frac{1 - p}{2}\right) \right)\right]
 = p.
 $$
+
+## A.10 The central limit theorem
+
+The *central limit theorem* provides a profound insight into the
+behavior of averages of independent random variables and explains the
+centrality of the normal distribution in statistics.  Suppose that we
+have an infinite sequence of random variables $X_0, X_1, \ldots$ that
+are *independent and identically distributed* (i.i.d.) with finite
+mean and variance (i.e., $\mathbb{E}[X_n]$ and $\textrm{var}[X_n]$
+exist.
+
+
 
 
 # B. Bayesian statistics {.unnumbered}
