@@ -1136,7 +1136,7 @@ processes), but have to approximate others (e.g., Dirichlet processes).
 @gelman2013 summarize the process of developing a Bayesian model
 for an applied problem as follows,
 
-1. _Define a joint _probability model_ over all of the observables and
+1. _Define a joint probability model_ over all of the observables and
 non-observables that is consistent with what we know about the
 underlying scientific process and underlying measurement process
 (which together form the data-generating process) and our prior knowledge.
@@ -1411,7 +1411,7 @@ We fit Laplace's model by compiling the model, constructing a
 dictionary for the data, and then calling the `sample` method on the
 compiled model with the dictionary. We call the sample method with
 1,000 warmup iterations and 10,000 sampling iterations; we are taking
-so many draws in order to draw show smooth plots later.  The Stan
+so many draws in order to show smooth plots later.  The Stan
 programs considered in this introduction are all quite simple and
 inexpensive to run for many iterations.  We consider how many draws
 are required for statistical inference in the section on [practical
@@ -1761,7 +1761,7 @@ print(f"Machine precision: {np.finfo(float).eps}")
 ### MCMC summary statistics from Stan
 
 With Stan, we can print a summary for the variable $\theta$ in the
-posterior, which reports all of these values.  We just call The
+posterior, which reports all of these values.  We just call the
 `.summary()` function on the sample.  
 
 ```{python}
