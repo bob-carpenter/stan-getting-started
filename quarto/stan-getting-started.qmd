@@ -146,13 +146,16 @@ def mydraw(x):
 ## Acknowledgements {.unnumbered}
 
 I'd like to thank Mitzi Morris, Barry Smith, and Brian Ward for
-helpful feedback on earlier drafts. Thanks to [ChatGPT Plus
-4.0](https://en.wikipedia.org/wiki/GPT-4) (May 5 and May 12, 2023
+helpful feedback on earlier drafts.  Thanks to Ero Carrera for typo
+fixes.
+
+Thanks to [ChatGPT Plus
+4.0](https://en.wikipedia.org/wiki/GPT-4) (May 5, 12, 24, 2023
 versions) for extensive help on plotting and data frame construction
-and rewriting some passages I couldn't manage to write clearly. I'd also
-like to thank the entire Stan Development Team and all of our users.
-Stan is an open project and a large team effort and we're always happy
-to help onboard new developers and new users.
+and rewriting some passages I couldn't manage to write clearly. I'd
+also like to thank the entire Stan Development Team and all of our
+users.  Stan is an open project and a large team effort and we're
+always happy to help onboard new developers and new users.
 
 
 # Introduction
@@ -529,7 +532,7 @@ for N in [10, 100, 1_000, 10_000]:
 On the first line for $N = 10$ trials, our simple frequency-based
 estimates range from 0.2 to 0.5. By the time we have 10,000 trials,
 the frequency-based estimates only vary between 0.292 and 0.309. We
-know from the _central limit theorem_ that the spread of estimates is
+know from the central limit theorem that the spread of estimates is
 expected to shrink at a rate of $\mathcal{O}(1 / \sqrt{N})$ for $N$
 draws (this result is only asymptotic in $N$, but is very close for
 large-ish $N$ in practice).
@@ -1593,8 +1596,7 @@ $$
 \textrm{err}^2(y) = \left(\hat{\theta}(y) - \theta\right)^2.
 $$
 Posterior means might not exist if the posterior has very wide tails,
-like the standard Cauchy distribution, $\textrm{cauchy}(x \mid 0, 1)
-\propto \frac{1}{1 + x^2}$.
+like the standard Cauchy distribution.
 
 The posterior median $\theta^+$ has three pleasant properties. First,
 it is always well defined, even for densities with poles or very wide
@@ -5818,12 +5820,18 @@ statistics.  Suppose we have two independent, standard normal random
 variables $X_1, X_2 \sim \textrm{normal}(0, 1).$ Then their quotient
 $Y = \frac{X_1}{X_2}$ is a random variable such that $\mathbb{E}[Y]$
 and hence $\textrm{var}[Y]$ diverges.  The density of $Y$ follows the
-Cauchy distribution, with $p_Y(y) = \frac{1}{\pi} \cdot \frac{1}{1 +
-y^2}.$ The fundamental problem is that $p_Y(y)$ does not converge to
+Cauchy distribution, with
+$$
+p_Y(y) = \frac{1}{\pi} \cdot \frac{1}{1 + y^2}.
+$$
+The fundamental problem is that $p_Y(y)$ does not converge to
 zero quickly enough as $y \rightarrow \infty$ or $y \rightarrow
--\infty$.  Contrast the Cauchy densit with the normal density,
-$p_{X_1}(x) \propto \exp\!\left(-\frac{1}{2}\cdot
-x\right),$ which converges exponentially fast.
+-\infty$.  Contrast the standard Cauchy density with the
+standard normal density,
+$$
+p_{X_1}(x) = \frac{1}{\sqrt{2 \cdot \pi}} \exp\!\left(-\frac{1}{2}\cdot x\right),
+$$
+which converges exponentially fast.
 
 
 ### Standard deviation
@@ -6034,17 +6042,106 @@ $$
 = p.
 $$
 
-## A.10 The central limit theorem
+## A.10 The central limit theorem {.unnumbered}
 
-The *central limit theorem* provides a profound insight into the
-behavior of averages of independent random variables and explains the
-centrality of the normal distribution in statistics.  Suppose that we
-have an infinite sequence of random variables $X_0, X_1, \ldots$ that
-are *independent and identically distributed* (i.i.d.) with finite
-mean and variance (i.e., $\mathbb{E}[X_n]$ and $\textrm{var}[X_n]$
-exist.
+The *central limit theorem* characterizes the behavior of averages of
+independent random variables and explains the centrality of the normal
+distribution in statistics.  Throughout this section, we will suppose
+that we have an infinite sequence of random variables $X_0, X_1,
+\ldots$ that are *independent and identically distributed* (i.i.d.)
+with a finite expectation, so that for all $n \in \mathbb{N},$
+$$
+\mu = \mathbb{E}[X_n]
+$$
+With the $X$ sequence, we can define a new
+sequence of variables $Y_0, Y_1, \ldots$ to be the running averages of
+the $X$s, 
+$$
+Y_n = \textrm{mean}(X_{0:n}) = \frac{1}{n} \sum_{i = 0}^n X_n.
+$$
 
 
+### The weak law of large numbers
+
+The *weak law of large numbers* says that the running averages converge
+in probability to $\mu,$
+$$
+\lim_{n \rightarrow \infty} Y_n = \mu,
+$$
+where to $converge in probability$ means
+$$
+\lim_{n \rightarrow \infty}
+\Pr\!\left[ \left| Y_n - \mu \right| < \epsilon \right] = 1.
+$$
+
+### The strong law of large numbers
+
+The *strong law of large numbers* extends the weak law of large
+numbers to guarantee that the sequence *converges almost surely*
+to $\mu,$ which requires
+$$
+\Pr[\lim_{n \rightarrow \infty} Y_n = \mu] = 1.
+$$
+
+
+### The central limit theorem
+
+For the central limit theorem, we further assume that our i.i.d.\
+variables $X_n$ have a finite variance, which allows us to define
+their standard deviation to be
+$$
+\sigma = \textrm{sd}[X_n].
+$$
+
+The *central limit theorem* (CLT) tells us that the sequence $Y_1, Y_2,
+\ldots$ *converges in distribution*, which means that the cdfs
+converge,
+$$
+\lim_{n \rightarrow \infty}
+F_{Y_n}(y) = \Phi\!\left(\frac{y}{\sqrt{n} \cdot \sigma}),
+$$
+where $\Phi(u)$ is the conventional notation for the cdf of the
+standard normal distribution, and hence $f(v) =
+\Phi\!\left(\frac{y - \nu}{\tau}\right)$ is the cdf of the
+$\textrm{normal}(\nu, \tau)$ distribution.
+
+
+where $Z \sim \textrm{normal}().$
+which when we unpack the $\sim$ notation gives us
+$$
+\lim_{n \rightarrow \infty}
+p_{Y_n}(y) = 
+\textrm{normal}\left(
+  \mu, \frac{\sigma}{\sqrt{n}}
+\right).
+$$
+The first version of the central limit theorem, provided by
+@demoivre1718, was restricted to the binomial case; it was generalized
+nearly 100 years later by @laplace1811 and then extended to non
+identically distributed variables by @lyapnunov1900 nearly another
+century later.
+
+As with other normal approximations, the result begins to hold for $n
+\gg 10.$ For example, here is the distribution of $Y_n$ for the case
+of a coin flip, with $p_{X_n}(x) = \textrm{bernoulli}(0.5),$ for which
+we know $\textrm{sd}[X_n] = 0.5.$ The result is remarkable here
+because the Bernoulli distribution only produces outcomes 0 and 1.  In
+this case, we know that $\textrm{sd}[X_n] = 0.5.$
+
+
+```{python}
+M = 10_000 if DRAFT else 1_000_000
+df = pd.DataFrame(columns = ['N', 'y'])
+for N in [5, 10, 20, 40, 80, 160]:
+    y = [np.mean(u)/N for u in np.random.binomial(N, 0.5, size=M)]
+    dfN = pd.DataFrame({'N': N, 'y': y})
+    df = pd.concat([df, dfN], ignore_index = True)
+mydraw(pn.ggplot(df, pn.aes(x = 'y'))
+  + pn.geom_bar(stat = 'count')
+  + pn.facet_wrap('~ N', scales='free_y')
+  + pn.theme(axis_text_x = pn.element_blank(),
+             axis_ticks_major_y = pn.element_blank()))
+```
 
 
 # B. Bayesian statistics {.unnumbered}
