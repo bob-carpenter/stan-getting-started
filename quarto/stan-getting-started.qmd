@@ -6086,7 +6086,7 @@ $$
 
 ### The central limit theorem
 
-For the central limit theorem, we further assume that our i.i.d.\
+For the central limit theorem, we further assume that our i.i.d.
 variables $X_n$ have a finite variance, which allows us to define
 their standard deviation to be
 $$
@@ -6098,23 +6098,13 @@ The *central limit theorem* (CLT) tells us that the sequence $Y_1, Y_2,
 converge,
 $$
 \lim_{n \rightarrow \infty}
-F_{Y_n}(y) = \Phi\!\left(\frac{y}{\sqrt{n} \cdot \sigma}),
+F_{Y_n}(y) = \Phi\!\left(\frac{y}{\sqrt{n} \cdot \sigma}\right),
 $$
 where $\Phi(u)$ is the conventional notation for the cdf of the
 standard normal distribution, and hence $f(v) =
 \Phi\!\left(\frac{y - \nu}{\tau}\right)$ is the cdf of the
 $\textrm{normal}(\nu, \tau)$ distribution.
 
-
-where $Z \sim \textrm{normal}().$
-which when we unpack the $\sim$ notation gives us
-$$
-\lim_{n \rightarrow \infty}
-p_{Y_n}(y) = 
-\textrm{normal}\left(
-  \mu, \frac{\sigma}{\sqrt{n}}
-\right).
-$$
 The first version of the central limit theorem, provided by
 @demoivre1718, was restricted to the binomial case; it was generalized
 nearly 100 years later by @laplace1811 and then extended to non
