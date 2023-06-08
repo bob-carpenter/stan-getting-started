@@ -6044,66 +6044,145 @@ $$
 
 ## A.10 The central limit theorem {.unnumbered}
 
-The *central limit theorem* characterizes the behavior of averages of
-independent random variables and explains the centrality of the normal
-distribution in statistics.  Throughout this section, we will suppose
-that we have an infinite sequence of random variables $X_0, X_1,
+The central limit theorem is expressed in terms of the convergence of
+a sequence of random variables to another random variable, so we will
+begin with formal definitions of convergence of random variables.
+
+### Convergence of sequences of random variables
+
+Suppose $Y = Y_1, Y_2, \ldots$ is a sequence of random variables and
+$Z$ is another random variable.
+
+The sequence $Y$ *converges in distribution* to $Z$
+if for every point $x$ at which $F_Z$ is continuous,
+$$
+\textrm{lim}_{n \rightarrow \infty} F_{Y_n}(x)
+= F_{Z}(x).
+$$
+
+The sequence $Y$ *converges in probability* to $Z$
+if for all $\epsilon > 0,$ 
+$$
+\textrm{lim}_{n \rightarrow \infty}
+\Pr\!\left[ \strut \left| Y_n - Z \right| \geq \epsilon \right]
+= 0.
+$$
+
+The sequence $Y$ *converges almost surely* to $Z$ if
+$$
+\Pr\!\left[
+\{ \omega : \lim_{n \rightarrow \infty} Y_n(\omega) = Z(\omega) \}
+\right]
+= 1.
+$$
+
+Convergence of a sequence of random variables to a constant value $\mu
+\in \mathbb{R}$ is defined as convergence to a constant random
+variable $Z$ that always takes the value $\mu$ (i.e., $Z(\omega) =
+\mu$ for all $\omega \in \Omega$).
+
+### The laws of large numbers
+
+Suppose we have an infinite sequence of random variables $X_0, X_1,
 \ldots$ that are *independent and identically distributed* (i.i.d.)
-with a finite expectation, so that for all $n \in \mathbb{N},$
+with a finite expectation, which means there is a constant
+$\mu \in \mathbb{R}$ such that for all $n \in \mathbb{N},$
 $$
-\mu = \mathbb{E}[X_n]
+\mathbb{E}[X_n] = \mu.
 $$
-With the $X$ sequence, we can define a new
-sequence of variables $Y_0, Y_1, \ldots$ to be the running averages of
-the $X$s, 
+Next, define a sequence of variables $Y_0, Y_1, \ldots$ to be the
+running averages of the $X$ sequence,
 $$
-Y_n = \textrm{mean}(X_{0:n}) = \frac{1}{n} \sum_{i = 0}^n X_n.
+Y_n = \textrm{mean}(X_{0:n}) = \frac{1}{n + 1} \sum_{i = 0}^n X_n.
 $$
+The additional one in the denominator is because there are $n + 1$
+numbers between $0$ and $n$ (inclusive).
 
+The *weak law of large numbers* is that the sequence $Y$ converges in
+probability to $\mu.$
 
-### The weak law of large numbers
+The *strong law of large numbers* is that the sequence $Y$ converges
+almost surely to $\mu.$
 
-The *weak law of large numbers* says that the running averages converge
-in probability to $\mu,$
-$$
-\lim_{n \rightarrow \infty} Y_n = \mu,
-$$
-where to $converge in probability$ means
-$$
-\lim_{n \rightarrow \infty}
-\Pr\!\left[ \left| Y_n - \mu \right| < \epsilon \right] = 1.
-$$
+<div class="example-text">
+*Example 7:* Let $X_n \sim \textrm{bernoulli}(0.8),$ and recall that
+$Y_n = \textrm{mean}(X_{0:n}).$ We draw a sequence of length $n =
+10^6$ and plot $Y_n$ versus $n$ in two segments.  On the left is $n
+\in (10^2, 10^4)$ and on the right shows $n \in (10^4, 10^6).$ The axes
+on the right are shrunk by a factor fo 10---on the left, the $y$-axis
+has a range $(0.7, 0.9)$, whereas has a range of $(0.79, 0.81)$.
 
-### The strong law of large numbers
+```{python}
+#| code-fold: true
+N = 1_000_001
+M = 100
 
-The *strong law of large numbers* extends the weak law of large
-numbers to guarantee that the sequence *converges almost surely*
-to $\mu,$ which requires
-$$
-\Pr[\lim_{n \rightarrow \infty} Y_n = \mu] = 1.
-$$
+# Simulate M sequences
+df_list = []
+for m in range(M):
+    X = np.random.choice([0, 1], size=N, p=[0.2, 0.8])
+    Y = np.cumsum(X) / (np.arange(N) + 1)
+    df = pd.DataFrame({'n': np.arange(N), 'Y': Y})
+    df['Simulation'] = m
+    df_list.append(df)
+df = pd.concat(df_list)
+
+start, end = np.log10(100), np.log10(10_000)
+log_values = np.linspace(start, end, 1000)
+indices = np.unique(np.round(10**log_values)).astype(int)
+df1 = df.loc[indices]
+plot1 = (pn.ggplot(df1, pn.aes(x='n', y='Y', group='Simulation'))
+        + pn.geom_line(alpha=0.2, size=0.25)
+        + pn.scale_y_continuous(limits=[0.7, 0.9])
+        + pn.scale_x_continuous(trans='log10'))
+# mydraw(plot1)
+
+start, end = np.log10(10_000), np.log10(1_000_000)
+log_values = np.linspace(start, end, 1000)
+indices = np.unique(np.round(10**log_values)).astype(int)
+df2 = df.loc[indices]
+plot2 = (pn.ggplot(df2, pn.aes(x='n', y='Y', group='Simulation'))
+        + pn.geom_line(alpha=0.2, size=0.25)
+        + pn.scale_y_continuous(limits=[0.79, 0.81])
+        + pn.scale_x_continuous(trans='log10'))
+# mydraw(plot2)
+
+g12 = (pw.load_ggplot(plot1, figsize=(2.8, 2))
+      | pw.load_ggplot(plot2, figsize=(2.8, 2)))
+g12.savefig()
+```
+
+The plots look nearly identical because the error in estimating the
+mean in the laws of large numbers follows a predictable pattern we
+describe in the next section.
 
 
 ### The central limit theorem
 
-For the central limit theorem, we further assume that our i.i.d.
-variables $X_n$ have a finite variance, which allows us to define
-their standard deviation to be
+We will still be assuming that $X = X_0, X_1, \ldots$ is an infinite
+sequence of i.i.d.\ random variables with finite mean and further
+assume they have finite variance, so that we can define
 $$
 \sigma = \textrm{sd}[X_n].
 $$
-
-The *central limit theorem* (CLT) tells us that the sequence $Y_1, Y_2,
-\ldots$ *converges in distribution*, which means that the cdfs
-converge,
+The central limit theorem involves convergence to a random variable
+with a standard normal distribution (which such variable we choose
+doesn't matter).  Because $Y_n$ is defined as a running average of the
+$X_n$, their scale will be reduced by $\sqrt{n}$ (this is what the
+central limit theorem establishes).  Because we want a single variable
+to target for our limit, we also standardize the $Y_n$ by subtracting
+the mean $\mu = \mathbb{E}[X_n]$ and then dividing by the scale
+$\sigma = \textrm{sd}[X_n].$  This gives us
 $$
-\lim_{n \rightarrow \infty}
-F_{Y_n}(y) = \Phi\!\left(\frac{y}{\sqrt{n} \cdot \sigma}\right),
+U_n = \sqrt{n} \cdot \frac{Y_n - \mu}{\sigma}.
 $$
-where $\Phi(u)$ is the conventional notation for the cdf of the
-standard normal distribution, and hence $f(v) =
-\Phi\!\left(\frac{y - \nu}{\tau}\right)$ is the cdf of the
-$\textrm{normal}(\nu, \tau)$ distribution.
+The *central limit theorem* (CLT) simply says that $U_n$ converges in
+distribution to a standard normal variate $Z \sim \textrm{normal}(0,
+1)$. If we let $\Phi$ be the  cdf of the standard normal distribution,
+we can unpack the convergence in distribution to restate the CLT as
+$$
+\lim_{n \rightarrow \infty} \Pr[U_n \leq x] = \Phi(x).
+$$
 
 The first version of the central limit theorem, provided by
 @demoivre1718, was restricted to the binomial case; it was generalized
@@ -6111,27 +6190,42 @@ nearly 100 years later by @laplace1811 and then extended to non
 identically distributed variables by @lyapnunov1900 nearly another
 century later.
 
-As with other normal approximations, the result begins to hold for $n
-\gg 10.$ For example, here is the distribution of $Y_n$ for the case
-of a coin flip, with $p_{X_n}(x) = \textrm{bernoulli}(0.5),$ for which
-we know $\textrm{sd}[X_n] = 0.5.$ The result is remarkable here
-because the Bernoulli distribution only produces outcomes 0 and 1.  In
-this case, we know that $\textrm{sd}[X_n] = 0.5.$
 
+<div class="example-text">
+
+*Example 7, cont.:*  We continue the example with $X_n \sim
+\textrm{bernoulli}(0.8),$ which has an expected value of
+$\mu = 0.8$ and standard deviation of  $\sigma = \sqrt{\mu \cdot (1 -
+\mu)} = 0.4.$  As before, $Y_n$ defined to be
+the running average of the $X_n.$  We now take $U_n = \sqrt{n} \cdot \frac{Y_n
+- \mu}{\sigma},$ as defined above, and plot histograms of draws for
+various $n.$
 
 ```{python}
-M = 10_000 if DRAFT else 1_000_000
+#| code-fold: true
+M = 1000 if DRAFT else 1_000_000
 df = pd.DataFrame(columns = ['N', 'y'])
-for N in [5, 10, 20, 40, 80, 160]:
-    y = [np.mean(u)/N for u in np.random.binomial(N, 0.5, size=M)]
-    dfN = pd.DataFrame({'N': N, 'y': y})
+mu = 0.2
+sigma = 0.4
+for N in [2, 4, 8, 16, 32, 64, 128, 256, 512]:
+    y = [np.mean(x) / N for x in np.random.binomial(N, 0.2, size=M)]
+    u = [np.sqrt(N) * (v - mu) / sigma for v in y]
+    dfN = pd.DataFrame({'N': N, 'u': u })
     df = pd.concat([df, dfN], ignore_index = True)
-mydraw(pn.ggplot(df, pn.aes(x = 'y'))
-  + pn.geom_bar(stat = 'count')
+mydraw(pn.ggplot(df, pn.aes(x = 'u'))
+  + pn.geom_bar(stat = 'count', width=0.125)
   + pn.facet_wrap('~ N', scales='free_y')
-  + pn.theme(axis_text_x = pn.element_blank(),
+  + pn.scale_x_continuous(breaks = [-4, -2, 0, 2, 4], limits = [-5, 5])
+  + pn.theme(axis_text_y = pn.element_blank(),
+             axis_title_y = pn.element_blank(),
              axis_ticks_major_y = pn.element_blank()))
 ```
+With $n \gg 100,$ the approximation is quite reasonable even with
+skewed Bernoulli draws.  More draws
+would be required for chance of success greater than 0.8 (or by
+symmetry, less than 0.2) and fewer would
+be required for chances of success closer to 0.5.
+</div>
 
 
 # B. Bayesian statistics {.unnumbered}
