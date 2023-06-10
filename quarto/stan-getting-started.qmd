@@ -1327,7 +1327,7 @@ normalizing constant for the beta distribution or the binomial distribution.
 
 Unlike the first Stan model we saw, which only generates data, the
 following Stan program requires data to be provided, specifically the
-the number of male births ($y$) and the total number of births ($N$).
+number of male births ($y$) and the total number of births ($N$).
 The model will then allow us to estimate the probability of a male
 birth ($\theta$) as well as the probability that boys are more likely
 to be born than girls ($\theta > 0.5$). The Stan program for Laplace's
@@ -2214,7 +2214,7 @@ definition and hence do not need to be differentiated).
 
 For example, a simple way to generate chi-squared random variates is
 to literally sum a sequence of squared normal variates (in a real
-program, one would use the the built-in chi-square `_rng` function).
+program, one would use the built-in chi-square `_rng` function).
 
 ```stan
 real simple_chi_sq_rng(int n) {
@@ -3138,10 +3138,13 @@ female_mean_height_cm = 162
 male_mean_height_cm = 175
 female_sd_height_cm = 6.3
 male_sd_height_cm = 7.5
-prob_female = 0.51
+prob_female = 0.511
+prob_male = 1 - prob_female
+
+# codes female = 0, male = 1
 mu = np.array([female_mean_height_cm, male_mean_height_cm])
 sigma = np.array([female_sd_height_cm, male_sd_height_cm])
-sex = np.array(np.random.binomial(n = 1, p = prob_female, size=M))
+sex = np.array(np.random.binomial(n = 1, p = prob_male, size=M))
 heights = np.random.normal(loc = mu[sex], scale = sigma[sex], size=M)
 
 mydraw(
@@ -3211,7 +3214,16 @@ likelihood as
 ## Stan program for mixtures
 
 As in our earlier examples, the Stan code for mixtures just follows
-the mathematical definitions.
+the mathematical definitions and uses abstract variable names `mu`,
+`sigma`, and `lambda` (it might make sense to make these names
+meaningful in a specific application of mixtures in a larger context).
+
+In the Python simulation code, we coded female as 0 and male as 1.
+In the Stan program, we retain that coding for the Bernoulli
+distribution for sex.  But then our indexes for vectors start at 1, so
+we have coded the female parameters as `mu[1], sigma[1]` and the male
+parameters as `mu[2], sigma[2]` for this application of the generic
+Stan program.
 
 ```{.stan filename="heights.stan"}
 data {
@@ -4029,7 +4041,7 @@ Many of the Stan developers are working on turning the paper into a
 book; the current state is available from the public [GitHub
 repository for *Bayesian Workflow*](https://github.com/jgabry/bayes-workflow-book).
 
-# AA.  Set theory {.unnumbered}
+# A.  Set theory {.unnumbered}
 
 Probability theory is based on simple notions from set theory such as
 unions and intersections.  We will need to generalize to infinite sets
@@ -4204,8 +4216,6 @@ A = \bigcup_{n < \infty} B_n.
 $$
 
 
-
-
 ## A.8 Basic laws of set theory {.unnumbered}
 
 ### Commutativity
@@ -4273,7 +4283,6 @@ $$
 \mathcal{U} \cup A \ = \ A \cup \mathcal{U} \ = \ \mathcal{U}.
 $$
 
-
 ### Idempotence
 
 The union and intersection operations are *idempotent*, so that for all sets $A$,
@@ -4305,8 +4314,6 @@ $$
 \bigcup_{n \in \mathbb{N}} A_n^\complement
 \right)^{\complement}.
 $$
-
-
 
 
 ## A.9 Tuples, cross-products, and relations {.unnumbered}
@@ -4363,7 +4370,6 @@ $$
 R \circ T = \{ (a, c) : (a, b) \in R, (b, c) \in R \}.
 $$
 Thus a relation $R$ is transitive if $R \circ R = R.$
-
 
 
 ## A.10 Functions {.unnumbered}
@@ -4459,7 +4465,7 @@ finite or infinite.  It can be shown that the integers $\mathbb{Z}$
 are countable and the set of real numbers $\mathbb{R}$ is uncountable.
 
 
-# A. Probability theory {.unnumbered}
+# B. Probability theory {.unnumbered}
 
 The goal of this overview is to provide precise definitions of those
 aspects of probability theory required to understand the operations
@@ -4468,7 +4474,7 @@ influenced by @anderson1979's book [*Optimal
 Filtering*](http://users.cecs.anu.edu.au/~john/papers/BOOK/B02.PDF),
 (Appendix A, "Brief Review of Results of Probability Theory").
 
-## A.1 Probability spaces {.unnumbered}
+## B.1 Probability spaces {.unnumbered}
 
 ### Sample spaces and $\sigma$-algebras
 
@@ -4687,7 +4693,7 @@ This construction works with the volumes of balls in three
 dimensions and the hypervolumes of hyperballs in higher dimensions.
 </div>
 
-## A.2 Joint and conditional probability {.unnumbered}
+## B.2 Joint and conditional probability {.unnumbered}
 
 In this section, we will presuppose a fixed probability space
 $(\Omega, \mathcal{S}, \Pr)$.
@@ -4763,7 +4769,7 @@ $$
 $$
 
 
-## A.3 Independent events {.unnumbered}
+## B.3 Independent events {.unnumbered}
 
 There are several notions of independence in statistics, which we
 summarize below.
@@ -4868,7 +4874,7 @@ $M \neq N$ (i.e., it is not the whole sequence).
 Conditional mutual independence is defined the same way.
 
 
-## A.4 Random variables {.unnumbered}
+## B.4 Random variables {.unnumbered}
 
 In this section we introduce univariate and multivariate random
 variables and show how to define new random variables as functions of
@@ -4879,7 +4885,7 @@ random variables.
 Given a probability space $(\Omega, \mathcal{S}, \Pr)$, a *random
 variable* over this space is a function $X:\Omega \rightarrow
 \mathbb{R}$ such that for every $x \in \mathbb{R}$, the set $\{ \omega
-: X(\omega) \leq x \} \in \mathcal{S}$ (i.e., it is is measurable).
+: X(\omega) \leq x \} \in \mathcal{S}$ (i.e., it is measurable).
 A random variable is a deterministic function, and as such is neither
 a variable nor random by itself.  The name derives because we often
 use simple variables like $X$ to refer to random variables in
@@ -4990,7 +4996,7 @@ $Z = \textrm{log}(X),$ and $T = \textrm{I}(X < 0.3).$
  \textrm{logit}^{-1}(U)$ and $W = \textrm{U}^2.$
 </div>
 
-## A.5 Cdfs, pdfs, and pmfs {.unnumbered}
+## B.5 Cdfs, pdfs, and pmfs {.unnumbered}
 
 In this section, we introduce cumulative distribution functions
 (cdfs), probability density functions (pdfs), and probability mass
@@ -5498,7 +5504,7 @@ mydraw(pn.ggplot(pn.aes(x = 'y', y = 'F_Y'))
 </div>
 
 
-## A.6 Multivariate random variables {.unnumbered}
+## B.6 Multivariate random variables {.unnumbered}
 
 Although we have only described univariate random variables that take
 values in $\mathbb{R}$, if we take a collection of random variables
@@ -5680,8 +5686,7 @@ p_X(x) = \int_{\mathbb R} \, p_{X \mid Y}(x \mid y) \cdot p_Y(y) \, \textrm{d}y.
 $$
 
 
-
-## A.7 Expectations {.unnumbered}
+## B.7 Expectations {.unnumbered}
 
 ### Expectation
 
@@ -5760,7 +5765,8 @@ $$
 Either way, we just take a weighted average the value of $f(z)$ with
 weights $p_Z(z)$ or $p_{Z|Y}(z \mid y).$
 
-## A.8 Variance, standard deviation, covariance, and correlation {.unnumbered}
+
+## B.8 Variance, standard deviation, covariance, and correlation {.unnumbered}
 
 ### Variance
 
@@ -6017,8 +6023,7 @@ $$
 $$
 
 
-
-## A.9 Quantiles, medians, and uncertainty intervals {.unnumbered}
+## B.9 Quantiles, medians, and uncertainty intervals {.unnumbered}
 
 The *quantile function* for a continuous random variable $Z$ is its
 inverse cdf, $F^{-1}_Z:(0, 1) \rightarrow \textrm{range}(Z).$ nFor a
@@ -6042,7 +6047,8 @@ $$
 = p.
 $$
 
-## A.10 The central limit theorem {.unnumbered}
+
+## B.10 The central limit theorem {.unnumbered}
 
 The central limit theorem is expressed in terms of the convergence of
 a sequence of random variables to another random variable, so we will
@@ -6108,9 +6114,10 @@ almost surely to $\mu.$
 *Example 7:* Let $X_n \sim \textrm{bernoulli}(0.8),$ and recall that
 $Y_n = \textrm{mean}(X_{0:n}).$ We draw a sequence of length $n =
 10^6$ and plot $Y_n$ versus $n$ in two segments.  On the left is $n
-\in (10^2, 10^4)$ and on the right shows $n \in (10^4, 10^6).$ The axes
+\in [10^2, 10^4]$ and on the right shows $n \in [10^4, 10^6].$ The axes
+are scaled so that 
 on the right are shrunk by a factor fo 10---on the left, the $y$-axis
-has a range $(0.7, 0.9)$, whereas has a range of $(0.79, 0.81)$.
+has a range $(0.7, 0.9)$, whereas it is $(0.79, 0.81)$ on tyhe rig.
 
 ```{python}
 #| code-fold: true
@@ -6228,7 +6235,255 @@ be required for chances of success closer to 0.5.
 </div>
 
 
-# B. Bayesian statistics {.unnumbered}
+## B.11 Stochastic processes {.unnumbered}
+
+A *stochastic process* is an infinite sequence of random variables
+taking their values in some set $\mathcal{X},$ which is referred to as
+the *state space* of the process.  For the purposes of parametric
+applied statistics, we will assume a real-valued state space of fixed
+dimension, $\mathcal{X} = \mathbb{R}^N.$ We do allow variables that
+range over subsets of $\mathbb{R}^N,$ such as the integers, simplexes,
+or positive definite matrices.
+
+### Discrete-time stochastic processes
+
+A *discrete-time stochastic process* is a countably infinite sequence of
+random variables $X = X_0, X_1, \ldots \in \mathcal{X}$ indexed by natural
+numbers $n \in \mathbb{N}.$  Continuous-time processes are similar,
+only with real-valued indexes.
+
+### Stationary processes
+
+A discrete-time stochastic process $X_1, X_2, \ldots$ is *stationary*
+if the marginal distribution of every subsequence of the same length
+is the same, i.e., 
+position, i.e., for all sequence lengths $k \in \mathbb{N}$ and
+starting positions $n, n' \in \mathbb{N},$
+$$
+F_{X_{n}, \ldots, X_{n + k}}
+=
+F_{X_{n'}, \ldots X_{n' + k}}.
+$$
+With $k = 1,$ we have $F_{X_n} = F_{X_{n'}}$
+for all $n, n' \in \mathbb{N}.$  In particular, the initial
+distribution $F_{X_0}$ must be identical to every other $F_{X_n}$
+(more about this later).
+
+
+this requires $F_{X_0} = F_{X_n}$ for all $n \in
+\mathbb{N}.$ 
+
+<div class="example-text">
+*Example 1.* Any i.i.d.\ sequence is stationary, including a constant
+sequence.
+</div>
+
+## B.12 Markov chains {.unnumbered}
+
+A *Markov chain* is a discrete-time stochastic process consisting of a
+countably infinite sequence of random variables $X = X_0, X_1,
+\ldots,$ where the conditional distribution of $X_{n + 1}$ given $X_1,
+\ldots, X_n$ depends only on $X_n,$ i.e., for all $n \in \mathbb{N},$
+$$
+F_{X_{n + 1} \mid X_n}
+= F_{X_{n + 1} \mid X_n, \ldots, X_1}
+$$
+The distribution function for the first element of the chain is
+$F_{X^{(0)}}.$ 
+
+These distribution functions may only have support over subsets of the
+state space $\mathcal{X} = \mathbb{R}^N,$ such as correlations
+constrained to $[-1, 1]$ or rates constrained to $(0, \infty).$ In the
+finite state-space case, the initial distribution can be represented
+as a simplex (i.e., a vector with non-negative entries that sums to
+one) and the transition distribution as a stochastic matrices (i.e.,
+matrices with simplex rows).
+
+### Time-homogeneous Markov chains
+
+We will restrict our attention to *time-homogeneous* Markov chains,
+where the conditional distribution function for the next element does
+not depend on $n,$ i.e., for all $n, n' \in \mathbb{N},$
+$$
+F_{X_{n + 1} \mid X_n}
+= F_{X_{n' + 1} \mid X_{n'}}.
+$$
+
+### Initial and conditional pmfs or pdfs
+
+We will often work with either a discrete or continuous initial
+distribution, which will have either a pmf or pdf $p_{X_0}.$
+Similarly, transition distributions will typically be discrete or
+continuous and have either a conditional pmf or pdf $p_{X_{n + 1}
+\mid X_n},$ which is the same for every $n$ in the time-homogeneous
+case.
+
+<div class="example-text">
+*Example 2. Autoregressive process.*  @rosenthal2006 provides the
+example of a Markov chain defined by an initial distribution with
+density 
+$$
+p_{X_0}(x_0) = \textrm{normal}(x_0 \mid 0, 1),
+$$
+and transition distribution with density
+$$
+p_{X_{n + 1} \mid X_n}(x_{n + 1} \mid x_n)
+= \textrm{normal}\!\left(x_{n+1} \mid \frac{x_n}{2}, \frac{3}{4}\right),
+$$
+which leads to a Markov chain with a standard normal stationary distribution
+$$
+p_{X_n}(x_n) = \textrm{normal}(x_n \mid 0, 1).
+$$
+This process is an example of a *first-order autoregressive process*
+(AR(1)), the general form of which has a transition distribution
+$$
+X_{n + 1} \sim \textrm{normal}\!\left(\alpha + \beta \cdot X_n \mid \sigma\right).
+$$
+An AR(1) process is stationary only if $\alpha = 0$ and $\left|
+\beta \right| < 1,$ and has a marginal distribution of
+$$
+X_n \sim \textrm{normal}\!\left(0, \frac{\sigma}{\sqrt{1 - \beta^2}}\right)
+$$
+and covariance
+$$
+\textrm{cov}[X_n, X_{n + k}]
+= \frac{\sigma^2 \cdot \beta^k}{1 - \beta^2}.
+$$
+The covariance only depends on the number of transition steps, $k,$
+and decays exponentially with $\beta < 1.$  This is easier to see on
+the correlation scale after dividing through by the marginal standard
+deviations, which are both $\sigma / \sqrt{1 - \beta^2}$, 
+$$
+\textrm{corr}[X_n, X_{n + k}]
+= \frac{\textrm{cov}[X_n, X_{n + k}]}
+       {\textrm{sd}[X_n] \cdot \textrm{sd}[X_{n + k}]}
+= \frac{\left( \frac{\sigma^2 \cdot \beta^k}{1 - \beta^2} \right)}
+       {\left( \frac{\sigma}{\sqrt{1 - \beta^2}}
+               \cdot
+	       \frac{\sigma}{\sqrt{1 - \beta^2}} \right)}
+= \beta^k.
+$$
+</div>
+
+### Stationarity-preserving transition distributions
+
+In applications of Markov chains to statistical inference, we
+typically have a target density (e.g., a Bayesian posterior density)
+and seek to create a transition function that preserves it.
+Suppose we have a Markov chain $X_0, X_1, \ldots.$
+The transition probability mass or density function $p_{X_{n + 1} \mid
+X_n}$ *preserves* the target density $\pi$ if $p_{X_0}(x_0) = \pi(x_0)$ implies
+$X_0, X_1, \ldots$ is a stationary Markov chain.  If $\pi$ is
+preserved, stationarity implies the chain has $p_{X_n}(x_n) =
+\pi(x_n)$ for all $n \in \mathbb{N}.$  A chain whose transition
+distribution preserves $\pi$ will only be stationary if initialiozed
+from the stationary distribution (i.e., $p_{X_0} = \pi$).
+
+### Reversible Markov chains
+
+A Markov chain is *reversible* if $p_{X_n, X_{n + 1}} = p_{X_{n + 1},
+X_n}$ for all $n \in \mathbb{N}.$  In a reversible chain, the
+conditional probability of the next and previous elements are the same
+(i.e., $p_{X_{n + 1} \mid X_n} = p_{X_{n - 1} \mid X_n}$ for $n > 0$).
+
+### Irreducibility
+
+A Markov chain is irreducible with respect to a probability measure on
+its state space if every subset of the state space with non-zero
+probability in the specified measure will eventually be reached from
+any given starting point in the state space after a finite number of
+steps.
+
+More formally, suppose we have a time-homogeneous Markov chain $X =
+X_0, X_1, \ldots$ over state-space $\mathbb{R}^N.$ Further, suppose we
+have a probability measure $\phi$ over the usual Borel algebra for
+$\mathbb{R}^N.$  In the standard definition, $\phi$ can be an arbitrary
+measure over a general state space.  Note that the measure $\phi$ is
+distinct from the measure $\Pr$ defining the Markov chain, though it
+is often taken to be the stationary distribution defined by the chain
+if it is stationary.
+
+A Markov chain $X = X_0, X_1, \ldots$ is $\phi$-irreducible if for every $A
+\subseteq \mathbb{R}^N$ such that $\varphi[A] > 0,$ and for every point $x
+\in \mathbb{R}^N,$ there exists an $m \in \mathbb{N}$ such that
+$$
+\varphi\left[X_{m + n} \in A \mid X_n = x\right] > 0.
+$$
+
+### Aperiodicity
+
+Suppose we have a Markov chain $X = X_0, X_1, \ldots$ over
+$\mathbb{R}^N.$  The *period* of such a chain is defined to be the
+largest $M \in \mathbb{N}$ such that there is a partition
+$A_0, \ldots, A_{M - 1}$ of $\mathbb{R}^N$ such that for all $m < M,$
+$$
+\Pr[X_{n + 1} \in A_{m + 1 \textrm{ mod } M} \mid X_n \in A_m] = 1.
+$$
+A chain is *periodic* if it has a period greater than one and is
+*aperiodic* otherwise.
+
+
+# C.  Monte Carlo and Markov chain Monte Carlo methods {.unnumbered}
+
+In this section, we introduce the basic theory of Monte Carlo methods
+and then move on to more general Markov chain Monte Carlo methods.
+The presentation here was strongly influenced by
+@roberts2004 and @rosenthal2006.
+
+## C.1 Monte Carlo methods {.unnumbered}
+
+Monte Carlo methods use randomness to estimate expectations.  In the
+general case, suppose a random variable $X:\Omega \rightarrow
+\mathbb{R}^N$ is defined over a probability space $(\Omega, \mathcal{S}, \Pr)$
+and we want to estimate an expectation
+$$
+\mathbb{E}\!\left[f(X)\right]
+= \int_{\mathbb{R}^N} f(x) \cdot p_X(x) \, \textrm{d}x.
+$$
+This integral may be difficult to evaluate analytically, but if we can
+take independent draws $x^{(1)}, \ldots, x^{(M)}$ where each draw is
+disributed as
+$$
+x^{(m)} \sim p_X(\cdot),
+$$
+then we can approximate the integral to any desired degree of precision as
+$$
+\mathbb{E}\!\left[f(X)\right]
+\approx
+\frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right).
+$$
+Because the draws of $x^{(m)}$ are independent, the draws of
+$f\!\left(x^{(m)}\right)$ are also independent, so the ordinary
+central limit theorem applies.  This means that we get the right
+answer in the limit as the number of draws grows,
+$$
+\lim_{M \rightarrow \infty}
+\frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right)
+= \mathbb{E}\!\left[f(X)\right],
+$$
+and that the error approaches shrinks at a rate of (only)
+$\mathcal{O}\!\left(\frac{1}{\sqrt{M}}\right),$ and approaches a
+normal distribution,
+$$
+\lim_{M \rightarrow \infty}
+\mathbb{E}\!\left[f(X)\right] - \frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right)
+\sim
+\textrm{normal}\!\left( \frac{\textrm{sd}[X]}{\sqrt{M}} \right).
+$$
+As usual, this can be a good approximation for even small values, such
+as $M \approx 20.$
+
+
+
+We refer to $q$ as the transition density, though we may also consider
+the induced measure,
+$$
+\Pr(X_{m + 1} \in A \mid X_m = x_m) = \int_{A} q(y \mid x_m) \textrm{d}x_m.
+$$
+
+
+
+# D. Bayesian statistics {.unnumbered}
 
 In this appendix, we provide a concise mathematical overview of
 Bayesian statistics. Bayesian statistics is largely concerned with
@@ -6238,7 +6493,7 @@ concerned with quantifying our uncertainty in these estimates.
 Quantities of interest are typically parameter values and deviations,
 event probability estimates, and forecasts/backcasts.
 
-## B.1 Bayes's rule for densities {.unnumbered}
+## D.1 Bayes's rule for densities {.unnumbered}
 
 @bayes1763 formalized his approach in the following theorem which was
 named after him.  The basic idea is this, if we have parameters and
@@ -6318,7 +6573,7 @@ that a normalizing constant is required is for comparing two models
 prior predictive distributions, which is not something we would
 recommend doing.
 
-## B.2 Bayesian inference {.unnumbered}
+## D.2 Bayesian inference {.unnumbered}
 
 Bayesian inference is largely about estimating quantities of interest
 based on a probability model and observed data.  In typical applied
@@ -6416,111 +6671,10 @@ p(\tilde{y} \mid y)
 
 
 
-# C. Markov chain Monte Carlo {.unnumbered}
-
-In this section, we introduce the basic theory of Monte Carlo methods
-and then move on to more general Markov chain Monte Carlo methods.
-The presentation here was strongly influenced by
-@roberts2004, @rosenthal2006, and @geyer2011.
-
-## C.1 Monte Carlo methods {.unnumbered}
-
-Monte Carlo methods use randomness to estimate expectations.  In the
-general case, suppose a random variable $X:\Omega \rightarrow
-\mathbb{R}^N$ is defined over a probability space $(\Omega, \mathcal{S}, \Pr)$
-and we want to estimate an expectation
-$$
-\mathbb{E}\!\left[f(X)\right]
-= \int_{\mathbb{R}^N} f(x) \cdot p_X(x) \, \textrm{d}x.
-$$
-This integral may be difficult to evaluate analytically, but if we can
-take independent draws $x^{(1)}, \ldots, x^{(M)}$ where each draw is
-disributed as
-$$
-x^{(m)} \sim p_X(\cdot),
-$$
-then we can approximate the integral to any desired degree of precision as
-$$
-\mathbb{E}\!\left[f(X)\right]
-\approx
-\frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right).
-$$
-Because the draws of $x^{(m)}$ are independent, the draws of
-$f\!\left(x^{(m)}\right)$ are also independent, so the ordinary
-central limit theorem applies.  This means that we get the right
-answer in the limit as the number of draws grows,
-$$
-\lim_{M \rightarrow \infty}
-\frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right)
-= \mathbb{E}\!\left[f(X)\right],
-$$
-and that the error approaches shrinks at a rate of (only)
-$\mathcal{O}\!\left(\frac{1}{\sqrt{M}}\right),$ and approaches a
-normal distribution,
-$$
-\lim_{M \rightarrow \infty}
-\mathbb{E}\!\left[f(X)\right] - \frac{1}{M} \sum_{m=1}^M f\!\left(x^{(m)}\right)
-\sim
-\textrm{normal}\!\left( \frac{\textrm{sd}[X]}{\sqrt{M}} \right).
-$$
-As usual, this can be a good approximation for even small values, such
-as $M \approx 20.$
 
 
 
-
-In general, Monte Carlo methods use random algorithms to solve
-deterministic integrals in high dimensions.
-
-
-## C.1 Discrete-time stochastic processes {.unnumbered}
-
-A *discrete-time stochastic process* is a countable sequence of random
-variables $X = X^{(0)}, X^{(1)}, \ldots.$ For the purposes of this
-book, we can restrict attention to real-valued variables on a state
-space $\Omega,$ so that $X^{(n)}:\Omega \rightarrow \mathbb{R}^N.$ In
-a stochastic process, the codomain $\mathbb{R}^N$ of the variables is
-called the *state space.*
-
-In the simplest non-trivial case, $N = 1$ so that $X^{(n)}(\omega) \in
-\mathbb{R}$ and the entire sequence is an infinite-dimensional random
-vector $X \in \mathbb{R}^{\mathbb{N}}.$
-
-
-
-## Markov chains
-
-A *Markov chain* is a discrete-time stochastic process, the evolution
-of which is governed by an initial distribution on the state space and
-a transition kernel governing the generation of the next state given
-the previous state.
-
-More formally, a Markov chain is determined by its initial
-distribution with cdf
-$$
-F_{X^{(0)}}(x) = \Pr[X^{(0) \leq x],
-$$
-and and a memoryless transition measure, so that
-$$
-F_{X^{(m + 1)}}(x^{(m + 1)} \mid x) =
-\Pr[X^{(m + 1)} \leq x^{ \mid X^{(m)} = x].
-$$
-and
-$$
-q
-= p_{X^{(i + 1)} \mid X^{(i)}}(u, v)
-= p_{X^{(j + 1)} \mid X^{(j)}}(u, v).
-$$
-
-We refer to $q$ as the transition density, though we may also consider
-the induced measure,
-$$
-\Pr(X_{m + 1} \in A \mid X_m = x_m) = \int_{A} q(y \mid x_m) \textrm{d}x_m.
-$$
-
-
-
-# D. Installed packages {.unnumbered}
+# E. Installed packages {.unnumbered}
 
 The system and operating system are as follows.
 ```{python}
