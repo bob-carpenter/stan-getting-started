@@ -117,7 +117,7 @@ packages we will use throughout this tutorial.
 ```{python}
 # PROJECT SETUP
 # set DRAFT = False for final output; DRAFT = True is faster
-DRAFT = True
+DRAFT = False
 
 import itertools
 import logging
@@ -4371,6 +4371,66 @@ R \circ T = \{ (a, c) : (a, b) \in R, (b, c) \in R \}.
 $$
 Thus a relation $R$ is transitive if $R \circ R = R.$
 
+The *inverse* of a relation $R \subseteq A \times B$ is the relation
+$R^{-1} \subseteq B \times A$ defined by $(b, a) \in R^{-1}$ if and
+only if $(a, b) \in R.$
+
+There is nomenclature around many particular kinds of relations over a
+set $A,$ i.e., relations $R \subseteq A \times A.$
+
+* $R$ is *transitive* if $(x, y), (y, z) \in R$ implies $(x, z) \in
+ R,$ or equivalently, $R = R \circ R.$
+
+* $R$ is *symmetric* if $(x, y) \in R$
+implies $(y, x) \in R,$ or equivalently, $R = R^{-1}.$
+
+* $R$ is *antisymmmetric* if $(x, y), (y, x) \in R$ implies
+$x = y.$
+
+* $R$ is *total* if for all $x, y \in A,$ $(x, y) \in A$ or $(y, x)
+  \in A.$
+
+* $R$ is *reflexive* if $(x, x) \in R$ for all $x \in A.$
+
+* $R$ is a *preorder* if it is reflexive and transitive.
+
+* $R$ is an *equivalence relation* if is
+reflexive, symmetric, and transitive.
+
+* $R$ is a *partial order* if it is reflexive, antisymmetric, and
+  transitive.
+
+* $R$ is a *total order* if it is a partial order and total.
+
+* $R$ is the *identity relation* if $R(x, y)$ if and only if $x = y.$
+
+Given a partition of a set, the corresponding equivalence relation
+equates pairs of items if and only if they are in the same set.
+
+A relation $R \subseteq A \times A$ maybe be *closed* under relations
+such as the above by taking the smallest relation containing $R$ and
+satisfying the relation.  
+
+<div class="example-text">
+*Example.*  The transitive closure of a relation $R \subseteq A \times
+A$ can be defined inductively.  Let
+$$
+R^0 = \{ (a, a) : a \in A \}
+$$
+be the identity relation and let 
+$$
+R^{n + 1} = R \circ R^n
+$$
+be the one-step closure of $R^n$ (i.e., $(x, z) \in R^{n + 1}$ if $(x,
+y) \in R$ and $(y, z) \in R^n$), then define the *transitive closure*
+of $R$ to be
+$$
+\textrm{tr}(R)
+= \bigcup_{n \in \mathbb{N}} R^n
+= \lim_{n \rightarrow \infty} R^n.
+$$
+</div>
+
 
 ## A.10 Functions {.unnumbered}
 
@@ -4428,12 +4488,12 @@ said to be *many to one*.
 ### Inverse functions
 
 If $f:A \rightarrow B$ is a bijection, it has an *inverse* $f^{-}:B
-\rightarrow A$ defined so that $f^{-1}(b) = a$ if $f(a) = b.$  The
-composition of a function with its inverse or vice-versa is the
-identity function, $f \circ f^{-} = \textrm{id},$ $f^{-} \circ f =
-\textrm{id}.$  Thus for a bijection $f:A \rightarrow B,$ we have
-$f^{-1}(f(a)) = a$ for all $a \in A$ and $f(f^{-}(b)) = b$ for all $b
-\in B.$
+\rightarrow A$ defined so that $f^{-1}(b) = a$ if $f(a) = b.$ This is
+just its inverse as a relation.  The composition of a function with
+its inverse or vice-versa is the identity function, $f \circ f^{-} =
+\textrm{id},$ $f^{-} \circ f = \textrm{id}.$ Thus for a bijection $f:A
+\rightarrow B,$ we have $f^{-1}(f(a)) = a$ for all $a \in A$ and
+$f(f^{-}(b)) = b$ for all $b \in B.$
 
 ### Special functions
 
@@ -4451,6 +4511,22 @@ $$
 0 & \textrm{otherwise}.
 \end{cases}
 $$
+
+### Metrics
+
+A *distance metric* (or just *metric*) over a set $A$ is a function
+$d:(A \times A) \rightarrow \mathbb{R}$ satisfying
+
+* *non-negativity*: $d(x, y) \geq 0$ for all $x, y \in A,$
+
+* *identity of indiscernibles*: $d(x, y) = 0$ implies $x = y,$
+
+* *symmetry*: $d(x, y) = d(y, x),$ and the
+
+* *triangle inequaltiy*: $d(x, y) + d(y, z) \geq d(x, z)$ for all $x,
+   y, z \in A.$
+
+
 
 ## A.11 Finite, countable, and uncountable sets {.unnumbered}
 
@@ -4581,6 +4657,15 @@ $$
 \Pr[A] \leq 1.
 $$
 
+A property holds almost everywhere with respect to a probability
+measure if the set of outcomes for which it does not hold has zero
+probability. More formally, suppose that $\phi : \Omega \rightarrow \{
+0, 1 \}$ is an indicator function assigning truth value to elements of
+$\Omega$ and defining a set $A_{\phi} = \{ \omega \in \Omega :
+\phi(\omega) = 1 \}.$ The property $\phi$ holds *$\Pr$-almost
+everywhere* if $\Pr[A_\phi] = 1,$ or equivalently,
+$\Pr[A_\phi^\complement] = 0.$
+
 <div class="example-text">
 *Example 1(a), continued*:  We can define a
 measure over the $\sigma$-algebra with sample space $\Omega = \{ 0, 1
@@ -4692,6 +4777,20 @@ $\Omega$ has a probability of 1 because it is a unit square with unit area.
 This construction works with the volumes of balls in three
 dimensions and the hypervolumes of hyperballs in higher dimensions.
 </div>
+
+### Total variation distance
+
+Suppose we have two different measures, $\Pr$ and $\textrm{Qr}$ over the
+same $\sigma$-algebra $(\Omega, \mathcal{S}).$  The *total variation
+distance* between $\Pr$ and $\textrm{Qr}$ is written as $\left|\left|
+\strut \Pr - \textrm{Qr} \right|\right|$ and defined by 
+$$
+\left|\left| \strut \Pr - \textrm{Qr} \right|\right|
+= \max_{A \in \mathcal{S}} \left| \strut \Pr[A] - \textrm{Qr}[A] \right|.
+$$
+Total variation distance defines a metric over the space of
+probability measures on a fixed $\sigma$-algebra.
+
 
 ## B.2 Joint and conditional probability {.unnumbered}
 
@@ -6117,7 +6216,7 @@ $Y_n = \textrm{mean}(X_{0:n}).$ We draw a sequence of length $n =
 \in [10^2, 10^4]$ and on the right shows $n \in [10^4, 10^6].$ The axes
 are scaled so that 
 on the right are shrunk by a factor fo 10---on the left, the $y$-axis
-has a range $(0.7, 0.9)$, whereas it is $(0.79, 0.81)$ on tyhe rig.
+has a range $(0.7, 0.9)$, whereas it is $(0.79, 0.81)$ on the rig.
 
 ```{python}
 #| code-fold: true
@@ -6365,19 +6464,30 @@ $$
 $$
 </div>
 
-### Stationarity-preserving transition distributions
+### Stationarity and stationary-preserving transitions
 
-In applications of Markov chains to statistical inference, we
-typically have a target density (e.g., a Bayesian posterior density)
-and seek to create a transition function that preserves it.
-Suppose we have a Markov chain $X_0, X_1, \ldots.$
-The transition probability mass or density function $p_{X_{n + 1} \mid
-X_n}$ *preserves* the target density $\pi$ if $p_{X_0}(x_0) = \pi(x_0)$ implies
-$X_0, X_1, \ldots$ is a stationary Markov chain.  If $\pi$ is
-preserved, stationarity implies the chain has $p_{X_n}(x_n) =
-\pi(x_n)$ for all $n \in \mathbb{N}.$  A chain whose transition
-distribution preserves $\pi$ will only be stationary if initialiozed
-from the stationary distribution (i.e., $p_{X_0} = \pi$).
+Suppose we have a Markov chain $X = X_0, X_1, \ldots$ with state-space
+$\mathcal{X} = \mathbb{R}^N.$ 
+
+Suppose we have a measure $\textrm{Q}$ on the
+state space with a density-like function $\pi_Q$ corresponding to
+$\textrm{Q},$ so that for every event $A$ in the Borel algebra over
+$\mathbb{R}^N,$ 
+$$
+\textrm{Q}[A] = \int_{A} \pi_Q(x) \, \textrm{d}x.
+$$
+We say that the measure $\textrm{Q}$ is the *stationary distribution*
+of the Markov chain $X$ if for every $A \in \mathcal{Q},$ 
+$$
+\textrm{Q}[A] = \int_{A} \pi_Q(x) \textrm{d}x.
+$$
+
+A Markov chain $X$ need not be stationary to have a stationary
+distribution.  In applications, we generally construct non-stationary
+Markov chains with a target stationary distribution (e.g., a Bayesian
+posterior).   If $X$ has the stationary distribution $\textrm{Q}$
+and the initial distribution follows it (i.e., $\textrm{Pr}[X_0 \in A] =
+\textrm{Q}[A]),$, then $X$ is a stationary chain.
 
 ### Reversible Markov chains
 
@@ -6396,22 +6506,22 @@ steps.
 
 More formally, suppose we have a time-homogeneous Markov chain $X =
 X_0, X_1, \ldots$ over state-space $\mathbb{R}^N.$ Further, suppose we
-have a probability measure $\phi$ over the usual Borel algebra for
-$\mathbb{R}^N.$  In the standard definition, $\phi$ can be an arbitrary
-measure over a general state space.  Note that the measure $\phi$ is
-distinct from the measure $\Pr$ defining the Markov chain, though it
-is often taken to be the stationary distribution defined by the chain
-if it is stationary.
+have a probability measure $Q$ over the usual Borel algebra for
+$\mathbb{R}^N.$  In the standard definition, $Q$ can be an arbitrary
+measure over a general state space.  Note that the measure $Q$ is
+distinct from the measure $\Pr$ defining the Markov chain.
 
-A Markov chain $X = X_0, X_1, \ldots$ is $\phi$-irreducible if for every $A
-\subseteq \mathbb{R}^N$ such that $\varphi[A] > 0,$ and for every point $x
+A Markov chain $X = X_0, X_1, \ldots$ is $Q$-irreducible if for every $A
+\subseteq \mathbb{R}^N$ such that $Q[A] > 0,$ and for every point $x
 \in \mathbb{R}^N,$ there exists an $m \in \mathbb{N}$ such that
 $$
-\varphi\left[X_{m + n} \in A \mid X_n = x\right] > 0.
+Q\left[X_{m + n} \in A \mid X_n = x\right] > 0.
 $$
 
 ### Aperiodicity
 
+Informally, a Markov chain is periodic if there are distinct subsets
+of its sample space and it cycles through them in turn.
 Suppose we have a Markov chain $X = X_0, X_1, \ldots$ over
 $\mathbb{R}^N.$  The *period* of such a chain is defined to be the
 largest $M \in \mathbb{N}$ such that there is a partition
@@ -6421,6 +6531,45 @@ $$
 $$
 A chain is *periodic* if it has a period greater than one and is
 *aperiodic* otherwise.
+
+### The ergodic theorem
+
+This section lays out a simple form of the ergodic theorem, which 
+entails that under certain mild conditions and for almost every starting
+point, the distribution of the elements of a Markov chain converges
+to the chain's stationary distribution in total variation distance.
+
+Suppose $X = X_0, X_1, \ldots$ is a Markov chain over the state space
+$\mathbb{R}^N,$ with a Borel algebra $\mathcal{S}$ of events and
+a measure $\Pr.$  To aid in the statement of the theorem, we define a
+new measure $P^n_x$ over $A \in \mathcal{S}$ by
+$$
+P^n_x[A] = \Pr[X_n \in A \mid X_0 = x],
+$$
+which is the probability of being in set $A$ after $n$ transitions starting
+from $x.$
+
+*The ergodic theorem.* If $X = X_1, X_2, \ldots$ is a Markov chain over
+$\mathbb{R}^n$ with stationary measure $Q$ that is $Q$-irreducible and
+aperiodic, then for $Q$-almost every $x \in \mathbb{R}^N,$
+$$
+\lim_{n \rightarrow \infty}
+\big|\big| \, P^n_x - Q \, \big|\big|
+\rightarrow 0.
+$$
+The double bars are notation for total variation distance, which
+expands here to
+\begin{align}
+\big|\big| \,
+P^n_x - Q
+\, \big|\big|
+&= \sup_{A \in \mathcal{S}}
+   \bigg| {\textstyle \Pr^n_x[A]} - Q[A] \bigg|
+   \\[4pt]
+&= \sup_{A \in \mathcal{S}}
+\bigg| \Pr[X_n \in A] - Q[A] \bigg|.
+\end{align}
+
 
 
 # C.  Monte Carlo and Markov chain Monte Carlo methods {.unnumbered}
@@ -6442,7 +6591,7 @@ $$
 $$
 This integral may be difficult to evaluate analytically, but if we can
 take independent draws $x^{(1)}, \ldots, x^{(M)}$ where each draw is
-disributed as
+distributed as
 $$
 x^{(m)} \sim p_X(\cdot),
 $$
@@ -6472,8 +6621,6 @@ $$
 $$
 As usual, this can be a good approximation for even small values, such
 as $M \approx 20.$
-
-
 
 We refer to $q$ as the transition density, though we may also consider
 the induced measure,
