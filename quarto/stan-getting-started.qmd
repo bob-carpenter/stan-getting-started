@@ -3,6 +3,8 @@ title: "Getting Started with Bayesian Statistics"
 subtitle: "using Stan and Python"
 author: "Bob Carpenter"
 date: "last-modified"
+filters:
+    - include-code-files
 format:
   html:
     theme: cosmo # united is darker
@@ -117,7 +119,7 @@ packages we will use throughout this tutorial.
 ```{python}
 # PROJECT SETUP
 # set DRAFT = False for final output; DRAFT = True is faster
-DRAFT = False
+DRAFT = True
 
 import itertools
 import logging
@@ -145,17 +147,20 @@ def mydraw(x):
 
 ## Acknowledgements {.unnumbered}
 
-I'd like to thank Mitzi Morris, Barry Smith, and Brian Ward for
-helpful feedback on earlier drafts.  Thanks to Ero Carrera for typo
-fixes.
+I'd like to thank Mitzi Morris, Barry Smith, Brian Ward, and Jeff
+Soules for helpful feedback on earlier drafts. Thanks to Ero Carrera
+for typo fixes.
 
-Thanks to [ChatGPT Plus
-4.0](https://en.wikipedia.org/wiki/GPT-4) (May 5, 12, 24, 2023
-versions) for extensive help on plotting and data frame construction
-and rewriting some passages I couldn't manage to write clearly. I'd
-also like to thank the entire Stan Development Team and all of our
-users.  Stan is an open project and a large team effort and we're
-always happy to help onboard new developers and new users.
+Thanks to [ChatGPT Plus 4.0](https://en.wikipedia.org/wiki/GPT-4) (May
+5, 12, 24, 2023 versions) for extensive help with plotting and data
+frame construction, rewriting one sentence I couldn't manage to write
+clearly, and for converting measure-theoretic notation to Lebesgue
+measures for me in order for me to be able to translate abstract
+theoretical presentations.
+
+I'd also like to thank the entire Stan Development Team
+and all of our users.  Stan is an open project and a large team effort
+and we're always happy to help onboard new developers and new users.
 
 
 # Introduction
@@ -393,14 +398,7 @@ Let's say we wanted to generate random instantiations of $Y$ for
 given values of $N$ and $\theta$. We can do that using the following
 Stan program, which we will unpack line by line after its listing.
 
-```{.stan filename="stan/binomial-rng.stan"}
-data {
-  int<lower=0> N;
-  real<lower=0, upper=1> theta;
-}
-generated quantities {
-  int<lower=0, upper=N> y = binomial_rng(N, theta);
-}
+```{.stan include="../stan/binomial-rng.stan" filename="stan/binomial-rng.stan"}
 ```
 
 The first thing to notice is that a Stan program is organized into
@@ -648,13 +646,7 @@ has an area of 4, so the circle has an area of 4 times the proportion
 of points falling inside the circle (i.e., in the open unit disc).
 
 Here's the Stan code.
-```{.stan filename="stan/monte-carlo-pi.stan"}
-generated quantities {
-  real<lower=-1, upper=1> x = uniform_rng(-1, 1);
-  real<lower=-1, upper=1> y = uniform_rng(-1, 1);
-  int<lower=0, upper=1> inside = x^2 + y^2 < 1;
-  real<lower=0, upper=4> pi = 4 * inside;
-}
+```{.stan include="../stan/monte-carlo-pi.stan" filename="stan/monte-carlo-pi.stan"}
 ```
 The program declares variables `x` and `y` and constrains them to fall
 in the interval $(-1, 1)$ (numerical overflow may produce values -1
@@ -741,17 +733,7 @@ in the unit disc.  In two dimensions, this is fairly efficient, with
 79% of the points falling in the circle.  But what will happen in
 higher dimensions?  Let's write some Stan code and see.
 
-```{.stan filename="stan/unit-hypersphere.stan"}
-data {
-  int<lower=0> D;
-}
-transformed data {
-  array[D] real one_D = rep_array(1, D);
-}
-generated quantities {
-  array[D] real y = uniform_rng(-1, one_D));
-  int<lower=0, upper=1> inside = norm2(y) < 1;
-}
+```{.stan include="../stan/unit-hypersphere.stan" filename="stan/unit-hypersphere.stan"}
 ```
 In this case, we take a natural number `D` as input for the
 dimensionality of the hypercube.  We have introduced a block
@@ -846,18 +828,7 @@ Here is a Stan program that generates the first $M$ entries of
 a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
 the same output again.
 
-```{.stan filename="stan/markov-autocorelation.stan"}
-data {
-  int<lower=0> M;
-  real<lower=0, upper=1> rho;  // prob of staying in same state
-}
-generated quantities {
-  array[M] int<lower=0, upper=1> y;  // Markov chain
-  y[1] = bernoulli_rng(0.5);
-  for (m in 2:M) {
-    y[m] = bernoulli_rng(y[m - 1] ? rho : 1 - rho);
-  }    
-}
+```{.stan include="../stan/markov-autocorrelation.stan" filename="stan/markov-autocorrelation.stan"}
 ```
 The assignment to `y[m]` in this program is equivalent to this longer
 form.
@@ -1333,21 +1304,7 @@ birth ($\theta$) as well as the probability that boys are more likely
 to be born than girls ($\theta > 0.5$). The Stan program for Laplace's
 model is as follows.
 
-```{.stan filename="stan/sex-ratio.stan"}
-data {
-  int<lower = 0> N;  // number of live births
-  int<lower = 0, upper = N> y;  // male births
-}
-parameters {
-  real<lower=0, upper=1> theta;  // chance of boy
-}
-model {
-  theta ~ beta(1, 1);  // prior
-  y ~ binomial(N, theta);  // binomial sampling
-}
-generated quantities {
-  int<lower=0, upper=1> boys_gt_girls = theta > 0.5;
-}
+```{.stan include="../stan/sex-ratio.stan" filename="stan/sex-ratio.stan"}
 ```
 
 ## Parameter and model blocks
@@ -1943,27 +1900,7 @@ traditional A/B testing, $K = 2$, but our example uses $K = 3$ and our
 code works for any $K$.  We define the indicator array for our
 event probability estimates in the generated quantities block.
 
-```{.stan filename='stan/ab-test.stan'}
-data {
-  int<lower=0> K;
-  array[K] int<lower=0> trials;
-  array[K] int<lower=0> successes;
-  real<lower=0> alpha;  
-  real<lower=0> beta;  
-}
-parameters {
-  array[K] real<lower=0, upper=1> theta;
-}
-model {
-  successes ~ binomial(trials, theta);
-  theta ~ beta(alpha, beta);
-}
-generated quantities {
-  array[K] int<lower=0, upper=1> is_best;
-  for (k in 1:K) {
-    is_best[k] = theta[k] == max(theta);
-  }
-}
+```{.stan include='../stan/ab-test.stan' filename='stan/ab-test.stan'}
 ```
 
 We have coded the data for $K$ items directly in terms of number of
@@ -2338,23 +2275,7 @@ $$
 Here is a simple Stan model to regress petal length on petal width;
 we replace $x$ with `petal_width` and $y$ with `petal_length.`
 
-```{.stan filename='../stan/iris-petals.stan'}
-data {
-  int<lower=0> N;
-  vector<lower=0>[N] petal_width;
-  vector<lower=0>[N] petal_length;
-}
-parameters {
-  real alpha;
-  real beta;
-  real<lower=0> sigma;
-}
-model {
-  petal_length ~ normal(alpha + beta * petal_width, sigma);
-  alpha ~ normal(0, 5);
-  beta ~ normal(0, 5);
-  sigma ~ lognormal(0, 1);
-}
+```{.stan include='../stan/iris-petals.stan' filename='stan/iris-petals.stan'}
 ```
 
 The data block says there are $N$ observations of petal width and
@@ -2581,22 +2502,7 @@ run the generated quantities block of a new model given draws from
 another model.  We could've also just included the generated
 quantities block in the original program.
 
-```{.stan filename="iris-predict.stan"}
-data {
-  int<lower=0> N_tilde;
-  vector<lower=0>[N_tilde] petal_width_tilde;
-}
-parameters {
-  real alpha;
-  real beta;
-  real<lower=0> sigma;
-}
-generated quantities {
-  vector<lower=0>[N_tilde] E_petal_length_tilde
-    = alpha + beta * petal_width_tilde;
-  vector<lower=0>[N_tilde] petal_length_tilde
-    = to_vector(normal_rng(E_petal_length_tilde, sigma));
-}
+```{.stan include="../stan/iris-posterior-predictive-sim.stan" filename="stan/iris-posterior-predictive-sim.stan"}
 ```
 
 This program declares two new data variables, `N_tilde` for the
@@ -2672,26 +2578,7 @@ the petal width to the log scale in the transformed data block, then
 model length as a lognormal regression on log width in the model
 block.
 
-```{.stan filename='../stan/iris-petals-log.stan'}
-data {
-  int<lower=0> N;
-  vector<lower=0>[N] petal_width;
-  vector<lower=0>[N] petal_length;
-}
-transformed data {
-  vector[N] log_petal_width = log(petal_width);
-}
-parameters {
-  real alpha;
-  real beta;
-  real<lower=0> sigma;
-}
-model {
-  petal_length ~ lognormal(alpha + beta * log_petal_width, sigma);
-  alpha ~ normal(0, 3);
-  beta ~ normal(0, 3);
-  sigma ~ lognormal(0, 0.6);
-}
+```{.stan include='../stan/iris-petals-log.stan' filename='stan/iris-petals-log.stan'}
 ```
 
 We have introduced a new block for transformed data, in which we have
@@ -2796,29 +2683,7 @@ a per-species basis like the slope and intercept.
 
 The Stan code follows the statistical notation.  
 
-```{.stan filename='../stan/iris-petals-varying.stan'}
-data {
-  int<lower=0> N;
-  vector<lower=0>[N] petal_width;
-  vector<lower=0>[N] petal_length;
-  int<lower=0> K;
-  array[N] int<lower=1, upper=K> species;
-}
-transformed data {
-  vector[N] log_petal_width = log(petal_width);
-}
-parameters {
-  vector[K] alpha;
-  vector[K] beta;
-  real<lower=0> sigma;
-}
-model {
-  petal_length ~ lognormal(alpha[species] + beta[species] .* log_petal_width,
-                           sigma);
-  alpha ~ normal(0, 3);
-  beta ~ normal(0, 3);
-  sigma ~ lognormal(0, 0.6);
-}
+```{.stan include='../stan/iris-petals-varying.stan' filename='stan/iris-petals-varying.stan'}
 ```
 
 Here, we take $K$ to be the number of species and the species
@@ -3225,27 +3090,7 @@ we have coded the female parameters as `mu[1], sigma[1]` and the male
 parameters as `mu[2], sigma[2]` for this application of the generic
 Stan program.
 
-```{.stan filename="heights.stan"}
-data {
-  int<lower=0> M;
-  vector<lower=0>[M] heights;
-}
-parameters {
-  real<lower=0, upper=1> lambda;
-  ordered[2] mu;
-  vector<lower=0>[2] sigma;
-}
-model {
-  mu ~ normal(170, 10);
-  sigma ~ lognormal(log(7), 1);
-  for (m in 1:M) {
-    real lp1 = bernoulli_lpmf(0 | lambda)
-        + normal_lpdf(heights[m] | mu[1], sigma[1]);
-    real lp2 = bernoulli_lpmf(1 | lambda)
-        + normal_lpdf(heights[m] | mu[2], sigma[2]);
-    target += log_sum_exp(lp1, lp2);
-  }
-}
+```{.stan include="../stan/heights.stan" filename="heights.stan"}
 ```
 This program uses local variables `lp1` and `lp2.`  These have scope
 just within the for-loop and take on different values with each loop
@@ -3348,18 +3193,7 @@ program, `heights.stan`, in order to generate the probability that the
 first 10 data items are heights for women, and to randomly generate
 the sex for the first ten individuals based on this probability.
 
-```{.stan filename='../stan/heights-post.stan'}
-generated quantities {
-  vector<lower=0, upper=1>[10] Pr_female;
-  for (m in 1:10) {
-    real lp1 = bernoulli_lpmf(0 | lambda)
-               + normal_lpdf(heights[m] | mu[1], sigma[1]);
-    real lp2 = bernoulli_lpmf(1 | lambda)
-               + normal_lpdf(heights[m] | mu[2], sigma[2]);
-    Pr_female[m] = exp(lp1 - log_sum_exp(lp1, lp2));
-  }
-  array[10] int<lower=0, upper=1> sex = bernoulli_rng(Pr_female);
-}
+```{.stan include='../stan/heights-post.stan' filename='stan/heights-post.stan'}
 ```
 
 Now we can compile and fit this model.
@@ -3891,19 +3725,7 @@ is that if the data is consistent with `alpha` near the boundary (-10
 or 10), then probability mass gets bunched up and posterior means get
 pushed away from the boundary.  For example, consider the following
 Stan program.
-```{.stan filename='stan/interval-censor.stan'}
-data {
-  int<lower=0> B;
-  int<lower=0> N;
-  vector[N] y;
-}
-parameters {
-  real<lower=-B, upper=B> mu;
-  real<lower=0> sigma;
-}
-model {
-  y ~ normal(mu, sigma);
-}  
+```{.stan include='../stan/interval-censor.stan' filename='stan/interval-censor.stan'}
 ```
 In this model, we have an improper uniform prior on `sigma` and a
 proper uniform prior on `mu` in the interval $(-B, B)$. Stan allows
