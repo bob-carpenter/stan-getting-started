@@ -794,10 +794,9 @@ circumscribed within the unit hypercube).
 By construction, the distance from the origin to the side of the
 hypercube and hence the radius of the inscribed hypersphere remain
 constant at 1. In contrast, the distance from the origin to a corner
-is $\sqrt{D} = \sqrt{\underbrace{1 + 1 + \cdots 1}_{d \
-\textrm{times}}}$ in $D$ dimensions.  Now let's see what happens to
-the proportion of volume in the inscribed hypersphere as the
-dimensionality grows.
+is $\sqrt{D}$ in $D$ dimensions (i.e., $\sqrt{1^2 + 1^2 + \cdots 1^2}$
+for $D$ terms).  Now let's see what happens to the proportion of
+volume in the inscribed hypersphere as the dimensionality grows.
 
 ```{python}
 M = 100 if DRAFT else 10_000
