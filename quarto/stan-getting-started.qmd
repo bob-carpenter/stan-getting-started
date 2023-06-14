@@ -14,7 +14,7 @@ format:
     fontcolor: black
     monobackgroundcolor: white
     monofont: "Menlo, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace"
-    fontsize: 13pt
+    fontsize: 12pt
     linestretch: 1.4
     number-sections: true
     number-depth: 2
@@ -3911,10 +3911,9 @@ repository for *Bayesian Workflow*](https://github.com/jgabry/bayes-workflow-boo
 
 # A.  Set theory {.unnumbered}
 
-Probability theory is based on simple notions from set theory such as
-unions and intersections.  We will need to generalize to infinite sets
-and worry about issues such as countability, all of which we define in
-this appendix.
+Probability theory is based on relatively simple set theory.  We
+define the set theory we need, including notions of countability,
+relations, and functions, in this section.
 
 ## A.1 Basic set notation {.unnumbered}
 
@@ -6440,7 +6439,7 @@ P^n_x - Q
 
 
 
-# C.  Monte Carlo and Markov chain Monte Carlo methods {.unnumbered}
+# C.  Monte Carlo methods {.unnumbered}
 
 In this section, we introduce the basic theory of Monte Carlo methods
 and then move on to more general Markov chain Monte Carlo methods.
