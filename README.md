@@ -1,8 +1,10 @@
 # Getting started with Bayesian statistics using Stan and Python
 
-**Rendered Version:** &nbsp; Bob Carpenter. 2023. [Getting started with Bayesian statistics using Stan and Python](https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html).
+**Rendered Version:**
 
-This repo contains the source text and code for an introduction to
+* Bob Carpenter. 2023. [Getting started with Bayesian statistics using Stan and Python](https://bob-carpenter.github.io/stan-getting-started/stan-getting-started.html).
+
+This repo contains the source text, code, and data files for an introduction to
 
 * Bayesian statistics and probability theory,
 
