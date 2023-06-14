@@ -191,9 +191,11 @@ generating process, then Bayesian statistical inference can be shown
 to have several desirable properties, such as calibration and
 resistance to overfitting.
 
-Appendix B provides a short, but precise introduction to Bayesian
-inference, following Appendix A, which reviews the basics of
-probability theory.  This establishes both the notation and provides
+[Appendix D. Bayesian statistics](#d.-bayesian-statistics) provides a
+short, but precise introduction to Bayesian inference, following
+[Appendix A. Set theory](#a.-set-theory) and [Appendix B. Probability
+theory](#b.-probability-theor), which provide background.  The
+appendices establish a rigorous basis for the notation and provide
 more formal definitions of exactly what Stan is computing.
 
 If you're looking for a gentle introduction to Bayesian statistics, I
@@ -646,7 +648,7 @@ for seed in [123, 19876, 123]:
     sample = model.sample(data = data, seed = seed, chains = 1,
                           iter_sampling = 10, iter_warmup = 0,
                           show_progress = False, show_console = False)
-    print(f"{seed = };  sample = {np.asarray(sample.stan_variable('y'), dtype=int)}")		      
+    print(f"{seed = };  sample = {sample.stan_variable('y').astype(int)}")
 ```
 The two runs with seed 123 produce the same results. The code to
 extract values of `y` is clunky because the `stan_variable()` method
@@ -1291,7 +1293,8 @@ $$
 y \sim \textrm{binomial}(N, \theta),
 $$
 which requires a number of trials $N \in \mathbb{N}$, chance of
-success $\theta \in (0, 1)$, and number of successes $y \in 0{:}N$.
+success $\theta \in (0, 1)$, and number of successes $y \in \{ 0, 1,
+\ldots N \}.$
 
 Laplace used the prior
 $$
@@ -3336,7 +3339,7 @@ intermediate calculations.  Be careful printing long structures; you
 might want to try printing a slice, e.g.,
 ```stan
 matrix[256, 256] a = b * c;
-print("a[1:3, 5:6] = ", a[1, 1]);
+print("a[1:3, 5:6] = ", a[1:3, 5:6]);
 ```
 
 ## Test quantities of interest
@@ -3478,7 +3481,7 @@ model {
   y ~ normal(alpha + beta * x, sigma);
 }
 generated quantities {
-  array[M_tilde] y_tilde = normal_rng(alpha + beta * x_tilde, sigma);
+  array[M_tilde] real y_tilde = normal_rng(alpha + beta * x_tilde, sigma);
 }  
 ```
 Vectorized `_rng` functions return arrays; if we really need a vector
@@ -3844,9 +3847,7 @@ from the [GitHub repository for the *Python Data Science
 Handbook*](https://jakevdp.github.io/PythonDataScienceHandbook/).
 
 For intermediate Python programming, a standard
-reference is @ramalho2022.  The current edition is
-available from the [GitHub repository for *Fluent
-Python*](https://github.com/fluentpython/book-site). 
+reference is *Fluent Python* by @ramalho2022.
 
 
 ## Random number generation
@@ -3870,6 +3871,11 @@ third edition of the classic by @gelman2013. The third edition
 is available as a free pdf from the [home page for *Bayesian Data
 Analysis 3*](http://www.stat.columbia.edu/~gelman/book/).
 
+We provide a summary of the mathematics of Bayesian statistics in
+[Appendix D: Bayesian statistics](#c.-monte-carlo-methods), as well as
+background material in [Appendix A: Set theory](#a.-set-theory) and
+[Appendix B: Probability theory](#b.-probability-theory).
+
 ## Markov chain Monte Carlo
 
 A good single-source for learning about MCMC methods is the handbook
@@ -3882,6 +3888,10 @@ Carlo*](https://www.mcmchandbook.net/HandbookSampleChapters.html).
 We can also recommend the paper by @roberts2004 as a solid
 mathematical foundation for MCMC that is about the same mathematical
 level as the appendices of this introduction.
+
+We provide a summary of the mathematics of Monte Carlo methods and
+Markov chain Monte Carlo methods in [Appendix C: Monte Carlo methods]
+
 
 ## Stan
 
@@ -3980,8 +3990,6 @@ The symbol $\mathbb{R}$ is conventionally used for the set of all
 *real numbers*.  The symbol $\mathbb{C}$ is used for the set of all
 *complex numbers*.
 
-
-
 ## A.4 Finite and infinite sets {.unnumbered}
 
 A set $s$ is *finite* if it can be written in the form $s = \{ x_0,
@@ -4016,7 +4024,33 @@ defined by
 $$
 \textrm{pow}(A) = \{ B : B \subseteq A \}.
 $$
-Another common notation for power sets is $\mathbf{2}^A.$
+
+#### Intervals
+
+Given a set of numbers $A,$ and two elements $a, b \in A,$ define
+the *open interval*
+$$
+(a, b) = \{ x \in A : a < x \textrm{ and } x < b \},
+$$
+the *closed interval* includes he boundaries,
+$$
+[a, b] = \{ x \in A : a \leq x \textrm{ and } x \leq b \}.
+$$
+We can also have mixed intervals $(a, b]$ and $[a, b)$ defined in the
+obvious way.  This notation can be further extended to $\infty$ and
+$-\infty$ in the obvious way, e.g.,
+$$
+(0, \infty) = \{ x : 0 < x \textrm{ and } x < \infty \},
+$$
+where $x < \infty$ holds for all $x.$  The closed interval
+$(0, \infty]$ does not make sense because $\infty$ is not a
+number and hence $\infty \not\in A.$
+
+In the discrete case, we often write $[a, b]$ as $a{:}b$ for
+the set $\{ a, a + 1, \ldots, b \}.$  This can be confusing because in
+some programming languages (MATLAB, R, Stan) $a:b$ is defined as
+above, whereas in Python it is defined to exclude the upper bound as
+$[a, b).$ 
 
 
 ## A.6 Union, intersection, difference, and complement {.unnumbered}
@@ -4193,6 +4227,21 @@ The identity conditions for tuples are that $(a, b) = (a', b')$ if and
 only if $a = a$ and $b = b.$  That means that if $a \neq b,$ then $(a,
 b) \neq (b, a).$
 
+Given a tuple $(a, b),$ there are two *projection functions,*
+$$
+\pi_1((a, b)) = a
+\qquad
+\pi_2((a, b)) = b.
+$$
+that pick out the elements.  Thus for any tuple $x,$ we have
+$x = (\pi_1(x), \pi_2(x)).$
+
+Tuples with two elements are called *pairs.* The tuple construction
+can be extended to any number of elements inductively.  For example,
+we can construct *3-tuples$ $(a, (b, c))$ by combining an element $a$
+and a pair $(b, c)$.  We conventionally write a 3-tuple as $(a, b,
+c).$  Longer $n$-*tuples* can be constructed in the same way.
+
 ### Cross products and exponents
 
 The *cross product* of two sets $A$ and $B$ is written $A \times B$ and
@@ -4205,7 +4254,6 @@ operator to be left associative and setting,
 $$
 A_1 \times A_2 \times \cdots A_N = A_1 \times (A_2 \times \cdots A_N).
 $$
-Despite the nesting, we write $(a, b, c)$ rather than $(a, (b, c)).$
 
 For the cross product of a set $A$ with itself $n \in N$ times, we
 define the *set exponent* as 
@@ -4234,7 +4282,7 @@ is not.
 If $R$ and $T$ are relations, then their *composition* $R \circ T$ is
 defined by
 $$
-R \circ T = \{ (a, c) : (a, b) \in R, (b, c) \in R \}.
+R \circ T = \{ (a, c) : (a, b) \in R, (b, c) \in T \}.
 $$
 Thus a relation $R$ is transitive if $R \circ R = R.$
 
@@ -4274,7 +4322,7 @@ reflexive, symmetric, and transitive.
 Given a partition of a set, the corresponding equivalence relation
 equates pairs of items if and only if they are in the same set.
 
-A relation $R \subseteq A \times A$ maybe be *closed* under relations
+A relation $R \subseteq A \times A$ may be *closed* under relations
 such as the above by taking the smallest relation containing $R$ and
 satisfying the relation.  
 
@@ -4305,7 +4353,13 @@ A relation $f \subseteq A \times B$ is a *function* if for
 every $a \in A$ there is exactly one $b \in B$ such that $(a, b) \in
 f.$  If $(a, b) \in f$ we write $f(a) = b$ and say $a$ *maps to* $b.$
 If $f \subseteq A \times B$ is a function, we write $f:A \rightarrow
-B$.  
+B$.
+
+Given two sets $A$ and $B,$ the set of functions from $A$ to $B$ is
+written as $B^A,$ and defined by
+$$
+B^A = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
+$$
 
 ### Domains and ranges
 
@@ -4328,11 +4382,7 @@ but we cannot infer its codomain from its members.  The codomain only
 matters in a higher-level context in which the function is considered
 a member of a larger family of functions.
 
-Given two sets $A$ and $B,$ the set of functions from $A$ to $B$ is
-written as $B^A,$ and defined by
-$$
-B^A = \{ f : f:A \rightarrow B \textrm{ is a function} \}.
-$$
+
 
 ### Composition
 
@@ -4378,6 +4428,13 @@ $$
 0 & \textrm{otherwise}.
 \end{cases}
 $$
+Another common notation for power sets is $\mathbf{2}^A,$ which
+follows from the set-theoretic notation $B^A$ for the set of all
+functions from $A$ to $B$ and the notation $\mathbf{2} = \{ 0, 1 \}$ for the
+two-element set denoting truth values, so that $\mathbf{2}^A$ is the
+set of all indicator functions, which stands in a bijective relation
+to the sets.
+
 
 ### Metrics
 
@@ -4395,17 +4452,18 @@ $d:(A \times A) \rightarrow \mathbb{R}$ satisfying
 
 
 
-## A.11 Finite, countable, and uncountable sets {.unnumbered}
+## A.11 Countable and uncountable sets {.unnumbered}
 
-A set $A$ is *finite* if there exists a number $n \in
-\mathbb{N}$ and a bijection from $\{ 0, 1, \ldots, n \}$ to $A.$
-The number $n$ is the *size* of the set.  A set is *infinite* if it is
-not finite.
+We can define finiteness more directly by taking $A$ to be *finite* if
+there exists a number $n \in \mathbb{N}$ and a bijection from $\{ 0,
+1, \ldots, n \}$ to $A.$ The number $n$ is the *size* of the set.  A
+set is *infinite* if it is not finite.
 
-A set $A$ is *countable* if there is surjection from $\mathbb{N}$ to
-$A$ and is *uncountable* otherwise.  A countable set may be either
-finite or infinite.  It can be shown that the integers $\mathbb{Z}$
-are countable and the set of real numbers $\mathbb{R}$ is uncountable.
+A set $A$ is *countable* if there is surjection from the counting
+numbers $\mathbb{N}$ to $A$ and is *uncountable* otherwise.  A
+countable set may be either finite or infinite.  It can be shown that
+the integers $\mathbb{Z}$ are countable and the set of real numbers
+$\mathbb{R}$ is uncountable.
 
 
 # B. Probability theory {.unnumbered}
@@ -4457,6 +4515,19 @@ sample space $\Omega = \{ 0, 1 \}$, with $\sigma$-algebra $\mathcal{S}
 take the power set of the natural numbers, $\Omega =
 \textrm{pow}(\mathbb{N}),$ which is not only a $\sigma$-algebra, but a
 complete, atomic, boolean algebra.
+</div>
+
+<div class="example-text">
+*Example 1(c)*:  Not all discrete $\sigma$-algebras are power set
+algebras.  For example, with $\Omega = \{ 0, 1, 2, 3 \},$ there
+is a $\sigma$-algebra
+$$
+\mathcal{S} = \{ \emptyset, \{0, 2 \}, \{ 1, 3 \}, \{ 0, 1, 2, 3 4 \}
+\}.
+$$
+The $\sigma$-algebra $\mathcal{S}$ is closed under complements and
+finite unions, but it does not include the atomic events $\{ 0 \}, \{
+1 \}, \{ 2 \},$ and $\{ 3 \}.$
 </div>
 
 <div class="example-text">
@@ -4573,6 +4644,7 @@ fair coin.  Countable additivity gives us $\Pr[\mathbb{N}] = 1,$ because $\sum_{
 from which it follows from countable
 additivity that for any $A \subseteq \mathbb{N},$ that $\Pr[ A \] =
 \sum{a \in A} \Pr[\{ a \}].$
+</div>
 
 <div class="example-text">
 *Example 2(a), cont.*  We can define the *Lebesgue measure*
@@ -5673,11 +5745,11 @@ rather than $\textrm{supp}(Z)$ is used to subscript the integral.
 Expectations are linear operators in that if $a, b$ are constants and
 $X$ is a random variable, then 
 $$
-\mathbb{E}[a + b \cdot X] = a = b \cdot \mathbb{E}[X].
+\mathbb{E}[a + b \cdot X] = a + b \cdot \mathbb{E}[X].
 $$
 Expectations are also additive in random variables,
 $$
-\mathbb{E}[X + Y] = \mathbb{E}[X] = \mathbb{E}[Y].
+\mathbb{E}[X + Y] = \mathbb{E}[X] + \mathbb{E}[Y].
 $$
 If $X$ and $Y$ are independent, then we also have
 $$
@@ -6662,8 +6734,7 @@ The expression $\textrm{I}(\theta \in A)$ takes on value 1 if $\theta
 \in A$ and value 0 otherwise.  We write $\textrm{I}[\Theta \in A]$
 using square brackets because a random variable is a function, whereas
 we write $\textrm{I}(\theta \in A)$ because $\theta \in \mathbb{R}^D$
-is a value; see the Appendix [section on random
-variables](#a.4-random-variables-cdfs-pdfs-and-pmfs). 
+is a value; see [Appendix B.4. Random variables](#b.4-random-variables).
 
 
 ### Posterior predictive inference {.unnumbered}
@@ -6701,7 +6772,7 @@ print(sys.version)
 print("\nOperating System")
 print(f"""  {platform.system() = }
   {platform.release() = }
-  {platform.version = }""")
+  {platform.version() = }""")
 ```
 
 The installed packages (i.e., the working set) is as follows.
