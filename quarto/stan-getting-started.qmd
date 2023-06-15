@@ -3436,11 +3436,12 @@ for (n in 1:N) {
 
 The problem here is that `exp(log_sigma)` gets computed `N` times.
 This uses more memory, as Stan records every operation with links to
-its operands during.  It is also slow, with `N - 1` redundant
-applications of exponentiation in the forward pass and and
-multiply/adds for the chain rule in the backward pass.  Instead, the
-code should be refactored to compute the exponentiation of `log_sigma`
-once, assign it to a local variable, and re-use it in the loop.
+its operands for each evaluation of the log density.  It is also slow,
+with `N - 1` redundant applications of exponentiation in the forward
+pass and multiply/adds for the chain rule in the backward pass.
+Instead, the code should be refactored to compute the exponentiation
+of `log_sigma` once, assign it to a local variable, and re-use it in
+the loop.
 
 ```stan
 real sigma = exp(log_sigma);
