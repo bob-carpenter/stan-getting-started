@@ -3543,7 +3543,7 @@ Matrices are organized in column-major order in memory, whereas arrays
 are row major.  That means that the columns of a matrix are stored
 together in memory, and therefore slicing out a column `Sigma[1:M, n]`
 is relatively efficient for large `M`, but slicing out a row using
-`Sigma[m, 1:N]` will be inefficient if `M` is large.
+`Sigma[m, 1:N]` will be inefficient if `N` is large.
 
 If you need to access vectors one by one but you do not need matrix
 operations, use an array of vectors in either order:
@@ -3612,7 +3612,7 @@ $n$ between team $A_n$ and $B_n$ (the notation is meant to be
 suggestive of the original application to A/B testing).  This defines
 the likelihood
 $$
-p(y_n \mid \alpha) = \textrm{bernoulli}(\textrm{logit}^{-1}(\alpha_{A_n} - \alpha_{B_n}).
+p(y_n \mid \alpha) = \textrm{bernoulli}(\textrm{logit}^{-1}(\alpha_{A_n} - \alpha_{B_n})).
 $$
 In Stan, this likelihood can be coded as
 ```stan
