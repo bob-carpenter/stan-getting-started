@@ -158,6 +158,7 @@ import statistics as stat
 import pandas as pd
 import plotnine as pn
 import patchworklib as pw
+import time
 ```
 
 
@@ -877,18 +878,19 @@ p_{Y_{n+1} | Y_{1}, \ldots Y_N}(y_{n + 1} | y_1, \ldots, y_n)
 =
 p_{Y_{n+1} \mid Y_n}(y_{n+1} \mid y_n)
 $$
+This is saying that $Y_{n + 1}$ is conditionally independent of
+$Y_1, \ldots Y_{n - 1}$ given $Y_n.$
 
 We can illustrate with a simple example of three Markov chains, all of
-which have a stationary distribution of
-$\textrm{bernoulli}(0.5)$ and thus the long-term average of all chains
-should approach 0.5.  We will introduce a parameter $\theta \in (0, 1)$ and
-take the probabilities of element $Y_{n+1}$ depending on the previous
-element $Y_{n}$ to be
-\begin{align}
-\Pr[Y_{n + 1} &= 1 \mid Y_n = 1] = \theta
-\\
-\Pr[Y_{n + 1} &= 1 \mid Y_n = 0] = 1 - \theta
-\end{align}
+which have a stationary distribution of $\textrm{bernoulli}(0.5).$
+Technically, this means that as $n \rightarrow \infty,$ $p_{Y_n}$
+approaches the density of a $\textrm{bernoulli}(0.5)$ distribution.
+As a result, the long-term average of all chains will also approach
+0.5, because that's the expected value of a $\textrm{bernoulli}(0.5)$
+variable.  We will introduce a parameter $\theta \in (0, 1)$ and take
+the probabilities of element $Y_{n+1}$ depending on the previous
+element $Y_{n}$ to be \begin{align} \Pr[Y_{n + 1} &= 1 \mid Y_n = 1] =
+\theta \\ \Pr[Y_{n + 1} &= 1 \mid Y_n = 0] = 1 - \theta \end{align}
 The first line says that if the last number we generated is 1, the
 probability of the next element being 1 is $\theta$.  The second line
 says that if the last number we generated is 0, the probability of the
@@ -896,9 +898,9 @@ next element being 1 is $1 - \theta$, and thus the probability of the
 next element being 0 is $\theta$.  That is, there's a probability of
 $\theta$ of generating the same element as the last element.
 
-Here is a Stan program that generates the first $M$ entries of
-a Markov chain over outputs 0 and 1, with probability $\theta$ of generating
-the same output again.
+Here is a Stan program that generates the first $M$ entries of a
+Markov chain over outputs 0 and 1, with probability $\rho \in (0, 1)$
+of generating the same output again.
 
 ```{.stan include="../stan/markov-autocorrelation.stan" filename="stan/markov-autocorrelation.stan"}
 ```
@@ -918,7 +920,7 @@ C++ and Python.  Because `y[m - 1]` is constrained to take on values 0
 or 1, we know that `y[m - 1] == 1` is equivalent to `y[m - 1]`.
 Second, it uses the _ternary operator_, also like in C++.  The
 expression `cond ? e1 : e2` involves three arguments, separated by a
-question mark (`?`) and a colon (`:`); it's value is the value of `e1`
+question mark (`?`) and a colon (`:`); its value is the value of `e1`
 if `cond` is true and the value of `e2` otherwise.  Unlike an ordinary
 function, the ternary operator only evaluates `e1` if the condition is
 true and only evaluates `e2` if the condition is false.
@@ -999,18 +1001,95 @@ is caught and the resulting MCMC proposal is rejected.
 
 ## Storage order
 
-Unlike Python, Stan uses a column-major memory layout for matrices.
-This means it's more efficient to iterate by column than by row
-through a matrix.  To visit every element of a matrix, you want to
-loop as follows.
-```stan
-matrix[M, N] x;  // M rows, N columns
-for (n in 1:N) {
-  for (m in 1:M) {
-    ... operate on x[m, n] ...
-  }
-}
+One of the most important bottlenecks to mitigate in modern computing
+is how slow memory is compared to CPU.  In order to take advantage of
+fast CPU operations, especially vectorized ones that operate in
+parallel, memory must be streamed in so that the CPU is never starved
+for memory.  The problem is that when a memory value is requested, if
+it is not in the first level cache (L1, which holds about 64KB of data
+per core), it takes about 4 times as long to look in the second level
+cache (L2, which holds on the order of 512KB).  If that misses, it
+goes to L3 cache, which can be quite large (up to 32MB), but is on the
+order of 10 times slower than fetching from L2 cache.  Then if that
+misses, it goes to system RAM, which sabout twice as slow as fetching
+from L3 cache.  So end to end, if you get a complete cache miss and
+have to fetch data out of RAM, it will be on the order of 100 times slower.
+The CPU then just waits for data.
+
+To get around this problem, code must be written in a way that
+accesses data in the order it is stored in memory.  Modern CPUs and
+memory are very good at streaming data from RAM to the CPU very fast
+as long as it is accessed in order.
+
+### Matrices in Python vs. Stan
+
+Python uses row-major layout for matrices.  The following program
+evaluates the speed of Python traversing matrices of differing sizes
+in row major vs. column major order.
+```{python}
+n_base = 512 if DRAFT else 2048
+ns = [n_base, n_base * 4, n_base * 16]:
+print("Python (1 repetition):")
+for n in [n_base, n_base * 4, n_base * 16]:
+    A = np.random.rand(n, n)
+    start_time = time.time()
+    for i in range(n):
+    	for j in range(n):
+            _ = A[i, j]
+    print(f"   row major: n = {n:>5};  {(time.time() - start_time):6.2f} seconds")
+    start_time = time.time()
+    for j in range(n):
+        for i in range(n):
+            _ = A[i, j]
+    print(f"column major: n = {n:>5};  {(time.time() - start_time):6.2f} seconds")
 ```
+As is evident from the results, this is much more important as
+matrices get bigger, because they will not fit into cache.  It is also
+more important when there is parallelism, because that leads to much
+more memory contention.
+
+
+Unlike Python, Stan uses a *column-major* memory layout for matrices.
+For instance, the memory layout of elements in a $2 \times 3$ matrix
+$$
+A =
+\begin{bmatrix}
+x_1 & x_3 & x_5
+\\
+x_2 & x_4 & x_6
+\end{bmatrix}
+$$
+is $x_1, x_2, x_3, x_4, x_5, x_6.$ That is, the order goes down the
+columns and then starts again at the top of the next column.
+
+This means it's more efficient to iterate by column than by row
+through a matrix in Stan, so that iteration code looks as follows.
+Consider the following Stan program, which can iterate either way.
+
+```{.stan include="../stan/row-major-vs-column-major.stan" filename="stan/row-major-vs-column-major.stan"}
+```
+
+We can then run the comparison in Stan.  We had to set a
+value in the loop, otherwise the C++ compiler will realize the whole
+loop is a no-op and optimize it out of existence.
+```{python}
+model = csp.CmdStanModel(stan_file = "../stan/row-major-vs-column-major.stan")
+print("Stan results:")
+for n in ns:
+    matrix = np.random.rand(n, n)
+    start_time = time.time()
+    fit = model.sample({'N': n, 'row_major': 1, 'A': matrix},
+                       iter_warmup=0, iter_sampling=1, seed=123,
+                       show_progress = False, show_console = False)
+    print(f"   row major: n = {n:>5};  {(time.time() - start_time):7.3f} seconds")
+    start_time = time.time()
+    fit = model.sample({'N': n, 'row_major': 0, 'A': matrix},
+                       iter_warmup=0, iter_sampling=10, seed=123,
+                       show_progress = False, show_console = False)
+    print(f"   col major: n = {n:>5};  {(time.time() - start_time):7.3f} seconds")
+```
+
+### Arrays in Python vs. Stan
 
 Arrays in Stan are stored in row-major order, but they are not stored
 in a single array like in NumPy's `ndarray` type.  Arrays of
@@ -1050,43 +1129,86 @@ The Stan version visits elements `v[1]`, `v[2]`, ..., `v[N].`
 
 Stan variables are strongly typed.  This means every variable is
 assigned a type when it is declared and that type never changes.  Only
-values of expressions of the same type of the variable may be assigned
-to it.  Block variables are also sized and the size never changes
-after the declaration is executed.
+expressions compatible with that type may be assigned, which means
+they have to have the same type or they have to be assigned a type
+that can be *promoted* to that type.  For example, we can assign an
+integer to a real value, but not vice-versa.
+
+```stan
+int n = 5;
+real y = n;  // OK: promote integer to real
+int m = y;   // ILLEGAL! cannot demote real to ingeger
+```
+
+Similarly, we can assign a real or integer value to a complex
+variable.  We also have what is known as *covariant* typing, which
+means if we can assign a value of type `U` to a variable of type `V`,
+then we can assign an array of `U` to an array of `V`.  
+Similarly, we can assign real vectors or matrices to their complex
+counterparts.  
+
+Top-level block variables and local variables must also declare their
+sizes and thereafter only allow assignment of properly sized values.
+Function argument types do not declare sizes so that functions can be
+defined generically to operate over arguments of any size.
+
+Block variables can also be supplied with constraints.  This does not
+affect assignment, but the constraints will be validated at the end of
+the block (or enforced implicitly in the case of the parameter block
+where there is no assignment).
 
 There are three one dimensional (1D) real-valued container types (1D
 array, column vector, and row vector) and four two dimensional (2D)
-containers (2D array, 1D array of vectors, 1D array of column
-vectors, and matrix).  There are functions to convert back and forth
-for common cases, but complicated cases must be handled manually.
-Loops that just do reassignment are fast in Stan as there is no
-overhead from derivative calculations; see the [section on automatic
-differentiation](#autodiff) for more details.
+containers (2D array, 1D array of vectors, 1D array of column vectors,
+and matrix).  These cannot be assigned to each other directly, but
+there are built-in functions to convert back and forth.  Loops that
+just do reassignment are fast in Stan as there is no overhead from
+derivative calculations; see the sectiosn of this document on [automatic
+differentiation](#autodiff) and
+[containers](#containers-arrays-vectors-and-matrices) for more
+details.  
 
 ## Block scope
 
-Stan follows the C/C++ convention whereby variables declared within a
-block are local to that block.  For example, in this Stan program,
-`logit_theta` is only a valid variable within the conditional block;
-once control has left the conditional block, `logit_theta` falls out
-of scope.
+Unlike Python or R, Stan follows the C/C++ convention whereby
+variables declared within a block are local to that block.  For
+example, in this Stan program, `logit_theta` is only a valid variable
+within the conditional block; once control has left the conditional
+block, `logit_theta` falls out of scope.
 
 ```stan
-if (theta < 0.5) {
+if (z == 1) {
   real logit_theta = logit(theta);
-  ...
-}
-logit_theta = 1.9; // ILLEGAL: OUT OF SCOPE
+} else {
+  real logit_theta = logit(-theta);
+}  
+y ~ bernoulli_logit(logit-theta); // ILLEGAL: out of scope
 ```
-The solution is to move up the declaration.
+
+If the user needs a reference to `logit_theta` outside of the
+conditional block, it can be declared outside the conditional block.
+
 ```stan
 real logit_theta;
-if (theta < 0.5) {
+if (z == 1) {
   logit_theta = logit(theta);
   ...
-}
-logit_theta = 1.9;  // OK
+} else {
+  logit_theta = logit(-theta);
+}  
+y ~ bernoulli_logit(logit_theta);  // OK: in scope
 ```
+
+In simple cases like this, Stan provides the ternary operator as an
+alternative,
+```stan
+real logit_theta = z == 1 ? logit(theta) : logit(-theta);
+```
+or even
+```stan
+real logit_theta = logit(z == 1 ? theta : -theta);
+```
+
 
 ## Loops are not slow
 
