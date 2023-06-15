@@ -4499,10 +4499,19 @@ $\mathbb{R}$ is uncountable.
 
 The goal of this overview is to provide precise definitions of those
 aspects of probability theory required to understand the operations
-used in applied Bayesian statistics.  The presentation was heavily
-influenced by @anderson1979's book [*Optimal
+used in applied Bayesian statistics.  This introduction is
+measure-theoretic only insofar as is required to write down precise
+definitions of notions like random variables---it turns out to be
+quite tricky to define a consistent notion of event probability over
+continuous sample spaces due to the often counter-intuitive results of
+real analysis.
+
+The presentation here was heavily influenced by an appendix to
+@anderson1979's book [*Optimal
 Filtering*](http://users.cecs.anu.edu.au/~john/papers/BOOK/B02.PDF),
-(Appendix A, "Brief Review of Results of Probability Theory").
+(Appendix A, "Brief Review of Results of Probability Theory") and by
+@rosenthal2006's book [*A First Look at Rigorous Probability
+Theory*](http://probability.ca/jeff/grprobbook.html).
 
 ## B.1 Probability spaces {.unnumbered}
 
@@ -4748,13 +4757,13 @@ dimensions and the hypervolumes of hyperballs in higher dimensions.
 
 ### Total variation distance
 
-Suppose we have two different measures, $\Pr$ and $\textrm{Qr}$ over the
+Suppose we have two different measures, $\Pr$ and $\textrm{Q}$ over the
 same $\sigma$-algebra $(\Omega, \mathcal{S}).$  The *total variation
-distance* between $\Pr$ and $\textrm{Qr}$ is written as $\left|\left|
-\strut \Pr - \textrm{Qr} \right|\right|$ and defined by 
+distance* between $\Pr$ and $\textrm{Q}$ is written as $\left|\left|
+\strut \Pr - \textrm{Q} \right|\right|$ and defined by 
 $$
-\left|\left| \strut \Pr - \textrm{Qr} \right|\right|
-= \max_{A \in \mathcal{S}} \left| \strut \Pr[A] - \textrm{Qr}[A] \right|.
+\left|\left| \strut \Pr - \textrm{Q} \right|\right|
+= \max_{A \in \mathcal{S}} \left| \strut \Pr[A] - \textrm{Q}[A] \right|.
 $$
 Total variation distance defines a metric over the space of
 probability measures on a fixed $\sigma$-algebra.
