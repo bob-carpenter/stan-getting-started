@@ -1028,9 +1028,9 @@ evaluates the speed of Python traversing matrices of differing sizes
 in row major vs. column major order.
 ```{python}
 n_base = 512 if DRAFT else 2048
-ns = [n_base, n_base * 4, n_base * 16]:
+ns = [n_base, n_base * 4, n_base * 16]
 print("Python (1 repetition):")
-for n in [n_base, n_base * 4, n_base * 16]:
+for n in ns:
     A = np.random.rand(n, n)
     start_time = time.time()
     for i in range(n):
