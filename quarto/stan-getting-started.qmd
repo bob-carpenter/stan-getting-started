@@ -1263,6 +1263,53 @@ Given a forward model that generates data from parameters, the
 _inverse problem_ is that of _inferring_ parameter values from
 observed data.
 
+## Inverse problems
+
+Suppose for example, that you are Galileo Galilei.  You have the
+hypothesis that as a ball rolls down an inclined plane, its speed will
+be proportional to how far it has rolled and the distance covered will
+be quadratic in time.  But there is an unknown factor in the model,
+which determines how fast the ball will roll. Given this unknown
+factor, you could make precise predictions about the ball's location at
+any given time.  A model that maps from parameters like the
+gravitational constant to predictions is called a  *forward model.*
+Such models are typically deterministic, but they do not have to be.
+
+@galileo1638 describes his ramp as follows.
+
+> A piece of wooden moulding or scantling, about 12 cubits [about 7 m]
+  long, half a cubit [about 30 cm] wide and three finger-breadths
+  [about 5 cm] thick, was taken; on its edge was cut a channel a
+  little more than one finger in breadth; having made this groove very
+  straight, smooth, and polished, and having lined it with parchment,
+  also as smooth and polished as possible, we rolled along it a hard,
+  smooth, and very round bronze ball.
+
+To time the ball, he devised a clever and indirect measurement process.
+
+> For the measurement of time, we employed a large vessel of water
+  placed in an elevated position; to the bottom of this vessel was
+  soldered a pipe of small diameter giving a thin jet of water, which
+  we collected in a small glass during the time of each descent $\ldots$ the
+  water thus collected was weighed, after each descent, on a very
+  accurate balance; the difference and ratios of these weights gave us
+  the differences and ratios of the times.
+  
+A process such as this is frought with *measurement error* of weights
+and distances.  Even though the forward model provides precise
+predictions, in the end, Galileo is left with less than perfect
+measurements of the time it took a ball to get to a prescribed
+position.  In statistics, we typically include a probabilistic
+*measurement model* to account for how observations are made given a
+forward model.  Sometimes, in cases like Galileo's and complex survey
+or clinical trial designs, the measurement model can be more
+complicated than the forward model.
+
+The *inverse problem* is that of reasoning backwards from observations
+through the measurement model and forward model to estimates of
+parameters like the gravitational constant.  Solving general inverse
+problems is where Bayesian statistics shines.
+
 ## Bayesian solutions to inverse problems
 
 @bayes1763 introduced the paradigm of statistical inference that has

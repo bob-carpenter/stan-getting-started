@@ -152,6 +152,7 @@ stan/iris-petals-varying
 stan/iris-posterior-predictive-sim
 stan/interval-censor
 stan/unit-hypersphere
+stan/row-vs-col-major
 # auto-generated
 quarto/stan-getting-started.html
 quarto/stan-getting-started.pdf
