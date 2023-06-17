@@ -1333,7 +1333,7 @@ priors, and
 covariates in generative models.
 
 
-Similarly, we us the variable $\theta$ for all of our
+Similarly, we use the variable $\theta$ for all of our
 model's *parameters*, which are values that are not known and must be
 inferred. Parameters may include
 
@@ -1348,11 +1348,11 @@ forecasts, backcasts.
 Constants are things like the sizes of matrices, the number of
 components in a mixture model, the bounds on a constrained variable,
 etc.  Covariates are typically used as inputs (aka features,
-predictors, independent variables) to a regression.  For instance if I
+predictors, independent variables) to a regression.  For instance, I
 might want to predict someone's presidential vote based on their
 income and state of residence.  In this case, the income and state of
-residence are unmodeled covariates and the vote is modeled data if it
-is known.
+residence are unmodeled covariates and the vote can be modeled data if
+it is known and missing data if it is not.
 
 In Stan, the number of parameters may depend on the data, but once the
 data $y$ is fixed, the number of parameters is also fixed. This means
@@ -1377,14 +1377,27 @@ any quantities of interest such as predictions or event probabilities.
 predictions, how sensitive the predictions are to model assumptions,
 and if necessary, go back to step (1) and refine the model.
 
-Usually, the joint probability model here is defined in terms of a
-parametric _sampling density_ $p(y \mid \theta)$ which is a *forward
-model* describing how to generate observations $y$ given parameters
-$\theta$, and a _prior density_ $p(\theta)$ capturing what is known
-about the unknowns before observing the current data $y$.
+By joint probability here, we mean a multivariate distribution over
+all of the observed variables $y$ and all of the unobserved variables
+$\theta,$ for example, as given by a density $p(y, \theta).$ Usually,
+the joint probability density $p(y, \theta)$ is factored as
+$p(y \mid \theta) \cdot p(\theta)$ into the product of
 
-Stan is useful for expressing the model (1), performing posterior
-inference (2), and evaluating and comparing models (3).
+* the _sampling distribution_ combining a forward model and
+  measurement model with density $p(y \mid \theta),$ and
+
+* the _prior distribution,_ capturing what we know about the
+  parameters ahead of time, with density $p(\theta).$
+
+In model formulation (step 1), we choose the verb "know" rather than
+"believe" because the choice of prior and likelihood are both meant to
+be scientific processes, not tied up with personal convictions.  See
+[Section 1: Pragmatic Bayesian
+statistics](#pragmatic-bayesian-statistics) for background.
+
+Stan helps with all three steps in the Bayesian workflow: (1)
+expressing models, (2) performing posterior inference, and (3) model
+analysis and comparison.
 
 
 ### Bayes's formulation
@@ -1402,7 +1415,7 @@ p(\theta \mid y)
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
         {p(y)}
-& \textrm{[chain rule]} 
+& \textrm{[chain rule for densities]} 
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
         {\int_{\Theta} \, p(y, \theta) \, \textrm{d}\theta}
@@ -1411,7 +1424,7 @@ p(\theta \mid y)
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
         {\int_{\Theta} \, p(y \mid \theta) \cdot p(\theta) \,
         \textrm{d}\theta}.
-& \textrm{[chain rule]} 
+& \textrm{[chain rule for densities]} 
 \end{align}
 
 The first steps reveal the key densities involved in Bayesian
@@ -1429,8 +1442,8 @@ When considered as a function of the parameter $\theta$ for fixed data
 $y$, as it is in Bayes's rule, the density $p(y \mid \theta)$ is known
 as the _likelihood_. 
 
-The second step expresses the evidence in terms of the likelihood and
-prior. 
+The next step in the derivation expresses the evidence in terms of the
+likelihood and prior. 
 $$
 p(y) = \int_{\Theta} p(y \mid \theta) \cdot p(\theta) \,
 \textrm{d}\theta.
@@ -1448,14 +1461,9 @@ p(y \mid \theta, x) &= \prod_{n=1}^N \textrm{bernoulli}(y_n \mid
 
 The good news is that most applications of Bayesian statistics do not
 require us to solve the integral presented in the denominator of
-Bayes's rule, even numerically.  One case where we need normalizing
-constants is to evaluate Bayes factors for model comparison, but like
-@gelman2013, we prefer other means of evaluating models like
-posterior predictive checks or cross-validation, both of which are beyond the
-scope of this getting-started tutorial.
-
-Rather than computing the evidence, we work up to a proportion (i.e.,
-a multiplicative constant), where we have
+Bayes's rule, even numerically. Rather than computing the evidence, we
+work up to a proportion (i.e., a multiplicative constant), where we
+have  
 $$
 p(\theta \mid y) \propto p(y \mid \theta) \cdot p(\theta),
 $$
@@ -1470,16 +1478,17 @@ $$
 $$
 where the constant is the negative log evidence, $- \log p(y)$.
 
+One case where we need the evidence or normalizing constant, is to
+evaluate Bayes factors for model comparison.  Following @gelman2013,
+we prefer other means of evaluating models like posterior predictive
+checks or cross-validation, both of which are beyond the current scope
+of this getting-started tutorial.
 
 ## Live birth data
 
 A decade after Bayes published his rule, @laplace1774 used Euler's
-_beta function_ to derive the conjugate prior for binomially
-distributed data. A _conjugate prior_ for a sampling distribution is a
-family of distributions such that if the prior is drawn from that
-family, the posterior will be, too. In this section, we will work
-through Laplace's analysis in what has become the standard textbook
-introduction to Bayesian inference.
+_beta function_ to derive a closed form to solve his inverse problem.
+In this section, we will work through Laplace's analysis using Stan.
 
 Laplace gathered data on the sexes of babies in live births in Paris
 between 1745 and 1770.
@@ -1490,7 +1499,8 @@ female | 105,287
 male | 110,312
 : Live births in Paris between 1745 and 1770.
 
-It sure looks like there were more boys than girls born.
+It sure looks like the probability of boy births is higher than that
+of girl births.
 
 ## Laplace's model
 
@@ -1500,7 +1510,7 @@ $$
 y \sim \textrm{binomial}(N, \theta),
 $$
 which requires a number of trials $N \in \mathbb{N}$, chance of
-success $\theta \in (0, 1)$, and number of successes $y \in \{ 0, 1,
+male birth $\theta \in (0, 1)$, and number of male births $y \in \{ 0, 1,
 \ldots N \}.$
 
 Laplace used the prior
@@ -1526,7 +1536,10 @@ $\theta \in (0, 1)$ because the density is proportional to a constant,
 ### Analytic posterior
 
 As an aside, Laplace's model here is simple enough to solve
-for the posterior analytically.  
+for the posterior analytically as we show in [Appendix D.3: Conjugate
+priors](d.3-conjugate-priors).
+
+
 \begin{align}
 p(\theta \mid y, N)
 &\propto p(y \mid N, \theta) \cdot p(\theta)
@@ -1577,7 +1590,7 @@ declares the type of `theta`, which is a real value constrained to
 fall in the interval $[0, 1]$. The model block defines the prior,
 which we take to be uniform over the possible values for `theta.` The
 model block also defines the sampling distribution, which codes the
-fact that the observed data `y` was generated from a binomial
+assumption that the observed data `y` was generated from a binomial
 distribution with `N` trials and `theta` probability of a male
 birth. Finally, we have a generated quantities block that defines a
 single binary indicator variable, `boys_gt_girls.` This variable will
@@ -1604,9 +1617,16 @@ time.
 Stan uses a _Markov chain Monte Carlo_ (MCMC) algorithm, which can
 lead to autocorrelation in the random draws from the posterior.  That
 is, the draws are not typically independent, with each draw being
-correlated (or anti-correlated) with the previous draw.  This
-autocorrelation does not introduce bias into the Monte Carlo
-estimates.
+correlated (or anti-correlated) with the previous draw.
+
+Autocorrelation does not introduce bias into the Monte Carlo
+estimates.  Positive autocorrelated draws, which we see in more
+complex models, increase estimation variance compared to independent
+draws.  Increased variance increases expected square error, which is a
+combination of error due to bias (zero here) and due to variance.
+Negative autocorrelation, which we see in very simple models, reduces
+variance with respect to independent draws and hence reduces expected
+square error when compared to independent draws.
 
 In order to scale to high dimensional problems, we need to exploit
 gradients and/or Hessians.  @duane1987 introduced the gradient-based
@@ -1679,8 +1699,12 @@ the probability that $\theta > 0.5$ or $\theta > 0.51$.
 In Bayesian terms, a _point estimate_ for a parameter $\Theta$
 conditioned on some observed data $Y = y$ is a single value
 $\hat{\theta} \in \mathbb{R}^D$ that in some way summarizes the
-posterior $p(\theta \mid y)$.  Formally, Bayesian estimators are
-defined in such a way as to minimize a _loss function_.
+posterior $p(\theta \mid y)$.  The notation $\hat{\theta}$ is
+conventional statistics notation for an estimate of a parameter
+$\theta.$ In this section we define three estimators and discuss how
+the two Bayesian estimators minimize a _loss function_ between the
+true value and estimate.  We come back to the loss function and the
+properties of the estimators after defining them.
 
 ### Posterior mean estimator
 
@@ -1703,7 +1727,6 @@ $$
 \theta^{(m)} \sim p(\theta \mid y).
 $$
 
-
 We have snuck in conditional _expectation_ notation in the first line
 of this definition.  Expectations are just weighted averages, with
 weights given by a probability density.  Bayesian inference involves
@@ -1713,12 +1736,10 @@ $$
 \mathbb{E}\!
 \left[ f(\Theta) \mid Y = y \right]
 \ = \
-\int_{\Theta} f(\theta) \cdot p_{\Theta \mid Y}(\theta \mid y) \, \textrm d\theta,
+\int_{\mathbb{R^N}} f(\theta) \cdot p_{\Theta \mid Y}(\theta \mid y) \, \textrm d\theta,
 $$
-where $\Theta$ and $Y$ are random variables with realizations
-$\theta \in \Theta$ and $y \in Y$ (we write $y \in Y$ for a random
-variable $Y$ if $y$ is in support of $Y$'s density, i.e., $p_Y(y) >
-0$).  
+where $\Theta$ and $Y$ are random variables, whereas and $\theta$ and
+$y$ are ordinary bound variables.
 
 For Laplace's model, the estimate for the male birth rate $\theta$
 conditioned on the birth data $y$ is calculated as the sample mean
@@ -1728,7 +1749,6 @@ for the extracted draws for `theta.`
 theta_hat = np.mean(theta_draws)
 print(f"estimated theta = {theta_hat:.3f}")
 ```
-
 
 ### Posterior median estimator, quantiles, and intervals
 
@@ -1756,8 +1776,8 @@ if we want the posterior 95% quantile, we just take the empirical
 are the 5% quantile and 95% quantile for Laplace's posterior,
 calculated with empirical quantiles.
 ```{python}
-quantile_05 = np.quantile(theta_draws, 0.025)
-quantile_95 = np.quantile(theta_draws, 0.975)
+quantile_05 = np.quantile(theta_draws, 0.05)
+quantile_95 = np.quantile(theta_draws, 0.95)
 print(f"""0.05 quantile = {quantile_05:.3f};
 0.95 quantile = {quantile_95:.3f}""")
 ```
@@ -1798,41 +1818,70 @@ averaged over the data distribution for the random variable $Y$),
 &= \int_Y \hat{\theta}(y) - \theta \ \textrm{d}y.
 \end{align}
 
-### Properties of estimators
+### Posterior mode estimator
+
+A popular non-Bayesian estimator is the *posterior mode*, which is
+just the value at which the posterior density is highest,
+$$
+\theta^* = \textrm{arg max}_\theta \ p(\theta \mid y).
+$$
+The estimate $\theta^*$ is often called the maximum a posteriori (MAP)
+estimate.  The posterior mode is not a Bayesian estimator because it does average over
+uncertainty to minimize a loss function with respect to the true
+parameter values.  It suffers the further problem that it might not
+even exist for models where the density grows without bound (e.g.,
+hierarchical Bayesian models or for simple distributions like
+$\textrm{exponential}(1)$). 
+
+
+### Loss functions and properties of estimators
 
 The posterior mean is a popular Bayesian estimator for two reasons.
 First, it is an _unbiased_ estimator in the sense of having zero
 bias.  Second, it has the minimum expected square error among
-unbiased estimators, where the _squared error_ of an estimate is
+unbiased estimators, where the _square error_ of an estimate is
 defined by
 $$
 \textrm{err}^2(y) = \left(\hat{\theta}(y) - \theta\right)^2.
 $$
-Posterior means might not exist if the posterior has very wide tails,
-like the standard Cauchy distribution.
+This is our first example of a loss function, which is a function of
+an estimate $\hat{\theta}$ and true value $\theta.$ Posterior means
+might not exist if the posterior has very wide tails, like the
+standard Cauchy distribution.
 
 The posterior median $\theta^+$ has three pleasant properties. First,
 it is always well defined, even for densities with poles or very wide
-tails.  Second, it is more robust to outliers than squared error
-because errors are not amplified by squaring.  Third, the posterior
-median estimator minimizes expected absolute error.
-
-The posterior mode may not exist.  For example, there is no posterior
-mode in standard hierarchical models.  There is not even a mode for a
-simple density with a pole, such as $\textrm{exponential}(x \mid 1) =
-\exp(-x)$ for $x > 0$.  The posterior mode is at least consistent in
-the sense of converging to the true value as the data size grows in
-cases where it exists.
+tails.  The second important property of the posterior median
+estimator is that it minimizes expected absolute error.  Third, the
+median is less sensitive to changes in outliers, as one might expect
+with minimizing absolute vs. squared error.  This is easy to see with
+code.
+```{python}
+print(f"{np.median([1, 10, 11]) = }")
+print(f"{np.median([1, 10, 100]) = }")
+print(f"{np.median([1, 20, 100]) = }")
+print(f"{np.mean([1, 10, 11]) = }")
+print(f"{np.mean([1, 10, 100]) = }")
+print(f"{np.mean([1, 20, 100]) = }")
+```
+Another way to see this is that if you have a sequence $x = x_1, x_2,
+x_3$ with $x_1 < x_2 < x_3$,
+then $\frac{\textrm{d}}{\textrm{d}x_3} \textrm{median}(x) = 0,$ as seen with the first two results.  On the other
+hand, it is more sensitive to changes of the central value, with
+$\frac{\textrm{d}}{\textrm{d}x_2} \textrm{median}(x) = 1$
+versus $\frac{\textrm{d}}{\textrm{d}x_2} \textrm{mean}(x) = \frac{1}{3}.$
 
 We will concentrate on posterior means in this quick introduction to
 Bayes and Stan.
 
 ### (Markov chain) Monte Carlo error and effective sample size
 
-The Markov chain we use to sample is itself a random variable.
-Re-running the sampler will produce slightly different results due to
-Monte Carlo error (the error introduced by using only a finite
-sample of $M$ draws).  
+The Markov chain we use to sample is itself a random variable in the
+sense that it is made up of a sequence of random variables (the twist
+is that it's infinite dimensional, and thus takes values in
+$\mathbb{R}^\mathbb{N}$).  Re-running the sampler will produce
+slightly different results due to Monte Carlo error (the error
+introduced by using only a finite sample of $M$ draws).
 
 Stan reports Markov chain Monte Carlo _standard error_ along with
 its estimates of the mean.  The MCMC standard error is for a scalar
@@ -1856,7 +1905,7 @@ defined as follows.
 \end{align}
 
 In the usual central limit theorem, the sample size (number of
-independent draws) appers in place of $N^{\textrm{eff}}$.
+independent draws) appears in place of $N^{\textrm{eff}}$.
 The effective sample size for a sample of size $M$ is defined to be
 $$
 N^{\textrm{eff}}
@@ -1864,7 +1913,7 @@ N^{\textrm{eff}}
 $$
 where $\textrm{IAT}$ is the _integrated autocorrelation time_.
 We are not going to define it formally, but it may be thought
-as the interval between effectively
+of as the interval between effectively
 independent draws in our Markov chain.  If we have low
 autocorrelation, $\textrm{IAT}$ will be close to 1 and if the
 autocorrelation is higher, it can be much higher.  If the
@@ -1873,7 +1922,7 @@ to estimate.  If the
 autocorrelation is negative, the $\textrm{IAT}$ is less than 1 and the
 effective sample size is larger than the number of draws.  Thus
 $N^{\textrm{eff}}$ is the number of independent draws that would
-lead the same error as our correlation draws using a Markov chain.
+lead to the same error as our correlation draws using a Markov chain.
 
 ## Estimating event probabilities
 
@@ -2160,7 +2209,8 @@ event probability estimates in the generated quantities block.
 ```
 
 We have coded the data for $K$ items directly in terms of number of
-trials and number of successes.  We have also supplied the prior for
+trials and number of times A is preferred to  B (as a "success" in
+binomial parameter nomenclature).  We have also supplied the prior for
 the probabilities of success as data as `alpha` and `beta.`  The model
 is the same binomial as we had before, except now the likelihood and
 priors are vectorized.  In general, Stan is able to take something
@@ -2446,7 +2496,7 @@ graph.  The root is the final log density value, which is the value
 of `target.`  The leaves are the unconstrained parameters.  A
 reverse pass over this expression graph propagates the partial
 derivatives from the log density value down to the unconstrained
-parameters using the chain rule (it applies in the reverse order of
+parameters using the chain rule for derivatives (it applies in the reverse order of
 the expression construction, which is a topological sort of the
 directed graph).  See @carpenter2015 for details of Stan's C++
 architecture for automatic differentiation; current details are only
@@ -3620,7 +3670,7 @@ The problem here is that `exp(log_sigma)` gets computed `N` times.
 This uses more memory, as Stan records every operation with links to
 its operands for each evaluation of the log density.  It is also slow,
 with `N - 1` redundant applications of exponentiation in the forward
-pass and multiply/adds for the chain rule in the backward pass.
+pass and multiply/adds for the chain rule for derivatives in the backward pass.
 Instead, the code should be refactored to compute the exponentiation
 of `log_sigma` once, assign it to a local variable, and re-use it in
 the loop.
@@ -3762,12 +3812,12 @@ y ~ normal(alpha + beta * x, sigma);
 
 The speed from vectorization is not because loops are slow, it's
 because doing autodiff in a loop leads to a much larger expression
-graph and hence much more work when updating the chain rule.  The
-vectorized form has a single output variable for the log density with
-three edges leading to `alpha`, `beta`, and `sigma.`  It will also be
-clever enough to calculate `log(sigma)` once and reuse it.  This
-advantage is even bigger for distributions like multivariate normal
-that require expensive internal determinant calculations.
+graph and hence much more work when updating the chain rule for
+derivatives.  The vectorized form has a single output variable for the
+log density with three edges leading to `alpha`, `beta`, and `sigma.`
+It will also be clever enough to calculate `log(sigma)` once and reuse
+it.  This advantage is even bigger for distributions like multivariate
+normal that require expensive internal determinant calculations.
 
 
 ## Statistical efficiency
@@ -4998,7 +5048,7 @@ $$
 \Pr[A \mid B] = \frac{\Pr[A, B]}{\Pr[B]}.
 $$
 
-The *chain rule* for probability follows immediately,
+The *chain rule for probabilities* follows immediately,
 $$
 \Pr[A, B] = \Pr[A \mid B] \cdot \Pr[B].
 $$
@@ -5013,8 +5063,9 @@ probability space with $\Omega' = B$, $\mathcal{S} = \{ A \in
 
 Bayes's rule allows us to derive a conditional probability $\Pr[A \mid
 B]$ given the inverse probability $\Pr[B \mid A]$ and $\Pr[A]$.  In
-its simplest form, it's just an application of the chain rule and
-definition of conditional probability, where if $\Pr[B] \neq 0,$
+its simplest form, it's just an application of the chain rule for
+probabilities and the definition of conditional probability, where if
+$\Pr[B] \neq 0,$ 
 $$
 \Pr[A \mid B] = \frac{\Pr[B \mid A] \cdot \Pr[A]}{\Pr[B]}.
 $$
@@ -6843,16 +6894,16 @@ p(\theta \mid y)
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
         {p(y)}
-& \textrm{[chain rule]} 
+& \textrm{[chain rule for densities]} 
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
-        {\int_{\Theta} \, p(y, \theta) \, \textrm{d}\theta}
+        {\int_{\Theta} \, p(y, \theta') \, \textrm{d}\theta'}
 & \textrm{[law of total probability]}
 \\[6pt]
 &= \frac{p(y \mid \theta) \cdot p(\theta)}
-        {\int_{\Theta} \, p(y \mid \theta) \cdot p(\theta) \,
-        \textrm{d}\theta}.
-& \textrm{[chain rule]} 
+        {\int_{\Theta} \, p(y \mid \theta') \cdot p(\theta') \,
+        \textrm{d}\theta'}.
+& \textrm{[chain rule for densities]} 
 \end{align}
 $\blacksquare$
 :::
@@ -6911,7 +6962,7 @@ parameters $\theta$ is
 
 The posterior mean is the value that minimizes expected square
 error in the estimates if the model is well specified in the sense of
-representing the true data-generating process.  Squared error is the squared
+representing the true data-generating process.  Square error is the squared
 $\textrm{L}_2$ norm of the difference between the estimate and the true
 parameter values.  We can expand these definitions down to basic form.
 
@@ -6973,7 +7024,119 @@ p(\tilde{y} \mid y)
 &= \int_{\Theta} p(\tilde{y} \mid \theta) \cdot p(\theta \mid y) \, \textrm{d}\theta.
 \end{align}
 
+## D.3  Conjugate priors {.unnumbered}
 
+In a few limited, though very useful, cases, we can derive posterior
+distributions analytically.
+
+Suppose we have a family of distributions $\mathcal{G}$ and a family
+of sampling distributions $\mathcal{F}$ that share the same parameter
+space.  We say that $\mathcal{G}$ is the *conjugate prior* family for
+the sampling distribution $\mathcal{F}$ if a prior from
+$\mathcal{G}$ and sampling distribution from $\mathcal{F}$ entail that
+the posterior distribution will be in $\mathcal{G}.$
+
+<div class="example-text">
+*Example.*  The class $\mathcal{G}$ of beta distributions,
+$$
+\mathrm{beta}(\theta \mid \alpha, \beta)
+\propto \theta^{\alpha - 1} \cdot (1 - \theta)^{\beta - 1},
+$$
+is the conjugate prior for the class of binomial sampling
+distributions,
+$$
+\textrm{binomial}(y \mid N, \theta)
+\propto \theta^y \cdot (1- \theta)^(N - y).
+$$
+Suppose we have a joint model
+$$
+p(y, \theta \mid N, \alpha, \beta)
+= \textrm{beta}(\theta \mid \alpha, \beta)
+  \cdot \textrm{binomial}(y \mid N, \theta).
+$$  
+The posterior can be derived by Bayes's rule as
+\begin{align}
+p(\theta \mid y, N, \alpha, \beta)
+&\propto \textrm{beta}(\theta \mid \alpha, \beta) \cdot \textrm{binomial}(y \mid N, \theta)
+\\[4pt]
+&= \theta^(\alpha - 1) \cdot (1 - \theta)^(\beta - 1)
+  \cdot \theta^y \cdot (1 - \theta)^(N - y)
+\\[4pt]
+&= \theta^{y + \alpha - 1} \cdot (1 - \theta)^{N - y + \beta - 1}
+\\[4pt]
+&\propto \textrm{beta}(\theta \mid y + \alpha, N - y + \beta).
+\end{align}
+From here, we can conclude that the posterior is the beta
+distribution, because if
+$$
+p(\theta \mid y, N, \alpha, \beta)
+\propto \textrm{beta}(\theta \mid y + \alpha, N - y + \beta),
+$$
+then
+\begin{align}
+p(\theta \mid y, N, \alpha, \beta)
+&= \frac{\textrm{beta}(\theta \mid y + \alpha, N - y + \beta)}
+        {\int_{\Theta} \textrm{beta}(\theta \mid y + \alpha, N - y +
+	\beta) \, \textrm{d}\theta}
+\\[4pt]
+&= \frac{\textrm{beta}(\theta \mid y + \alpha, N - y + \beta)}
+        {1}
+\\[4pt]
+&= \textrm{beta}(\theta \mid y + \alpha, N - y + \beta)
+\end{align}
+</div>
+
+### Conjugate priors as data
+
+Conjugate priors are always from the *exponential family* of
+distributions (which we do not characterize here).  The reason for
+this is that the prior and sampling distribution both need to be
+exponential functions of the parameters so that their effects can be
+added and remain within the prior family.  For example, normals have
+density functions that are exponential functions of their argument and
+fall in the exponential family.
+
+<div class="example-text">
+Continuing the example of a $\textrm{beta}(\alpha, \beta)$
+distribution, consider the case where $\alpha = \beta = 1.$
+The resulting beta distribution is uniform over $\theta \in (0, 1),$
+$$
+\textrm{beta}(\theta \mid 1, 1)
+\propto \theta^{1 - 1} \cdot (1 - \theta)^{1 - 1}
+= 1.
+$$
+Consider observing $y$ successes out of $N,$ and hence $N - y$
+failures.  The posterior will be $\textrm{beta}(y + 1, N - y + 1).$
+Given that we started from a uniform distribution, this represents $y$
+successes and $N - y$ failures.
+</div>
+
+### Chaining inferences
+
+Suppose we have observed data $y$ and parameter $\theta$ with sampling
+distribution $p(y \mid \theta)$ and prior $p(\theta \mid a_0)$ for
+some fixed parameters $a_1.$ Now suppose we observe data $y_1.$ We
+will have a posterior $p(\theta \mid a_1)$ where $a_1$ is some new
+fixed parameters.  This posterior after one observation $y_1$ may be
+used as the prior for the next observation $y_2.$ We can continue to
+chain inference this way and will wind up with the same result as if
+we had taken a sampling distribution with density $\prod_{n = 1}^N
+p(y_n \mid \theta)$ and observed $y_1, \ldots, y_N$ all at once.
+
+
+<div class="example-text">
+*Example (cont.)* Continuing the beta-binomial example, suppose we
+start with a uniform prior $\textrm{beta}(1,1).$ Now suppose we
+observe $y_1 = 1, N_1 = 1$, 1 success out of 1 try.  The posterior
+after observing $y_1$ is $\textrm{beta}(2, 1).$ This lets us update
+what we know about $\theta$ and use $\textrm{beta}(2, 1)$ as our prior
+for the next observation.  Suppose the next observation is $y_2 = 1,$
+another success. This gives us a posterior of $\textrm{beta}(3, 1),$
+which becomes the prior for the next observation and so on.  In this
+way, we can break a single binomial updates down into a sequence of
+smaller updates, even down to $N = 1$ where we take the results one at
+a time.
+</div>
 
 
 
