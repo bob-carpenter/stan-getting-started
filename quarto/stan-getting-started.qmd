@@ -15,7 +15,7 @@ format:
     fontcolor: black
     monobackgroundcolor: white
     monofont: "Menlo, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace"
-    fontsize: 12pt
+    fontsize: 13pt
     linestretch: 1.4
     number-sections: true
     number-depth: 2
@@ -637,7 +637,7 @@ for N in [10, 100, 1_000]:
 xlabel = 'estimated Pr[success]'    
 df = pd.DataFrame({xlabel: ps, 'trials': ts})
 print(pn.ggplot(df, pn.aes(x = xlabel))
-  + pn.geom_histogram(binwidth=0.01)
+  + pn.geom_histogram(binwidth=0.01, color='white')
   + pn.facet_grid('. ~ trials')
   + pn.scales.scale_x_continuous(limits = [0, 1], breaks = [0, 1/4, 1/2, 3/4, 1],
       labels = ["0", "1/4", "1/2", "3/4", "1"], expand=[0, 0])
@@ -1150,6 +1150,20 @@ after the first line and leave a dangling expression for the second
 line.  We recommend following mathematical conventions and breaking
 a line before an operator, ideally right before a term in a chain of
 additions or a factor in a chain of multiplications.
+
+## Matrices and vectors are real or complex-valued
+
+The Stan types `vector,` `row_vector,` and `matrix` only allow
+real-valued entries.  Entries may be assigned to integers, but the
+integers are promoted to real values.  There are separate types
+`complex_vector,` `complex_row_vector` and `complex_matrix` to hold
+complex values.  Real-valued vectors, etc., may be assigned to their
+complex counterparts, but not vice-versa.
+
+There are no integer vectors, row vectors or matrices.  The only
+containers for holding integers are arrays.  Stan provides functions
+for converting integer arrays to vectors and matrices.
+
 
 ## Storage order
 
@@ -2194,9 +2208,17 @@ the posterior density of the restaurants' probability of receiving a
 5-star review. With this posterior, we can rank restaurants based on
 their probability of receiving a 5-star review and calculate the
 probability that each is the best restaurant,
-$$
-\Pr[\Theta_k = \max(\Theta) \mid n, N].
-$$
+\begin{align}
+\Pr[\Theta_k = \max(\Theta) \mid N, n]
+&= \mathbb{E}\!\left[\textrm{I}[\Theta_k = \max(\Theta)] \mid N, n\right]
+\\[4pt]
+&= \int \textrm{I}(\theta_k = \max(\theta) \cdot p(\theta \mid N, n)
+\, \textrm{d}{\theta}
+\\[4pt]
+&\approx \frac{1}{M} \sum_{m=1}^M \textrm{I}\!\left(\theta^{(m)}_k = \max\!\left(\theta^{(m)}\right)\right),
+\end{align}
+where we draw $\theta^{(m)} \sim p(\theta \mid N, n)$ from the posterior.
+
 
 ## Stan model for A/B testing
 
@@ -2209,15 +2231,15 @@ event probability estimates in the generated quantities block.
 ```
 
 We have coded the data for $K$ items directly in terms of number of
-trials and number of times A is preferred to  B (as a "success" in
-binomial parameter nomenclature).  We have also supplied the prior for
-the probabilities of success as data as `alpha` and `beta.`  The model
-is the same binomial as we had before, except now the likelihood and
-priors are vectorized.  In general, Stan is able to take something
-like the binomial distribution, which has an integer number of trials,
-integer number of successes, and a scalar success probability and
-take vectors for all of these.  What we have written above is identical
-to what we would get with a loop,
+trials and number of times A is preferred to B (as a "success" in
+binomial parameter nomenclature).  We have also supplied the prior
+parameters for the probability of success as data variables `alpha`
+and `beta.` The model is the same binomial as we had before, except
+now the likelihood and priors are vectorized.  In general, Stan is
+able to take something like the binomial distribution, which has an
+integer number of trials, integer number of successes, and a scalar
+success probability and take vectors for all of these.  What we have
+written above is identical to what we would get with a loop,
 
 ```stan
   for (k in 1:K) {
@@ -2236,7 +2258,7 @@ array, whereas `alpha` and `beta` are scalars.  The sampling statement for
 ```
 
 Because `alpha` and `beta` are scalars, they are not indexed.  Rather,
-they are _broadcast_, meaning that the same `alpha` and `beta` is
+they are _broadcast_, meaning that the same `alpha` and `beta` are
 reused for each dimension of `theta.`
 
 So now let's call and fit this model and print the summary.  We
@@ -2262,12 +2284,15 @@ chains here with default settings).  In fact, we can see that our
 sampling is nearly as efficient as if we had independent posterior
 draws.  The probability of a 5-star review is our value for `theta`,
 which are 51% for Downtown Bakery, 59% for Taqueria Gramercy, and 47%
-for La Delicias.  Even so, we see that the probability that Taqueria
-Gramercy is the most likely to have their next review be a 5-star
-review, it's still only 90% that's the case.  This is because binomial
-data is weak and we only have observations in the hundreds.  (Editor:
-Don't listen to Yelp---La Delicias is the best of these restaurants by
-far.)
+for La Delicias.  Moving onto the probability of being the best
+restaurant in terms of garnering 5-star reviews, Taqueria Gramercy has
+the highest probabilty of their next review being a 5-star one.  But
+our estimated probability that Taqueria Gramercy has the highest
+probability of a 5-star review is far less than 100%.  This is because
+binomial data is weak and we only have observations in the hundreds.
+(All three of these restaurants are good, but La Delicias is my
+favorite for both food and atmosphere.)
+
 
 # Stan's execution model
 
@@ -2292,18 +2317,20 @@ The _data_ block contains only variable declarations. The variables
 declared in the data block are read once at data load time.
 
 The _transformed data_ block contains variable declarations and
-definitions.   It is executed once, after the data is read is
-in, to define the transformed data variables.  It defines functions
-of the data, such as standardized predictors, constants to use for
-priors, etc.  The transformed data block may use pseudorandom number
-generation. 
+definitions.  It defines functions of the data, such as standardized
+predictors, constants to use for priors, etc.  The transformed data
+block may use pseudorandom number generation.  The transformed data
+block is executed once, after the data is read, to define the
+transformed data variables.
 
 All variable declarations at the block level must declare types and
 sizes (which may be data dependent).  Local variables within blocks
 are declared without sizes.
 
-Constraints in the data block are evaluated at the end of the block's
-execution.  Any violations throw exceptions which terminate execution.
+Constraints in the data block are evaluated as data is read in and
+constrained in the transformed data block are evaluated at the end of
+the block's execution.  Constraint violations in data or transformed
+data raise exceptions which terminate execution.
 
 Transformed data variables may be assigned in the transformed data
 block, but after these blocks have executed, the variables may not be
@@ -2314,9 +2341,7 @@ reassigned.
 
 The _parameters_ block declare the variables over which the model is
 defined. It contains only variable declarations with sizes. When
-executed, it is supplied with concrete parameter values, which it
-transforms to the unconstrained scale based on the declared
-constraints (if any).
+executed, it is supplied with concrete parameter values. 
 
 Constraints on parameters are used to define a transform of the
 constrained space to $\mathbb{R}^D$. For example, a variable declared
@@ -2330,10 +2355,11 @@ declared with all necessary constraints so that the model has support
 transformed space.
 
 The _transformed parameters_ block defines functions of parameters and
-data. Any constraints declared on transformed parameters are validated
-at the end of the block's execution.  If the constraints are violated,
-an exception will be thrown, which typically causes the current
-proposal to be rejected.
+data.  This is where users can define their own parameter transforms.
+Any constraints declared on transformed parameters are validated at
+the end of the block's execution.  If the constraints are violated, an
+exception will be thrown, which typically causes the current proposal
+to be rejected.
 
 Variables declared in the parameters block are like function argument
 declarations.  The log density function defined by a Stan program
@@ -2350,20 +2376,37 @@ the generated quantities block.
 
 ## Model
 
-The _model_ block defines the log density and is evaluated once per
-log density evaluation. The log density starts with any components
-added by the log Jacobian determinants of the inverse transforms of
-the parameters from the unconstrained to the constrained space. The
-model is defined using constants or modeled data from the data or
-transformed data block, and parameters or transformed parameters.
+The purpose of the _model_ block is to define the log density.  Once
+the data is loaded, a Stan program's main purpose is to provide an
+unnormalized log density function over the unconstrained parameters.
+External algorithms, such as optimizers, samplers, or variational
+inference will supply values of the unconstrained parameters to
+evaluate.
+
+The unnormalized log density value that is returned by model
+evaluation is held in an accumulator called `target`.  Posterior
+densities are defined by multiplying factors corresponding to
+probability density or mass functions.  Posterior log densities are
+defined by adding terms terms corresponding to unnormalized log
+density or mass functions.
+
+The unnormalized log density accumulator `target` is initialized at
+zero and then incremented throughougout the execution of a Stan
+program.  As mentioned in the last section, the first thing this
+unnormalized log density function does is constrain the parameters and
+add the log change of variables adjustment to the target accumulator.
+This is all done automatically.  This provides the constrained values
+of the parameters to the code that will execute next in the model
+block.
 
 The target log density that will be returned may be incremented
-directly, e.g., 
+directly, as in the following statement.
 ```stan
 target += -0.5 * x^2;
 ```
-The current value of the target is available as `target()`;
-printing it can be useful for debugging.
+Although the built-in accumulator `target` may not be used directly as
+a variable, its current value is available through the function
+`target()`; printing it can be useful for debugging.
 
 Sampling statements are just syntactic sugar for incrementing the
 target log density.  For example, the sampling statement
@@ -2374,16 +2417,18 @@ is equivalent to the target increment statement
 ```stan
 target += normal_lupdf(x | 0, 1);
 ```
+The `_lupdf` indicates that it is a log unnormalized probability
+density function.
 
 The vertical bar is used to separate outcome variates from the
 parameters.  The notation `lpdf` denotes a log probability density
 function, with `lpmf` for log probability mass functions. The variants
-`lupdf` and `lupmf` are for their unnormalized counterparts, which may
-drop normalizing constants that do not depend on the parameters.
-Unless the normalizing constants are
-needed, for example in a mixture model component, it is more efficient
-to use the `lupdf` and `lupmf` forms either explicitly or implicitly
-through sampling statements.
+`lupdf` and `lupmf`, as used above, are for their unnormalized
+counterparts, which may drop normalizing constants that do not depend
+on the parameters.  Unless the normalizing constants are needed, for
+example in a mixture model component, it is more efficient to use the
+`lupdf` and `lupmf` forms either explicitly by incrementing the
+`target` accumulator or implicitly through sampling statements.
 
 ## Generated quantities
 
@@ -2402,7 +2447,11 @@ Generated quantities do not contribute to the definition of the log
 density being sampled, but they are nevertheless part of the
 statistical model.  The typical role of generated quantities is for
 posterior predictive inference, which is conditionally independent of
-the observed data given the model parameters.
+the observed data given the model parameters.  *Posterior predictive
+inferences* are inferences (in the sense of "inductive inference") for
+new data items based on simulated parameter values; see [Appendix D2. Posterior
+predictive inference](#posterior-predictive-inference-1) for a precise
+definition.
 
 ## User-defined functions
 
@@ -2416,10 +2465,13 @@ types of special-purpose functions with Stan-specific behavior.
 Defining a function with the suffix `_lpdf` defines a continuous
 log probability density function where the first variable is a
 real- or complex-valued variate (these may be containers like matrices).
-
 Similarly, the suffix `_lpmf` marks a discrete log probability density
 function and Stan will validate that the first argument is declared as
 an integer.
+
+It is *not* possible to code a user-defined `_lupmf` or `lupdf`
+function because Stan does not provide the hooks to detect if
+arguments are constants and hence do not need to be included.
 
 These functions are called using standard vertical bar notation to separate
 the variate and its parameters and they may also be used in sampling
@@ -2444,7 +2496,7 @@ sampling statements after removing the suffix.
 ```
 A user-defined `_lpdf` function implicitly defines an equivalent `_lupdf`
 function so that user-defined `_lpdf` functions may be used with
-sampling notation.  User-defined functions ending in `_lupdf` or
+sampling notation.  Recall that user-defined functions ending in `_lupdf` or
 `_lupmf` are not allowed.
 
 ### User-defined random number generators
@@ -2471,17 +2523,33 @@ real simple_chi_sq_rng(int n) {
 
 ### Modifying the target
 
-Functions that use the suffix `_lp` can access and modify the log
-density.  This means they can only be used in transformed parameters
-or model blocks.  For example, the following function implements what
-Stan does implicitly for a variable declared with a `lower=0` constraint.
+Functions that use the suffix `_lp` (for "log probability density or
+mass function") can access and modify the target log density
+accumulator `target` either directly or through sampling statements.
+This restricts the use of functions ending in `_lp` to 
+the transformed parameters and model blocks.  For
+example, the following function implements what Stan does implicitly
+for a variable declared with a `lower=0` constraint.
 
 ```stan
 real pos_constrain_lp(real v) {
-  target += v;  // change of variables adjust: log abs(d/dv exp(v))
+  target += v;    // change of variables adjustment
   return exp(v);  // change of variables
 }
 ```
+The change of variables adjustment is just the log absolute value of
+the derivative of the constraining transform (see [Appendix : Change
+of variables (univariate)](#change-of-variables-univariate).  In this
+case, the constraining transform is $\exp:\mathbb{R} \rightarrow (0,
+\infty)$, so the log change of variables adjustment is
+$$
+\log \left| \exp'(v) \right|
+= \log \left| \exp(v) \right|
+= \log \exp(v)
+= v,
+$$
+where $\exp'$ is the derivative of the exponential function.
+
 
 ## Automatic differentiation {#autodiff}
 
@@ -2490,7 +2558,7 @@ density function.  This is done by building up the complete
 _expression graph_ of the log density being defined by the Stan model.
 A concrete value for unconstrained parameters is supplied, these are
 constrained and the log absolute determinant of the Jacobian of
-the unconstraining transformed is added to the expression graph.
+the unconstraining transforme is added to the expression graph.
 Then each operation involving parameters is added to the expression
 graph.  The root is the final log density value, which is the value
 of `target.`  The leaves are the unconstrained parameters.  A
@@ -2545,7 +2613,7 @@ rounding of our measurements.
 A simple univariate linear regression models one measurement as a
 linear function of another measurement.  In this example, we will
 model an iris flower's petal length as a linear function of its petal
-width.  If we let $x_n$ be the petal width for flower $n$ and let
+width.  Let $x_n$ be the petal width for flower $n$ and let
 $y_n$ be the petal length.  A linear regression says that we expect
 $y_n$ to be a linear function of $x_n$, or roughly, the expected value
 of $y_n$ will be $\alpha + \beta \cdot x_n$ for some intercept
@@ -2573,7 +2641,7 @@ how it's coded in Stan,
 $$
 y_n \sim \textrm{normal}(\alpha + \beta \cdot x_n, \sigma).
 $$
-In this form, it's clear that the linear prediction is the expectation
+In this form, the linear prediction is the expectation
 for the random variable $Y_n$ and the standard deviation is the scale,
 $$
 \mathbb{E}[Y_n] = \alpha + \beta \cdot X_n
@@ -2596,41 +2664,64 @@ vector arithmetic to them.
 
 The model parameters are coded in the parameter block.  The lower
 bound for `sigma` is required here as the normal distribution is only
-defined for positive values of `sigma.`  Stan requires every parameter
-value that satisfies the declared constraints to be in the _support_
-of the density, which is the set of values for which the density is
-non-zero (equivalently, the log density is finite).
+defined for positive values of `sigma.` Lower bounds for continuous
+values in Stan are exclusive mathematically, but can devolve to
+inclusive due to the vagaries of floating point.  For example, we
+unconstrain a positive value using logarithms, so the inverse
+constraining transform is the exponential function.  Mathematically,
+$\exp:\mathbb{R} \rightarrow (0, \infty)$ and cannot produce a 0
+value.  But we don't live in math world on computers.  With floating
+point arithmetic, it's possible that $u$ is so big (more than 500 or
+so) that $\exp(u)$ is smaller than the smallest number that can be
+represented in double-precision floating point arithmetic, and it
+*underflows* to zero.  If a constraining transform underflows for the
+scale and then we use it in a normal distribution, Stan will raise an
+exception, the capture of which by the inference algorithm will
+generate an informative warning message and reject the current iteration.
+
+Stan requires every parameter value that satisfies the declared
+constraints to be in the _support_ of the density, which is the set of
+values for which the density is non-zero (equivalently, the log
+density is finite).
 
 The model codes the regression following the math, but without the
 subscripts.  What's going on is that the sampling statement for
-`petal_length` is vectorized.  The variables `petal_length` and
+`petal_length` is vectorized.  The variables `petal_width` and
 `petal_length` are both vectors of size `N`, whereas `alpha`, `beta`,
-and `sigma` are all scalars.  Working outward, `beta * petal_width` is
-a scalar times a vector, which is defined in the usual way as a vector
-whose `n`th entry is `beta * petal_width[n].`  We then add `alpha` to
-that result (multiplication binds more tightly than addition and as in
-mathematical writing, we drop all unnecessary parentheses).  This is
-defined by _broadcasting_ so that `alpha` acts like a vector of size
-`N` and addition is defined in the usual way for vectors.  As a
-result, `alpha + beta * petal_width` is a vector of size `N`, whose
-`n`th element is `alpha + beta * petal_width[n].`  Now we have a
-vector for the location parameter of a normal distribution, a scalar
-scale (`sigma`), and a vector outcome (`petal_length`).  This works by
-broadcasting `sigma` to use for each `n.`  The end result is
+and `sigma` are all scalars. The expression `alpha + beta *
+petal_width` returns a vector, each entry of which is `alpha` plus
+`beta` times the corresponding petal width.  The scalar-vector
+multiplication is defined in the usual way.  The reuse of `alpha` for
+each petal width is known as *broadcasting* in programming languages.
+
+Now we have a vector for the location parameter of a normal
+distribution, a scalar scale (`sigma`), and a vector outcome
+(`petal_length`).  Stan's distributions will broadcast scalar like
+`sigma` to use for each element of a container.  The end result is
 equivalent to the following, but much more compact and efficient.
+
 ```stan
 for (n in 1:N) {
   petal_length[n] ~ normal(alpha + beta * petal_width[n], sigma);
 }
 ```
+
 The rest of the model is priors for the regression coefficients and
 error scale.  The coefficients are unconstrained, but the error scale
-is constrained to be positive, so we use a lognormal distribution (we
-could have also used a half normal and we should if scales near zero
-are possible).
+is constrained to be positive, so we use a lognormal distribution.  We
+could have made other choices for the prior here such as a positive
+half normal distribution or a positive half Student-t (unlike
+lognormal distributions, a positive half normal distribution centered
+at zero can accomodate scale values near zero; Student-t distributions
+have wider tails if there is more prior uncertainty as to the exact
+scale of the model).
 
 We can then compile and fit the model and display the resulting
-fit for `alpha` and `beta` as a scatterplot.
+fit for `alpha` and `beta` as a scatterplot.  Note that we are
+providing data for `species` that is not used---this makes it easy for
+use to reuse our data frame for later models that do take species into
+account.  Stan will only read the data variables that it needs and
+only throws an error if a required value is missing.
 
 ```{python}
 def iris_data_frame():
@@ -2678,9 +2769,9 @@ print(
 ```
 
 In order to fit all three groups of data, the plot doesn't do such a
-great job of fitting any of them---the larger instances among *iris
-setosa* examples and the larger instances among the *irs versicolor*
-have underestimated petal lengths.
+great job of fitting any of them---most *iris versicolor* instances
+and the wider instances among *iris setosa* have underestimated petal
+lengths.
 
 We didn't include the error scale, but it's roughly 0.5.  That means
 it won't be uncommon to get errors greater than 1 or less than -1.
@@ -2689,16 +2780,31 @@ negative lengths!
 
 ## Built-in generalized linear model functions
 
-Stan supplies built-ins for the most common generalized linear model
-(GLM) functions.  These allow linear and non-linear regressions to be
+Stan supplies built-ins for the most common *generalized linear model*
+(GLM) functions.  Generalized linear models involve a linear predictor
+like a linear regression, but then apply a non-linear link function to
+map to constrained expectations.  For example, a logistic regression
+model might apply the log odds ($\textrm{logit}()$) function to
+transform values in $\mathbb{R}$ to $(0, 1)$.  This is then coupled
+with an appropriate likelihood model, generalizing from the normal of
+linear regression to a Bernoulli distribution for logistic regression
+(or a Poisson distribution for a count regression after mapping
+$\mathbb{R}$ to $(0, \infty)$ for the expected count value).
+
+The GLM functions in Stan allow linear and non-linear regressions to be
 coded easily and efficiently.  For example, our linear regression
-could be coded with the `normal_id_glm` function and a logistic
-regression coded with the `bernoulli_logit_glm`.  The linear
-regression for the Iris data could be written as follows
+could be coded with the `normal_id_glm` function (indicating a normal
+distribution and identity link), whereas a logistic
+regression has a GLM function `bernoulli_logit_glm` (indicating a
+Bernoulli distribution with logit link).  The linear
+regression for the Iris data is most compactly and efficiently written
+as follows.
 ```stan
   petal_length ~ normal_id_glm(petal_width, alpha, beta, sigma);
 ```
-if the data and parameter type declarations are generalized to
+To accomodate the *signature* (argument order and types) of
+`normal_id_glm`,n data and parameter type declarations are *lifted* to
+container types. 
 ```stan
   matrix<lower=0>[N, 1] petal_width;
   vector[N] petal_length;
@@ -2731,20 +2837,28 @@ even have a finite mean or variance.
 
 Now let's say we have a new observation where we know the petal width
 and want to predict its length.  Mathematically, to make a prediction
-for a new item, we use _posterior predictive inference_.
+for a new item, we use _posterior predictive inference_.  Posterior
+predictive inference uses our posterior distribution over possible
+parameter values to predict new possible data values given new predictors.
 
 First, let's consider evaluating the log density of a new petal's
 length ($\tilde{y}$) given its observed width ($\tilde{x}$), having
-observed our original data $x$ and $y$.  In Bayesian inference,
-we evaluate the _posterior predictive distribution_, where we
-let $\Theta$ be our random parameters with realization $\theta$,
+observed our original data $x$ and $y$.  We use the notation
+$\tilde{y}$ and $\tilde{x}$ to distinguish the posterior predictions
+and their predictors from the "training" data.
+
+In Bayesian inference, the _posterior predictive distribution_ is
+$p(\tilde{y} \mid \tilde{x}, x, y),$ which is the posterior
+distribution over new data items $\tilde{y}$ given "training" data $x,
+y$ and the covariates $\tilde{x}$ for the new data items.  The full
+definition is
 \begin{align}
 p(\tilde{y} \mid \tilde{x}, x, y)
-&= \mathbb{E}[p(\tilde{y} \mid \tilde{x}, \theta) \mid x, y]
+&= \mathbb{E}[p(\tilde{y} \mid \tilde{x}, \Theta) \mid x, y]
 \\[6pt]
-&= \int_{\Theta} p(\tilde{y} \mid \tilde{x}, \theta) \cdot p(\theta \mid x, y) \, \textrm{d}\theta
+&= \int_{\mathbb{R}^N} p(\tilde{y} \mid \tilde{x}, \theta) \cdot p(\theta \mid x, y) \, \textrm{d}\theta
 \\[6pt]
-&\approx \frac{1}{M} \sum_{m=1}^M \, p(\tilde{y} \mid \tilde{x}, \theta^{(m)}),
+&\approx \frac{1}{M} \sum_{m=1}^M \, p\!\left(\tilde{y} \mid \tilde{x}, \theta^{(m)}\right),
 \end{align}
 where $\theta^{(1)}, \ldots, \theta^{(m)} \sim p(\theta \mid x, y)$
 are draws from the posterior.  The parameters are marginalized out.
@@ -2754,9 +2868,10 @@ of parameters from the posterior.
 
 ### Sampling uncertainty and estimation uncertainty {#uncertainty-types}
 
-It can help to break the integral down into the two components of
-uncertainty, sampling uncertainty due to our sampling distribution and
-posterior uncertainty in the values of our parameters,
+It can help to break the posterior predictive integral down into the
+two components of uncertainty, sampling uncertainty due to our
+sampling distribution and posterior uncertainty in the values of our
+parameters,
 $$
 \int_{\Theta}
 \underbrace{p(\tilde{y} \mid \tilde{x}, \theta)}_{\textrm{sampling uncertainty}} 
@@ -2764,7 +2879,13 @@ $$
 \underbrace{p(\theta \mid x, y)}_{\textrm{estimation uncertainty}}
 \, \textrm{d}\theta
 $$
-In our case, $\theta = \begin{bmatrix}\alpha & \beta &
+In cases where $\tilde{y}$ and $\tilde{x}$ are known, we can use this
+expression to evaluate $p(\tilde{y} \mid \tilde{x}, x, y).$  We do
+this, for example, in cross-validation, a form of model evaluation.
+In cases where $\tilde{x}$ is known, but not $\tilde{y},$ we can
+sample $\tilde{y} \sim p(\tilde{y} \mid \tilde{x}, x, y).$
+
+In this section, we have taken $\theta = \begin{bmatrix}\alpha & \beta &
 \sigma\end{bmatrix}$ and the sampling distribution is
 $$
 p(\tilde{y} \mid \tilde{x}, \alpha, \beta, \sigma)
@@ -2796,12 +2917,67 @@ where $\alpha^{(m)}, \beta^{(m)}, \sigma^{(m)} \sim p(\alpha, \beta,
 to estimate $\tilde{y}$, we can take posterior means of these values.
 In the case here, our sampling distribution is symmetric, so that the
 expectation of the random draws and the expectation of their mean is
-identical.  If our only goal is to estimate an expectation, it is
-better to average expectations than to average random draws with those
-expectations.  This is formalized in the [*Rao-Blackwell
-theorem*](https://en.wikipedia.org/wiki/Rao%E2%80%93Blackwell_theorem).
-Converting an estimator that uses a sample to one that uses
-expectations of that sample is called "Rao-Blackwellization."
+identical.
+
+If our only goal is to estimate an expectation, it is better to
+average expectations than to average random draws that happen to have
+those expections.  The sense in which it is better is that it will
+lead to lower variance in the estimator and hence lower expected
+square error (recall that expected square error has contributions from
+both bias and variance).
+
+<div class="example-text">
+*Example: Rao-Blackwell.* Suppose we have two random variables,
+$$
+Y \sim \textrm{normal}(\pi, 1)
+\qquad \quad
+Z \sim \textrm{normal}(Y, 2).
+$$
+From the definition of the normal distribution, $\mathbb{E}[Y] = \pi$
+and with a little more work, we can establish that $\mathbb{E}[Z] =
+\pi.$ Although $\textrm{sd}[Y] = 1,$ it is possible to work out
+analytically that $\textrm{sd}[Z] = \sqrt{1^2 + 2^2} > 1,$ because the
+variance of a sequential normal like this is the sum of their
+variances.  
+
+Because they both have the right expected value, we can use either
+averages of draws of $Y$ or averages of draws of $Z$ to estimate
+$\pi.$ The [*Rao-Blackwell
+theorem*](https://en.wikipedia.org/wiki/Rao%E2%80%93Blackwell_theorem)
+tells us that expected error using $Z$ will be higher than using $Y.$
+Rather than going through the theory, we will provide a simulated
+example with code.
+
+Here is simulation code and histograms of the result of 10,000
+simulations of 100 draws each for aestimators based on simulating from
+$Y$ and $Z$, with a vertical line at $\pi,$ the value being estimated.
+
+```{python}
+N = 100
+M = 10_000
+y_hat = np.zeros(M)
+z_hat = np.zeros(M)
+for m in range(M):
+    y = np.random.normal(np.pi, 1, size = N)
+    z = np.random.normal(y, 2, size = N)
+    y_hat[m] = np.mean(y)
+    z_hat[m] = np.mean(z)
+df = pd.DataFrame({
+    'estimate': np.concatenate([y_hat, z_hat]),
+    'estimator': np.concatenate([['mean(Y)'] * len(y_hat), ['mean(Z)'] * len(z_hat)])
+})
+print(pn.ggplot(df, pn.aes(x = 'estimate'))
+     + pn.geom_histogram(color = 'white', binwidth=0.05)
+     + pn.facet_wrap('~ estimator')
+     + pn.geom_vline(xintercept = np.pi, color = "blue")
+     + pn.scale_x_continuous(limits=[2, 4.5])
+     + pn.theme(aspect_ratio = 1))
+```
+The plots show that using the mean of the $Y$ simulations is more
+accurate than using the mean of the $Z$ simulations.  How much
+accuracy is gained depends on the variance of $Z.$
+</div>
+
 
 ### Standalone generated quantities
 
@@ -2855,18 +3031,20 @@ for i in range(3):
   print(f"  sd(petal_length[{i}]) = {np.std(length_draws):.2f}\n")
 ```
 
-For each of our input petal widths $[0.4 \quad 1.75 \quad 3.8]$, we see the
-posterior mean prediction for petal width and its standard deviation
-calculated two ways. First, we take the posterior draws for the
-expected petal length, `E_petal_length_tilde`, which is just the
+For each of our input petal widths $[0.4 \quad 1.75 \quad 3.8]$, we
+see the posterior mean prediction for petal width and its standard
+deviation calculated two ways. First, we take the posterior draws for
+the expected petal length, `E_petal_length_tilde`, which is just the
 linear prediction of petal value. The uncertainty comes only from
 estimation uncertainty in $\alpha$ and $\beta$. Second, we take the
 posterior draws for petal length, which include an additional normal
 error term with scale $\sigma$. The means are roughly the same either
 way, but the standard deviation is much higher in the case of
-sampling. The second variable, `petal_length_tilde`, includes both
-sources of posterior uncertainty, estimation uncertainty and
-uncertainty from the sampling distribution.
+sampling.  We generally prefer estimators with lower standard
+deviation as they lead to lower standard error with Monte Carlo
+methods (as we illustrated with an example above).  The second variable,
+`petal_length_tilde`, includes both sources of posterior uncertainty,
+estimation uncertainty and uncertainty from the sampling distribution.
 
 ## Lognormal and transformed data
 
@@ -7078,10 +7256,10 @@ p(\theta \mid y, N, \alpha, \beta)
 &= \frac{\textrm{beta}(\theta \mid y + \alpha, N - y + \beta)}
         {\int_{\Theta} \textrm{beta}(\theta \mid y + \alpha, N - y +
 	\beta) \, \textrm{d}\theta}
-\\[4pt]
+\\[8pt]
 &= \frac{\textrm{beta}(\theta \mid y + \alpha, N - y + \beta)}
         {1}
-\\[4pt]
+\\[6pt]
 &= \textrm{beta}(\theta \mid y + \alpha, N - y + \beta)
 \end{align}
 </div>
