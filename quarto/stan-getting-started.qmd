@@ -142,7 +142,7 @@ packages we will use throughout this tutorial.
 ```{python}
 # PROJECT SETUP
 # set DRAFT = False for final output; DRAFT = True is faster
-DRAFT = False
+DRAFT = True
 
 import itertools
 import logging
@@ -5370,58 +5370,70 @@ $$
 If $A$ and $B$ are independent, then $A$ and $B^\complement$ are also
 independent, and thus $\Pr[A \mid B] = \Pr[A \mid B^\complement].$ 
 
-<div class="example-text">
-*Example 3, cont.*  Consider our Lebesgue measure on $(0, 1)^2,$ where
-the probability of an event is equal to its area.  We can define an
-event $A$ by dividing the sample space into an area for $A$ of 0.2
-and an area for $A^\complement$ of 0.8.  In the following diagram, we
-represent this as a blue horizontal dividing line, with the lower half
-(with area 0.2) representing the event $A.$  We do the same for $B$ with a red
-vertical dividing line, taking the left half (with area 0.6) to
-correspond to the event $B.$  
+<div class="example-text"> *Example 3, cont.* Consider our Lebesgue
+measure on $(0, 1)^2,$ where the probability of an event is equal to
+its area.  We can define an event $A$ by dividing the sample space
+into an area for $A$ of 0.2 and an area for $A^\complement$ of 0.8.
+On the left-hand side of the following diagram, we represent this as a
+blue horizontal dividing line, with the lower half (with area 0.2)
+representing the event $A.$ We do the same for $B$ with a red vertical
+dividing line, taking the left half (with area 0.6) to correspond to
+the event $B.$  Complements are represented by negation in the axis labels.
+
 ```{python}
 #| code-fold: true
-print(pn.ggplot(pd.DataFrame())
-  + pn.scale_y_continuous(breaks=[0.1, 0.6], labels=["A", "-A"], limits = (0, 1), expand=(0, 0))
-  + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["B", "-B"], limits = (0, 1), expand=(0, 0))
+plot1 = (pn.ggplot(pd.DataFrame())
+    + pn.scale_y_continuous(breaks=[0.1, 0.6], labels=["A", "-A"],
+                            limits = (0, 1), expand=(0, 0))
+    + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["B", "-B"],
+                            limits = (0, 1), expand=(0, 0))
   + pn.geom_vline(pn.aes(xintercept=0.6), color='red')
   + pn.geom_hline(pn.aes(yintercept=0.2), color='blue')
   + pn.coord_equal()
+  + pn.labs(title="A, B: independent")
   + pn.theme(panel_grid_major = pn.element_blank(),
              panel_grid_minor = pn.element_blank(),
      	     axis_title = pn.element_blank(),
-	     axis_ticks = pn.element_blank())
-)
+	     axis_ticks = pn.element_blank()))
+
+plot2 = (pn.ggplot(pd.DataFrame())
+    + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["C", "-C"],
+                            limits = (0, 1), expand=(0, 0), name="")
+    + pn.scale_y_continuous(breaks=[0.1, 0.6], labels=["A", "-A"],
+                            limits = (0, 1), expand=(0, 0), name="")
+    + pn.geom_segment(pn.aes(x=0.2, y=1, xend=0.7, yend=0), color='red')
+    + pn.coord_equal()
+    + pn.geom_hline(pn.aes(yintercept=0.2), color='blue')
+  + pn.labs(title="A, C: not independent")
+    + pn.theme(panel_grid_major = pn.element_blank(),
+               panel_grid_minor = pn.element_blank(),
+	       axis_title = pn.element_blank(),
+	       axis_ticks = pn.element_blank()))
+	       
+plot12 = (pw.load_ggplot(plot1, figsize=(3.25, 3))
+         | pw.load_ggplot(plot2, figsize=(3.25, 3)))
+plot12.savefig()
 ```
+
 We have $\Pr[A] = 0.2$ and $\Pr[B] = 0.6.$ We can work out that
 $$
 \Pr[A \mid B] = \frac{\Pr[A, B]}{\Pr[B]} = \frac{0.12}{0.6} = 0.2 = \Pr[A],
 $$
 and
 $$
-\Pr[B \mid A] = \frac{\Pr[B, A]}{\Pr[A]} = .\frac{0.12}{0.2} = 0.6 = \Pr[B].
+\Pr[B \mid A] = \frac{\Pr[B, A]}{\Pr[A]} = \frac{0.12}{0.2} = 0.6 = \Pr[B].
 $$
 Thus the events $A$ and $B$ are independent.  We can also reason
 geometrically, noting that the ratio of $A$'s area to the total
 space's area is the same as the ratio of $A \cap B$'s area to the area
-of $B.$  Now consider the following manner of partitioning the sample space.
-```{python}
-#| code-fold: true
-print(pn.ggplot(pd.DataFrame())
-  + pn.scale_x_continuous(breaks=[0.3, 0.8], labels=["C", "-C"], limits = (0, 1), expand=(0, 0))
-  + pn.scale_y_continuous(breaks=[0.1, 0.6], labels=["A", "-A"], limits = (0, 1), expand=(0, 0))
-  + pn.geom_segment(pn.aes(x=0.2, y=1, xend=0.7, yend=0), color='red')
-  + pn.coord_equal()
-  + pn.geom_hline(pn.aes(yintercept=0.2), color='blue')
-  + pn.theme(panel_grid_major = pn.element_blank(),
-             panel_grid_minor = pn.element_blank(),
-	     axis_title = pn.element_blank(),
-	     axis_ticks = pn.element_blank())
-)
-```
-Geometric reasoning here shows that $\Pr[A \mid C^\complement] < \Pr[A
-\mid C]$ and thus $A$ and $C$ are not independent.
+of $B.$
+
+Now consider the right-hand figure above.  The event $A$ is the same,
+but there is a new event $C$.  Geometric reasoning shows that $\Pr[A
+\mid C^\complement] < \Pr[A \mid C]$ and thus $A$ and $C$ are not
+independent.
 </div>
+
 
 ### Conditional independence
 
