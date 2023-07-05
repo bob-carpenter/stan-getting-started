@@ -133,6 +133,8 @@ dmypy.json
 *.aux
 *.pdf
 *.tex
+# Re-include header .tex file (manually created)
+!header.tex
 quarto/stan-getting-started_files/
 
 # Mac caches
