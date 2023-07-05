@@ -5912,7 +5912,7 @@ plot1 = (pn.ggplot(df, pn.aes(x='n', y='cdf'))
     + pn.scale_x_continuous(limits=(1,13),
                             breaks=support, expand=(0, 0))
     + pn.ggtitle('cdf')
-    + pn.theme(strip_margin_x=5.0))
+    + pn.theme(strip_align_x=5.0))
 for n in range(0,12):
     plot1 += pn.geom_segment(pn.aes(x = n + 1,
                y = cdf_values[n], xend = n + 2 - 0.075,
