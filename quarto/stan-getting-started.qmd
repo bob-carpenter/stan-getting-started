@@ -12,7 +12,7 @@ format:
     css: style.css
     highlight-style: atom-one
     mainfont: Palatino
-    fontcolor: black
+    fontcolor: black>
     monobackgroundcolor: white
     monofont: "Menlo, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace"
     fontsize: 13pt
@@ -31,9 +31,6 @@ format:
     include-in-header:
       - file: header.tex
     mainfont: Palatino
-    monofont: SourceCodePro
-    monofontoptions:
-      - Scale=0.6
     number-sections: true
     number-depth: 2
     margin-bottom: 1in
@@ -3695,7 +3692,7 @@ $$
 $$
 On the log scale where Stan operates, that's
 $$
-\log \textrm{Pr}[Z_n = 1 \mid y, \mu, \sigma]
+\log \Pr[Z_n = 1 \mid y, \mu, \sigma]
 = \log p(y_n \mid \mu_0, \sigma_0)
   - \textrm{log-sum-exp}\!\left(log p(y_n \mid \mu_0, \sigma_0),
                          \log p(y_n \mid \mu_1, \sigma_1)\right).
@@ -5180,11 +5177,7 @@ $\Pr[\{ n \}] = 2^-{n + 1}.$  This assigns a probability to the
 event $\{ n \}$ equal to that of flipping $n$ successive heads with a
 fair coin.  Countable additivity gives us $\Pr[\mathbb{N}] = 1,$ because $\sum_{n \in
 \mathbb{N}} 2^{n - 1} = \frac{1}{2} + \frac{1}{4} + \frac{1}{8} +
-\cdots = 1.$  
-
-from which it follows from countable
-additivity that for any $A \subseteq \mathbb{N},$ that $\Pr[ A \] =
-\sum{a \in A} \Pr[\{ a \}].$
+\cdots = 1.$   
 </div>
 
 <div class="example-text">
@@ -6991,7 +6984,7 @@ A Markov chain $X$ need not be stationary to have a stationary
 distribution.  In applications, we generally construct non-stationary
 Markov chains with a target stationary distribution (e.g., a Bayesian
 posterior).   If $X$ has the stationary distribution $\textrm{Q}$
-and the initial distribution follows it (i.e., $\textrm{Pr}[X_0 \in A] =
+and the initial distribution follows it (i.e., $\Pr[X_0 \in A] =
 \textrm{Q}[A]),$, then $X$ is a stationary chain.
 
 ### Reversible Markov chains
@@ -7316,7 +7309,7 @@ event $A = \left\{ \theta \in \Theta : \theta > 0.5 \right\}$.
 The probability of an event conditioned on data is just another
 posterior expectation, this time of
 \begin{align}
-\textrm{Pr}[A \mid y]
+\Pr[A \mid y]
 &= \mathbb{E}[\textrm{I}[\Theta \in A] \mid y]
 \\[6pt]
 &= \int_{\Theta} \textrm{I}(\theta \in A) \cdot p(\theta \mid y) \, \textrm{d}\theta,
