@@ -298,7 +298,7 @@ statistics often operates counterfactually, where we have actually
 observed the outcome of a coin flip but persist in treating it as if
 it were random and could have resulted in a different value.
 
-In practice, Stan parameters, transformed paraemters, and posterior
+In practice, Stan parameters, transformed parameters, and posterior
 predictive quantities are all unobserved random variables.  Such
 variables are inferred from the model and the values of other
 variables.  Stan typically produces different values for unobserved
@@ -514,7 +514,8 @@ data = {'N': N, 'theta': theta}
 model = csp.CmdStanModel(stan_file = '../stan/binomial-rng.stan')
 sample = model.sample(data = data, seed = 123, chains = 1,
                       iter_sampling = 10, iter_warmup = 0,
-                      show_progress = False, show_console = False)
+                      show_progress = False, show_console = False,
+                      adapt_engaged = False)
 ```
 
 The [Python boilerplate](#python-boilerplate) above set the log level
@@ -553,6 +554,8 @@ indicates how many to run in parallel),
 sampling algorithm (not needed here, so set to 0),
 * `show_progress`: if `True`, print progress updates, and
 * `show_console`: pop up a GUI progress monitor.
+* `adapt_engaged`: flag indicating whether to automatically adapt the
+stepsize during warmup and defaults to True
 
 The result of calling `sample()` on the model instance is assigned to
 the Python variable `sample`.  It will contain the 10 draws we
@@ -593,7 +596,8 @@ for N in [10, 100, 1_000, 10_000]:
     sample = model.sample(data = data, seed = 123, chains = 1,
                           iter_sampling = 10, iter_warmup = 0,
                           show_progress = False,
-			  show_console = False)
+                          show_console = False,
+                          adapt_engaged = False)
     y = sample.stan_variable('y')
     print("N =", N)
     print("  y: ", *y.astype(int))
@@ -626,7 +630,8 @@ for N in [10, 100, 1_000]:
     data = {'N': N, 'theta': theta}
     sample = model.sample(data = data, seed = 123, chains = 1,
        iter_sampling = M, iter_warmup = 0, show_progress = False,
-       show_console = False)
+       show_console = False,
+       adapt_engaged = False)
     y = sample.stan_variable('y')
     theta_hat = y / N
     ps.extend(theta_hat)
@@ -678,7 +683,8 @@ sampling method with seeds 123, 19876, and 123.
 for seed in [123, 19876, 123]:
     sample = model.sample(data = data, seed = seed, chains = 1,
                           iter_sampling = 10, iter_warmup = 0,
-                          show_progress = False, show_console = False)
+                          show_progress = False, show_console = False,
+                          adapt_engaged = False)
     print(f"{seed = };  sample = {sample.stan_variable('y').astype(int)}")
 ```
 The two runs with seed 123 produce the same results. The code to
@@ -742,7 +748,7 @@ M = 100 if DRAFT else 10_000
 model = csp.CmdStanModel(stan_file = '../stan/monte-carlo-pi.stan')
 sample = model.sample(chains = 1, iter_warmup = 0, iter_sampling = M,
                       show_progress = False, show_console = False,
-                      seed = 123)
+                      adapt_engaged = False, seed = 123)
 x_draws = sample.stan_variable('x')
 y_draws = sample.stan_variable('y')
 inside_draws = [int(i) for i in sample.stan_variable('inside')]
@@ -838,7 +844,8 @@ in_probs = np.repeat(1.0, 13)
 for D in range(1, 13):
     sample = model.sample(chains=1, iter_warmup = 0, iter_sampling = M,
                           data = {'D' : D}, show_progress = False,
-			  show_console = False, seed = 123)
+                          show_console = False, adapt_engaged = False,
+                          seed = 123)
     inside_draws = sample.stan_variable('inside')
     in_probs[D] = np.sum(inside_draws) / M
 
@@ -946,7 +953,8 @@ for rho in [0.05, 0.5, 0.95]:
     data = {'M': M, 'rho': rho}
     sample = model.sample(data = data, seed = 123, chains = 1,
                       iter_warmup = 0, iter_sampling = 1,
-                      show_progress = False, show_console = False)
+                      show_progress = False, show_console = False,
+                      adapt_engaged = False)
     y_sim = sample.stan_variable('y')
     cum_sum = np.cumsum(y_sim)
     its = np.arange(1, M + 1)
@@ -1248,12 +1256,14 @@ for n in ns:
     start_time = time.time()
     fit = model.sample({'N': n, 'row_major': 1, 'A': A},
                        iter_warmup=0, iter_sampling=M, seed=123,
-                       show_progress = False, show_console = False)
+                       show_progress = False, show_console = False,
+                       adapt_engaged = False)
     print(f"   row major: n = {n:>5};  {(time.time() - start_time):6.2f} seconds")
     start_time = time.time()
     fit = model.sample({'N': n, 'row_major': 0, 'A': A},
                        iter_warmup=0, iter_sampling=M, seed=123,
-                       show_progress = False, show_console = False)
+                       show_progress = False, show_console = False,
+                       adapt_engaged = False)
     print(f"   col major: n = {n:>5};  {(time.time() - start_time):6.2f} seconds")
 ```
 
